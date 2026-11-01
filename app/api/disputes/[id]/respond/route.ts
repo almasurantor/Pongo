@@ -7,10 +7,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { action } = await request.json();
-  if (action !== 'accept' && action !== 'reject') return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-  const { data, error } = await supabase.rpc('respond_match_correction_v2', {
+  if (action !== 'approve' && action !== 'decline') return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+  const { data, error } = await supabase.rpc('respond_match_dispute_v3', {
     p_dispute: params.id,
-    p_accept: action === 'accept',
+    p_action: action,
   });
   if (error) return apiError(error);
   return NextResponse.json(data);

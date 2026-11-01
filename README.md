@@ -1,6 +1,6 @@
 # Beaver Smash - CCNY Table Tennis Club Ladder System
 
-A ranked 1v1 ELO-based ladder system with weekly leaderboards for the CCNY Table Tennis Club.
+A ranked 1v1 ELO-based ladder system with weekly, monthly, and all-time leaderboards for the CCNY Table Tennis Club.
 
 ## Tech Stack
 
@@ -20,7 +20,7 @@ npm install
 
 2. Set up environment variables:
 ```bash
-cp .env.local.example .env.local
+cp env.local.template .env.local
 # Add your Supabase credentials
 ```
 
@@ -35,9 +35,18 @@ npm run dev
 
 - ELO-based ranking system
 - Challenge system with expiration
-- Single-player result reporting with opponent confirmation or dispute
-- Spontaneous match recording without a challenge
-- Calendar-week leaderboards backed by immutable weekly rows
+- Challenge-only ranked matches with mutual acceptance
+- First-valid-score finalization with transaction-safe ELO updates
+- Mutual cancellation and 24-hour match expiration without rating penalties
+- Acceptance-time reservations enforcing 10 ranked games per day and 3 per opponent
+- New York calendar-day usage shown on dashboards and player cards
+- K=40 weighted ELO with a capped 10% score-margin adjustment and exact zero-sum transfers
+- Pre-match rating estimates and immutable post-match calculation breakdowns
+- Seven automatic competitive tiers from Iron through Legend, with rank badges, progress, five-game provisional placement, and promotion/demotion feedback
+- Unified weekly, monthly, and all-time leaderboards with New York period boundaries, net-ELO ranking, full player statistics, and historical winner archives
+- 48-hour result disputes with mutual corrections/voids, admin escalation, immutable revisions, and downstream rating replay
+- Mobile-first score confirmation, live deadlines, victory/defeat feedback, and an ELO-free casual scorekeeper
+- Least-privilege database writes, immutable rating/audit facts, automated integrity signals, and optional private dual reporting
 - Real-time updates
 - Match history tracking
 - Disputes, admin review, rating-event history, and player trust controls

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import ProfileClient from './ProfileClient';
+import { OpponentRankedUsage } from '@/lib/types';
 
 export default async function ProfilePage({ params }: { params: { id: string } }) {
   const supabase = await createClient();
@@ -33,11 +34,13 @@ export default async function ProfilePage({ params }: { params: { id: string } }
     .order('confirmed_at', { ascending: false })
     .limit(3);
 
-  const [{ data: ratings }, { data: rankedPlayers }] = await Promise.all([
+  const [{ data: ratings }, { data: rankedPlayers }, { data: opponentUsageRows }] = await Promise.all([
     supabase.from('rating_events').select('*').eq('player_id', params.id).eq('is_active', true).order('created_at', { ascending: false }).limit(5),
     supabase.from('profiles').select('id').order('current_elo', { ascending: false }),
+    supabase.rpc('get_my_opponent_ranked_usage_v3'),
   ]);
   const rank = (rankedPlayers || []).findIndex((player) => player.id === params.id) + 1;
+  const opponentUsage = ((opponentUsageRows || []) as OpponentRankedUsage[]).find((row) => row.opponent_id === params.id) || null;
 
-  return <ProfileClient profile={profile} matches={matches || []} ratingEvents={ratings || []} rank={rank || 1} currentUserId={user.id} />;
+  return <ProfileClient profile={profile} matches={matches || []} ratingEvents={ratings || []} opponentUsage={opponentUsage} rank={rank || 1} currentUserId={user.id} />;
 }

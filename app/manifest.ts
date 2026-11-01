@@ -33,8 +33,9 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     shortcuts: [
       { name: 'Home', short_name: 'Home', url: '/dashboard', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
-      { name: 'Record a match', short_name: 'Play', url: '/play/record', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
+      { name: 'Challenge a player', short_name: 'Play', url: '/players', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
       { name: 'Leaderboard', short_name: 'Ranks', url: '/leaderboard', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
+      { name: 'Casual scorekeeper', short_name: 'Casual', url: '/play/casual', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
     ],
   };
 }

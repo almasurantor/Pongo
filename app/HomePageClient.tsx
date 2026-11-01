@@ -36,16 +36,16 @@ export default function HomePageClient({ playerCount, matchCount }: { playerCoun
   }, [supabase]);
   const features = [
     {
-      title: 'ELO Ranking System',
-      description: 'Compete and climb the ranks with our sophisticated ELO-based ladder system that rewards skill and consistency',
+      title: 'Competitive Ranks',
+      description: 'Climb from Iron to Legend with permanent ELO, distinctive badges, and clear progress toward your next tier',
     },
     {
       title: 'Real-Time Updates',
-      description: 'Get instant notifications when challenged and see leaderboard updates live as matches are confirmed',
+      description: 'See challenges, active matches, rating changes, and leaderboards refresh as club results are confirmed',
     },
     {
-      title: 'Weekly Leaderboards',
-      description: 'Track your performance by club week and compete for the top spot without losing past results',
+      title: 'Live Leaderboards',
+      description: 'Compare weekly and monthly ELO gains, climb the permanent ladder, and revisit previous winners',
     },
     {
       title: 'Match Tracking',
@@ -62,8 +62,8 @@ export default function HomePageClient({ playerCount, matchCount }: { playerCoun
 
   const steps = [
     { step: '1', title: 'Challenge Players', desc: 'Send challenges to any player in the club and wait for acceptance' },
-    { step: '2', title: 'Play & Report', desc: 'One player reports the final score and the opponent confirms or disputes it' },
-    { step: '3', title: 'Climb Rankings', desc: 'Watch your ELO update instantly and climb the leaderboard' },
+    { step: '2', title: 'Play & Report', desc: 'Either player submits the final score and the first valid report finalizes it' },
+    { step: '3', title: 'Climb Rankings', desc: 'Watch your ELO update instantly and progress from Iron to Legend' },
   ];
 
   return (

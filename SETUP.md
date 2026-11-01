@@ -30,10 +30,20 @@ For an existing Beaver Smash project:
 3. Verify profile ratings/records and the confirmed-match count are unchanged.
 4. Deploy this compatible application and smoke-test reporting, confirmation, leaderboard, profile, and admin reads.
 5. Run `supabase/migrations/20261001_02_contract_mobile_ranking.sql` only after the compatible deployment is live.
+6. Run `supabase/migrations/20261001_03_fix_signup_and_mobile_scroll.sql` to install the current signup trigger.
+7. Run `supabase/migrations/20261025_01_repair_stale_challenges.sql` so expired challenge rows cannot block or break future challenge actions.
+8. Run `supabase/migrations/20261030_01_phase1_ranked_match_lifecycle.sql` immediately before deploying the Phase 1 application. This intentionally expires every unfinished legacy match without changing ratings.
+9. Run `supabase/migrations/20261030_02_phase2_ranked_game_limits.sql` before deploying the Phase 2 application. It backfills each ranked match’s New York acceptance day and changes the daily pair cap from 20 to 3.
+10. Run `supabase/migrations/20261031_01_phase3_weighted_elo.sql` before deploying the Phase 3 application. It changes only future finalizations to K=40 weighted ELO; historical match and rating-event deltas remain unchanged.
+11. Run `supabase/migrations/20261031_02_phase4_competitive_ranks.sql` before deploying the Phase 4 application. It installs the seven automatic rank tiers and backfills rank labels onto rating events without changing any ELO value.
+12. Run `supabase/migrations/20261031_03_phase5_unified_leaderboards.sql` before deploying the Phase 5 application. It installs New York-aware weekly/monthly/all-time leaderboard and archive RPCs over the immutable match and rating-event history.
+13. Run `supabase/migrations/20261031_04_phase6_disputes_corrections.sql` before deploying the Phase 6 application. It installs the 48-hour mutual dispute workflow and serialized downstream rating replay. Take a fresh backup of profiles, matches, rating events, and statistics before applying it.
+14. Run `supabase/migrations/20261031_05_phase7_mobile_experience.sql` before deploying the Phase 7 application. Phase 7 is application-only, so this migration intentionally records the rollout boundary without changing the database.
+15. Run `supabase/migrations/20261031_06_phase8_security_reliability.sql` immediately before deploying the Phase 8 application. It hardens write privileges and audit immutability, activates administrator-controlled independent reporting, adds integrity signals, and expands the Realtime publication. Back up matches, rating events, submissions, integrity records, and domain events first.
 
 The expand migration is retry-safe, keeps the legacy columns/statuses during rollout, creates audited opening-balance events, and bootstraps `almasurantor` using profile UUID `494357c8-607e-4605-980b-19260c8a2cfc` as the first administrator. The old `migration_single_reporter_match_flow.sql` is superseded and must not be applied.
 
-For a brand-new project, provision the legacy base schema from `supabase/schema.sql`, then immediately apply both staged migrations before exposing the app to users.
+For a brand-new project, provision the legacy base schema from `supabase/schema.sql`, then apply all files in `supabase/migrations` in filename order before exposing the app to users.
 
 ## Step 4: Set Up Authentication
 
@@ -46,9 +56,24 @@ For a brand-new project, provision the legacy base schema from `supabase/schema.
 
 ## Step 5: Schedule Expiration
 
-Call `expire_mobile_ranking_items_v2()` from a trusted scheduled worker or Supabase Edge Function (for example, every five minutes). It expires stale challenges and unconfirmed results without changing ratings or trust. The live project does not currently have `pg_cron`, so scheduling is intentionally external.
+Call `expire_mobile_ranking_items_v2()` from a trusted scheduled worker or Supabase Edge Function every five minutes. It expires stale challenges, accepted matches, and their pending cancellation requests, and escalates unanswered result disputes to administrators without changing ratings or trust. The live project does not currently have `pg_cron`, so scheduling is intentionally external.
 
 Weekly records do not need a reset job. `weekly_player_stats` stores one row per player and New York club week.
+
+To verify the Phase 1 database rules against a disposable project, apply every migration and run:
+
+```bash
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/phase1_ranked_match_lifecycle.test.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/phase2_ranked_game_limits.test.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/phase3_weighted_elo.test.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/phase4_competitive_ranks.test.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/phase5_unified_leaderboards.test.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/phase6_disputes_corrections.test.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/phase7_mobile_experience.test.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/phase8_security_reliability.test.sql
+```
+
+The script creates fixed test users inside a transaction and always rolls back. Use `supabase/tests/phase1_concurrency.md` for the two-session race checks.
 
 ## Step 6: Run Development Server
 
@@ -68,16 +93,36 @@ Visit http://localhost:3000
 
 - ✅ ELO-based ranking system
 - ✅ Challenge system with 24-hour expiration
-- ✅ Single-player result reporting with opponent confirmation or dispute
-- ✅ Daily ranked-match limit (20 per unordered pair)
-- ✅ Calendar-week leaderboards without destructive resets
+- ✅ First-valid-score finalization after mutual challenge acceptance
+- ✅ Three active ranked matches maximum and one unfinished match per opponent
+- ✅ Mutual cancellation with complete request history
+- ✅ Acceptance-time reservations with 10 ranked games per player per day
+- ✅ Three ranked games per opponent per New York calendar day
+- ✅ K=40 weighted, zero-sum ELO with a 10% maximum score adjustment
+- ✅ Pre-match predictions and stored post-match calculation breakdowns
+- ✅ Iron-to-Legend competitive ranks with badges, progress, provisional placement, and tier-change feedback
+- ✅ Unified weekly, monthly, and all-time leaderboards with previous-winner archives
+- ✅ Mutual post-result corrections and voids with admin escalation and downstream rating replay
+- ✅ Mobile score confirmation, result feedback, live countdowns, and casual scorekeeping
+- ✅ Immutable rating audit, least-privilege writes, match-farming signals, and optional independent reporting
 - ✅ Real-time updates via Supabase Realtime
 - ✅ Match history tracking
 
 ## Notes
 
 - Default ELO: 1000
-- K-factor: 32
-- Score margin does not affect ELO; one rounded winner delta is applied as the exact inverse to the loser
-- Challenges and unconfirmed reports expire after 24 hours
-- Native push delivery is not integrated; `domain_events` and `notifications` prepare the server-side delivery queue
+- K-factor: 40
+- Score margin scales the base winner gain by 0–10%; a two-point win has no bonus and an 11-point margin reaches the cap
+- The final winner gain is rounded once and applied as the loser’s exact inverse
+- Competitive tiers: Iron below 850, Bronze 850, Silver 950, Gold 1050, Platinum 1150, Diamond 1250, and Legend 1400+
+- The first five confirmed games are shown as provisional; ELO still updates normally during placement
+- Challenges and accepted matches expire after 24 hours
+- Ranked matches cannot be recorded without an accepted challenge
+- Daily limits use the New York date when the challenge is accepted; crossing midnight does not move the match to a new day
+- Weekly leaderboard periods run Monday through Sunday in `America/New_York`; monthly periods use New York calendar months
+- Confirmed results may be disputed for 48 hours. Opening or declining a dispute never changes ratings; only mutual approval or an administrator decision can revise history
+- Approved historical revisions serialize on a global replay lock, supersede rather than delete rating events, and rebuild downstream ratings and statistics
+- Casual scorekeeping is local-only and never creates matches, consumes ranked limits, or changes ELO
+- `domain_events` and internal recipient rows remain server-side audit/delivery infrastructure used by match and dispute workflows; there is no user-facing notification center
+- Accounts placed in `dual_verification` by an administrator submit privately; only matching independent reports finalize, while conflicts expire without rating changes and enter the integrity queue
+- Two administrator-confirmed reporting violations automatically place a normal account in monitored status; administrators still decide whether to require dual verification or restrict ranked play

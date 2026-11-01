@@ -20,6 +20,9 @@ export const metadata: Metadata = {
     title: "Beaver Smash",
     statusBarStyle: "black-translucent",
   },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
   formatDetection: {
     telephone: false,
   },

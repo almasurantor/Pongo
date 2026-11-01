@@ -19,7 +19,12 @@ export function useDatabaseRefresh(channelName: string) {
     const channel = supabase.channel(channelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, refresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rating_events' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'disputes' }, refresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'challenges' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_cancellation_requests' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'player_integrity' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'integrity_flags' }, refresh)
       .subscribe((status) => { if (status === 'SUBSCRIBED') refresh(); });
     const interval = setInterval(refresh, 60000);
     window.addEventListener('focus', refresh);

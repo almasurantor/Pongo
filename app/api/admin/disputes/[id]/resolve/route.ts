@@ -7,7 +7,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await request.json();
-  const { data, error } = await supabase.rpc('admin_resolve_dispute_v2', {
+  const { data, error } = await supabase.rpc('admin_resolve_dispute_v3', {
     p_dispute: params.id,
     p_resolution: body.resolution,
     p_winner: body.winner_id || null,

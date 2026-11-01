@@ -7,7 +7,7 @@ Beaver Smash is a competitive table tennis club app built for the CCNY Table Ten
 - create accounts and sign in
 - challenge each other directly
 - submit match results
-- confirm or dispute reported results
+- finalize the first valid score and dispute incorrect results
 - see live ELO rankings
 - track weekly performance
 - browse profiles and match history
@@ -18,16 +18,16 @@ At a high level, this is a club ladder app: it turns casual play into a measurab
 
 ## 2. Product Summary
 
-The app is a Next.js web application using Supabase for authentication, relational storage, and realtime updates. The main competitive mechanic is an ELO-based rating system. Players are ranked by total ELO, while a separate weekly leaderboard tracks wins and losses during the current week.
+The app is a Next.js web application using Supabase for authentication, relational storage, and realtime updates. The main competitive mechanic is an ELO-based rating system. A unified leaderboard ranks weekly and monthly performance by net ELO gained and the all-time ladder by permanent ELO.
 
 The project is designed around a club competition loop:
 
 1. Player signs in
 2. Player challenges another club member
-3. Challenge is accepted and a match is created, or a player records a spontaneous match
-4. One player reports the final score
-5. The opponent confirms or disputes the reported result
-6. A confirmed result updates ELO and records; a disputed result returns to the reporter for revision
+3. Challenge is accepted and a match is created with a fresh 24-hour deadline
+4. Either player reports the final score
+5. The first valid report atomically updates ELO and records
+6. Either player may instead request mutual cancellation before a score is finalized
 7. Leaderboards and profiles refresh automatically
 
 ---
@@ -59,7 +59,7 @@ The app uses Next.js App Router under the [app](app) folder:
 - [app/page.tsx](app/page.tsx) — landing page
 - [app/dashboard/page.tsx](app/dashboard/page.tsx) and [app/dashboard/DashboardClient.tsx](app/dashboard/DashboardClient.tsx) — main power center for challenges and active matches
 - [app/leaderboard/page.tsx](app/leaderboard/page.tsx) and [app/leaderboard/LeaderboardClient.tsx](app/leaderboard/LeaderboardClient.tsx) — global ELO ranking
-- [app/weekly/page.tsx](app/weekly/page.tsx) and [app/weekly/WeeklyClient.tsx](app/weekly/WeeklyClient.tsx) — weekly leaderboard
+- [app/leaderboard/page.tsx](app/leaderboard/page.tsx) and [app/leaderboard/LeaderboardClient.tsx](app/leaderboard/LeaderboardClient.tsx) — unified weekly, monthly, all-time, and archived leaderboards
 - [app/match/[id]/page.tsx](app/match/[id]/page.tsx) and [app/match/[id]/MatchClient.tsx](app/match/[id]/MatchClient.tsx) — score submission and match-resolution flow
 - [app/profile/[id]/page.tsx](app/profile/[id]/page.tsx) and [app/profile/[id]/ProfileClient.tsx](app/profile/[id]/ProfileClient.tsx) — player stats and match history
 - [app/login/page.tsx](app/login/page.tsx) and [app/signup/page.tsx](app/signup/page.tsx) — auth UI
@@ -75,7 +75,7 @@ The app uses Next.js App Router under the [app](app) folder:
 
 - [lib/elo.ts](lib/elo.ts) contains ELO calculation logic
 - [app/api/matches/[id]/report/route.ts](app/api/matches/[id]/report/route.ts) accepts a complete result from one participant
-- [app/api/matches/[id]/respond/route.ts](app/api/matches/[id]/respond/route.ts) handles opponent confirmation or dispute
+- [app/api/matches/[id]/cancellation/route.ts](app/api/matches/[id]/cancellation/route.ts) handles mutual cancellation
 - [supabase/schema.sql](supabase/schema.sql) defines the database schema and SQL functions
 
 ### State management
@@ -126,11 +126,11 @@ Fields include:
 - challenge_id
 - player_one_id / player_two_id
 - player_one_score / player_two_score
-- status — ready, result_reported, awaiting_independent_report, correction_proposed, admin_review, confirmed, expired, voided
+- status — ready, confirmed, expired, canceled, voided (`result_reported` is used only inside the finalization transaction)
 - source / ranked / winner_id / verification_mode / request_id / season_id
+- ranked_day — the `America/New_York` calendar day on which capacity was reserved at acceptance
 - reported_by / reported_at — the participant who entered both scores and when
-- confirmed_by — the opponent who accepted the result
-- disputed_by / disputed_at / dispute_reason — dispute audit information
+- confirmed_by — the participant whose first valid submission finalized the result
 - expires_at
 - player_one_elo_before / player_two_elo_before
 - player_one_elo_change / player_two_elo_change
@@ -140,6 +140,12 @@ Fields include:
 ### match_history
 
 This is a SQL view that exposes confirmed match results for easier history queries and profile pages.
+
+### match_cancellation_requests
+
+Cancellation requests are stored separately with pending, approved, declined, or expired status. This preserves every request while keeping the accepted match deadline unchanged.
+
+Accepted and confirmed matches reserve capacity through their `ranked_day`. Canceled, expired, and voided matches remain historical but no longer consume that capacity.
 
 ---
 
@@ -168,7 +174,7 @@ A challenge is inserted into the challenges table and the dashboard subscribes t
 
 ### C. Match submission and validation
 
-The match screen in [app/match/[id]/MatchClient.tsx](app/match/[id]/MatchClient.tsx) allows either participant to report both players' final scores. For an accepted challenge, either player can report. A player may also create a spontaneous match from the dashboard without first creating a challenge.
+The match screen in [app/match/[id]/MatchClient.tsx](app/match/[id]/MatchClient.tsx) allows either participant to report both players' final scores after a challenge has been accepted. Spontaneous ranked recording is disabled.
 
 The app enforces table tennis-style rules:
 
@@ -178,15 +184,15 @@ The app enforces table tennis-style rules:
 - after 10–10, play continues until one player leads by exactly 2
 - no tied scores are allowed
 
-Reporting stores the reporter identity and opens a confirmation window. Match fields are changed through role-aware database functions rather than direct browser updates.
+For normal accounts, the first valid report stores the score and immediately finalizes ratings in one database transaction. A concurrent or repeated report returns the stored result without applying ELO twice. When an administrator has placed either participant in `dual_verification`, both players report privately: matching independent reports finalize once, while a conflict expires the match without ratings and creates an administrator-visible integrity signal.
 
-### D. Confirmation and dispute handling
+### D. Cancellation and expiration
 
-After a report, only the non-reporting opponent can respond. Confirming finalizes the stored score. A dispute must include a complete correction. The reporter can accept it or reject it into admin review. Players whose trust setting requires dual verification submit independently without seeing the other claim. An unresolved report can expire without changing either player's rating or record.
+Either player may request cancellation while the match is active. The opponent can approve or decline; approval cancels without rating changes. Pending cancellation never pauses the 24-hour match deadline and does not block score reporting.
 
 ### E. Match confirmation and ELO update
 
-When the opponent confirms a reported score, the database transaction:
+When the first participant submits a valid score, the database transaction:
 
 1. loads both players’ profiles
 2. calculates ELO gain/loss using [lib/elo.ts](lib/elo.ts)
@@ -205,7 +211,7 @@ This is the point where the ladder actually updates.
 
 The ranking logic is implemented in [lib/elo.ts](lib/elo.ts).
 
-### Standard ELO formula
+### Weighted zero-sum ELO formula
 
 The expected score for player A is:
 
@@ -218,13 +224,7 @@ Where:
 - $R_A$ is player A’s current ELO
 - $R_B$ is player B’s current ELO
 
-The app then calculates the actual result as:
-
-- 1 for a win
-- 0 for a loss
-- 0.5 for a draw
-
-The formula is:
+The winner’s base transfer is:
 
 $$
 \Delta R = K \times (S - E)
@@ -232,19 +232,45 @@ $$
 
 where:
 
-- $K = 32$
-- $S$ = actual score result
+- $K = 40$
+- $S = 1$ for the winner
 - $E$ = expected score
 
-The winner delta is rounded once and its exact inverse is applied to the loser, keeping every match zero-sum. Scores are retained for history and validation but never change the rating delta.
+The base transfer is multiplied by a score factor from 1.00 to 1.10. A normal two-point win receives no score bonus; the adjustment grows linearly and reaches its 10% cap at an 11-point winning margin. The final winner delta is rounded once and its exact inverse is applied to the loser, keeping every match zero-sum.
+
+Each new confirmed match and its two immutable rating events store the formula version, K-factor, expected win probability, base delta, winning margin, multiplier, score bonus, and final transfer. Older matches retain their original deltas and have no fabricated Phase 3 breakdown.
+
+### Competitive rank tiers
+
+[lib/ranks.ts](lib/ranks.ts) derives a player's competitive tier directly from permanent `current_elo`; no administrator assigns ranks and no stale rank value is stored on a profile. The ladder is Iron below 850, Bronze at 850, Silver at 950, Gold at 1050, Platinum at 1150, Diamond at 1250, and Legend at 1400. The first five confirmed games are provisional placement games, but they use the same normal ELO calculation.
+
+The Phase 4 migration stores these boundaries in `competitive_rank_tiers`, exposes database-side tier/progress functions, and snapshots `rank_before` and `rank_after` on every rating event. That snapshot preserves promotion and demotion history if thresholds are adjusted later. Code-native badges and progress indicators appear on profiles, challenges, matches, player discovery, the dashboard, and the all-time leaderboard. There are no divisions or inactivity decay.
 
 ---
 
-## 8. Weekly Leaderboard Logic
+## 8. Unified Leaderboard Logic
 
-The weekly leaderboard is separate from the total ladder.
+The leaderboard has Weekly, Monthly, and All Time tabs. Weekly periods run Monday through Sunday and monthly periods follow calendar months, always using `America/New_York`. Weekly and monthly standings rank active players by net ELO gained, then wins and current ELO as deterministic tie breakers. All Time ranks every profile by permanent current ELO.
 
-Lifetime totals remain on `profiles`. Weekly results are stored in `weekly_player_stats`, keyed by player and New York club-week, so history is preserved and no destructive reset is required. The weekly view is displayed in [app/weekly/WeeklyClient.tsx](app/weekly/WeeklyClient.tsx).
+`get_leaderboard_v3` derives period statistics from retained confirmed ranked matches and active immutable rating events. Each row includes games, wins, losses, win rate, unique opponents, net ELO, competitive rank, and provisional status. Because rating events are joined through the match's original `confirmed_at`, an approved correction updates the proper historical week or month rather than the correction date. `get_leaderboard_archive_v3` exposes completed periods and previous winners without destructive resets. The UI shows the top ten plus the signed-in player's placement when they are outside it. `/weekly` redirects to the unified weekly tab for compatibility.
+
+### Result disputes and historical replay
+
+Either participant can open a dispute during the 48 hours after finalization for an incorrect score, incorrect winner, nonexistent match, or another issue. A dispute requests either a corrected score or a void. Opening the request leaves the confirmed result, ratings, statistics, and leaderboard unchanged. Only the opponent can approve the request automatically; declining it or allowing the response deadline to pass escalates it to administrators without changing ELO.
+
+Mutually or administratively approved revisions are serialized by a global transaction lock. The original match revision and rating events remain stored, are marked inactive, and point to replacement events. PostgreSQL replays every subsequent ranked match chronologically with the weighted ELO formula, then rebuilds current and peak ratings, records, current/longest streaks, weekly rows, season rows, ranks, and leaderboard inputs. Approved voids remove the disputed match from the replay. `match_revisions`, `rating_events`, and `domain_events` retain the complete audit and decision history.
+
+### Mobile match experience
+
+Active matches and challenges display a live second-level deadline countdown while the existing 60-second refresh and focus refresh remain as recovery paths. Ranked result entry now has an explicit review dialog showing the selected winner, exact score, and estimated ELO before submission. A successful report displays victory/defeat feedback, the final rating change, current all-time placement, and any placement movement.
+
+The `/play/casual` scorekeeper is intentionally local-only: it supports game-to-11, win-by-two scoring and never writes a match or affects ranked limits, statistics, or ELO.
+
+### Security, audit, and integrity reliability
+
+Ranked writes remain inside `SECURITY DEFINER` PostgreSQL RPCs with fixed `search_path` values. Authenticated and anonymous roles cannot directly mutate matches, challenges, submissions, disputes, rating events, integrity records, configuration, or computed statistics; profile edits are limited to the caller's `display_name` under RLS. Rating-event facts, private submissions, match revisions, and domain events are append-only. Rating replay may only deactivate/supersede old rating events, and a partial unique index enforces one active event per match/player revision.
+
+Finalization emits automated integrity signals when a pair reaches the three-game daily ceiling or a player reaches unusually high same-day ranked volume. Two administrator-confirmed violations automatically move a normal account to monitored status. Administrators can review signals, choose dual verification, or restrict ranked access. Dual reports are stored separately and are visible only to their submitter and administrators, preventing one participant from copying the other's report.
 
 ---
 
@@ -268,14 +294,14 @@ This is implemented in [app/dashboard/DashboardClient.tsx](app/dashboard/Dashboa
 The SQL in [supabase/schema.sql](supabase/schema.sql) includes several important rules:
 
 - `check_daily_match_limit` — prevents overplaying between the same two players in one day
+- `get_my_ranked_usage_v3` / `get_my_opponent_ranked_usage_v3` — expose authoritative reservation usage to the UI
 - `create_challenge_v2` / `respond_challenge_v2` / `cancel_challenge_v2`
-- `create_spontaneous_match_v2` / `submit_match_report_v2`
-- `confirm_match_result_v2` — atomically confirms once and applies ELO/stats
-- `propose_match_correction_v2` / `respond_match_correction_v2`
-- `admin_resolve_dispute_v2` / `admin_set_player_integrity_v2`
+- `submit_match_report_v2` — stores the first score and atomically applies ELO/stats once
+- `request_match_cancellation_v2` / `respond_match_cancellation_v2`
+- `admin_resolve_dispute_v3` / `admin_set_player_integrity_v2` / `admin_review_integrity_flag_v3`
 - `expire_mobile_ranking_items_v2` — expires unresolved work without changing stats or trust
 
-There are also indexes and unique constraints to prevent duplicate pending challenges and to support fast leaderboard queries.
+There are also indexes and unique constraints to prevent duplicate pending challenges, enforce one ready match per unordered player pair, and query New York acceptance-day reservations efficiently.
 
 ---
 
@@ -333,10 +359,10 @@ Beaver Smash solves this by building a structured flow around:
 A few important observations from reading the codebase:
 
 - The app relies heavily on Supabase for both persistence and realtime behavior.
-- ELO is recalculated on the server in the confirm API route, not in the client.
+- ELO is calculated transactionally in PostgreSQL; the client calculation is used only for clearly labeled estimates.
 - The database stores authoritative match and stat data; the frontend acts as a display layer plus user-triggered update layer.
 - The app is designed around a single-user challenge-and-match loop, not a full admin panel.
-- There is a strong emphasis on club-style game flow and quick feedback, which explains the presence of cartoon UI and live notifications.
+- There is a strong emphasis on club-style game flow and quick feedback, reflected in the mobile-first match UI and live database refreshes.
 
 ---
 
@@ -344,7 +370,7 @@ A few important observations from reading the codebase:
 
 As a codebase summary, a few product/engineering caveats are worth noting:
 
-- There is no dedicated test suite in the repository at the moment.
+- Vitest covers score validation, weighted ELO, rank tiers, leaderboard periods, deadlines, and lifecycle helpers. Rollback-only SQL suites cover Phases 1–8, including limits, replay, RLS, role privileges, audit immutability, and independent reporting; the multi-session checklist covers lock races.
 - Some features rely on database SQL functions and cron jobs being configured correctly in Supabase.
 - The app uses environment variables and expects a real Supabase project to be configured.
 - A few flows depend on browser timing and states, so they should be tested in a real staging environment before production use.
@@ -360,8 +386,8 @@ The project’s central concept is simple and effective:
 
 - challenge a player
 - play a match
-- submit scores
-- confirm the result
+- submit and immediately finalize a valid score
+- mutually correct or void an incorrect result when needed
 - update ELO and rankings
 
 It is a strong example of a lightweight sports ladder product built with modern web tooling and realtime database features.
@@ -373,10 +399,11 @@ It is a strong example of a lightweight sports ladder product built with modern 
 - [app/page.tsx](app/page.tsx) — landing page
 - [app/dashboard/DashboardClient.tsx](app/dashboard/DashboardClient.tsx) — main challenge and active-match flow
 - [app/leaderboard/LeaderboardClient.tsx](app/leaderboard/LeaderboardClient.tsx) — total ELO rankings
-- [app/weekly/WeeklyClient.tsx](app/weekly/WeeklyClient.tsx) — weekly leaderboard
+- [app/leaderboard/LeaderboardClient.tsx](app/leaderboard/LeaderboardClient.tsx) — weekly, monthly, all-time, and historical leaderboard UI
 - [app/match/[id]/MatchClient.tsx](app/match/[id]/MatchClient.tsx) — match submission UI
 - [app/api/matches/[id]/report/route.ts](app/api/matches/[id]/report/route.ts) — result reporting endpoint
-- [app/api/matches/[id]/respond/route.ts](app/api/matches/[id]/respond/route.ts) — confirmation/dispute endpoint
+- [app/api/matches/[id]/cancellation/route.ts](app/api/matches/[id]/cancellation/route.ts) — active-match cancellation requests and responses
+- [app/api/matches/[id]/dispute/route.ts](app/api/matches/[id]/dispute/route.ts) — post-result correction and void requests
 - [lib/elo.ts](lib/elo.ts) — rating algorithm
 - [supabase/schema.sql](supabase/schema.sql) — data model and SQL logic
 - [store/useStore.ts](store/useStore.ts) — user profile state

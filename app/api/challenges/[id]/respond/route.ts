@@ -10,5 +10,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
   if (action !== 'accept' && action !== 'decline') return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   const { data, error } = await supabase.rpc('respond_challenge_v2', { p_challenge: params.id, p_action: action });
   if (error) return apiError(error);
+  if (data?.status === 'expired') {
+    return NextResponse.json(
+      { error: 'This challenge has expired. Ask the challenger to send a new one.' },
+      { status: 410 },
+    );
+  }
   return NextResponse.json(data);
 }

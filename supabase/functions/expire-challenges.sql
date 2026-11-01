@@ -1,12 +1,11 @@
--- This function should be set up as a Supabase Edge Function or Cron Job
--- To set up as a cron job in Supabase:
--- 1. Go to Database > Cron Jobs
--- 2. Create a new cron job with:
---    - Schedule: */5 * * * * (Every 5 minutes)
---    - Function: expire_old_challenges()
+-- Schedule this trusted cleanup RPC through a Supabase Edge Function or an
+-- equivalent service-role worker every five minutes:
+--
+--   */5 * * * *
+--
+-- It expires pending challenges, accepted matches, pending cancellation
+-- requests, and escalates overdue result disputes. The function is installed
+-- by the incremental BeaverSmash V3 migrations, not schema.sql.
 
--- The function is already defined in schema.sql
--- This file is for reference/documentation
-
--- To manually trigger:
-SELECT expire_old_challenges();
+-- Manual service-role invocation for operational verification:
+SELECT public.expire_mobile_ranking_items_v2();

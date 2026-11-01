@@ -32,13 +32,26 @@ export function isPotentialDuplicate(
 }
 
 const allowedTransitions: Partial<Record<MatchStatus, MatchStatus[]>> = {
-  ready: ['result_reported', 'awaiting_independent_report', 'expired'],
-  awaiting_independent_report: ['confirmed', 'admin_review', 'expired'],
-  result_reported: ['confirmed', 'correction_proposed', 'expired'],
-  correction_proposed: ['confirmed', 'admin_review', 'expired'],
-  admin_review: ['confirmed', 'voided'],
+  ready: ['confirmed', 'canceled', 'expired'],
+  result_reported: ['confirmed'],
 };
 
 export function canTransitionMatch(from: MatchStatus, to: MatchStatus): boolean {
   return allowedTransitions[from]?.includes(to) ?? false;
+}
+
+export function isTerminalMatch(status: MatchStatus): boolean {
+  return ['confirmed', 'expired', 'canceled', 'voided'].includes(status);
+}
+
+export function isMatchOverdue(expiresAt: string | null, now = new Date()): boolean {
+  return expiresAt !== null && new Date(expiresAt).getTime() <= now.getTime();
+}
+
+export function canRespondToCancellation(
+  status: MatchStatus,
+  requestedBy: string,
+  currentUserId: string,
+): boolean {
+  return status === 'ready' && requestedBy !== currentUserId;
 }

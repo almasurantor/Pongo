@@ -34,6 +34,7 @@ export interface Match {
   status: MatchStatus;
   source: 'challenge' | 'spontaneous' | 'legacy';
   ranked: boolean;
+  ranked_day: string | null;
   winner_id: string | null;
   verification_mode: 'normal' | 'dual';
   request_id: string | null;
@@ -51,6 +52,7 @@ export interface Match {
   player_two_elo_before: number | null;
   player_one_elo_change: number | null;
   player_two_elo_change: number | null;
+  rating_calculation: RatingCalculation | null;
   confirmed_at: string | null;
   created_at: string;
   player_one?: Profile;
@@ -58,9 +60,104 @@ export interface Match {
 }
 
 export type MatchStatus =
-  | 'active' | 'pending_confirmation' | 'disputed' | 'auto_expired'
-  | 'ready' | 'result_reported' | 'awaiting_independent_report'
-  | 'correction_proposed' | 'admin_review' | 'confirmed' | 'expired' | 'voided';
+  | 'ready' | 'result_reported' | 'confirmed' | 'expired' | 'canceled' | 'voided';
+
+export interface MatchCancellationRequest {
+  id: string;
+  match_id: string;
+  requested_by: string;
+  responded_by: string | null;
+  status: 'pending' | 'approved' | 'declined' | 'expired';
+  created_at: string;
+  responded_at: string | null;
+}
+
+export interface MatchSubmission {
+  id: string;
+  match_id: string;
+  submitted_by: string;
+  winner_id: string;
+  player_one_score: number;
+  player_two_score: number;
+  created_at: string;
+}
+
+export interface RankedUsage {
+  ranked_day: string;
+  daily_used: number;
+  daily_limit: number;
+  daily_remaining: number;
+  active_used: number;
+  active_limit: number;
+  active_remaining: number;
+}
+
+export interface OpponentRankedUsage {
+  opponent_id: string;
+  games_used: number;
+  games_limit: number;
+  games_remaining: number;
+}
+
+export type LeaderboardScope = 'weekly' | 'monthly' | 'all_time';
+
+export interface LeaderboardEntry {
+  placement: number;
+  player_id: string;
+  display_name: string;
+  current_elo: number;
+  current_rank: string;
+  is_provisional: boolean;
+  net_elo_change: number;
+  total_games: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+  unique_opponents: number;
+  period_start: string | null;
+  period_end: string | null;
+}
+
+export interface LeaderboardArchiveEntry {
+  scope: 'weekly' | 'monthly';
+  period_start: string;
+  period_end: string;
+  winner_id: string;
+  winner_name: string;
+  winner_net_elo_change: number;
+  winner_current_elo: number;
+  winner_rank: string;
+  winner_is_provisional: boolean;
+  total_players: number;
+}
+
+export interface RatingCalculation {
+  formula_version: 'weighted_elo_v1';
+  k_factor: number;
+  score_margin_cap: number;
+  winner_expected: number;
+  base_delta_raw: number;
+  base_delta: number;
+  score_margin: number;
+  margin_multiplier: number;
+  margin_bonus: number;
+  final_delta: number;
+  winner_id: string;
+  loser_id: string;
+  winner_rating_before: number;
+  loser_rating_before: number;
+}
+
+export interface RatingPreview {
+  player_one_rating: number;
+  player_two_rating: number;
+  player_one_win_change: number;
+  player_one_loss_change: number;
+  player_two_win_change: number;
+  player_two_loss_change: number;
+  player_one_expected: number;
+  score_margin_cap: number;
+}
 
 export type VerificationLevel = 'normal' | 'monitored' | 'dual_verification' | 'ranked_restricted';
 
@@ -74,6 +171,9 @@ export interface RatingEvent {
   rating_after: number;
   revision: number;
   is_active: boolean;
+  calculation?: RatingCalculation | null;
+  rank_before?: string | null;
+  rank_after?: string | null;
   created_at: string;
 }
 
@@ -81,14 +181,22 @@ export interface Dispute {
   id: string;
   match_id: string;
   opened_by: string;
-  reason: 'wrong_score' | 'wrong_winner' | 'dual_conflict' | 'other';
+  reason: 'incorrect_score' | 'incorrect_winner' | 'match_never_happened' | 'other' | 'wrong_score' | 'wrong_winner' | 'dual_conflict';
+  requested_resolution: 'correction' | 'void';
   original_winner_id: string;
   original_player_one_score: number;
   original_player_two_score: number;
-  proposed_winner_id: string;
-  proposed_player_one_score: number;
-  proposed_player_two_score: number;
-  status: 'proposed' | 'admin_review' | 'resolved' | 'voided';
+  proposed_winner_id: string | null;
+  proposed_player_one_score: number | null;
+  proposed_player_two_score: number | null;
+  status: 'pending' | 'admin_review' | 'resolved' | 'voided' | 'declined' | 'expired';
+  responded_by: string | null;
+  response: 'approved' | 'declined' | null;
+  responded_at: string | null;
+  expires_at: string | null;
+  escalated_at: string | null;
+  resolution?: 'original' | 'proposed' | 'custom' | 'no_violation' | 'voided' | null;
+  created_at: string;
   match?: Match;
 }
 

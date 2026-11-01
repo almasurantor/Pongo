@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { canTransitionMatch, isPotentialDuplicate, nextStreak } from './ranking-rules';
+import {
+  canRespondToCancellation,
+  canTransitionMatch,
+  isMatchOverdue,
+  isPotentialDuplicate,
+  isTerminalMatch,
+  nextStreak,
+} from './ranking-rules';
 
 describe('ranking lifecycle rules', () => {
   it('updates winning and losing streaks', () => {
@@ -18,8 +25,25 @@ describe('ranking lifecycle rules', () => {
   });
 
   it('guards terminal states and required review transitions', () => {
-    expect(canTransitionMatch('result_reported', 'confirmed')).toBe(true);
-    expect(canTransitionMatch('correction_proposed', 'admin_review')).toBe(true);
+    expect(canTransitionMatch('ready', 'confirmed')).toBe(true);
+    expect(canTransitionMatch('ready', 'canceled')).toBe(true);
+    expect(canTransitionMatch('ready', 'expired')).toBe(true);
     expect(canTransitionMatch('confirmed', 'ready')).toBe(false);
+    expect(isTerminalMatch('confirmed')).toBe(true);
+    expect(isTerminalMatch('canceled')).toBe(true);
+    expect(isTerminalMatch('ready')).toBe(false);
+  });
+
+  it('treats the exact deadline as expired', () => {
+    const deadline = '2026-10-30T16:00:00.000Z';
+    expect(isMatchOverdue(deadline, new Date(deadline))).toBe(true);
+    expect(isMatchOverdue(deadline, new Date('2026-10-30T15:59:59.999Z'))).toBe(false);
+    expect(isMatchOverdue(null, new Date(deadline))).toBe(false);
+  });
+
+  it('only lets the other player respond to a pending cancellation', () => {
+    expect(canRespondToCancellation('ready', 'player-a', 'player-b')).toBe(true);
+    expect(canRespondToCancellation('ready', 'player-a', 'player-a')).toBe(false);
+    expect(canRespondToCancellation('confirmed', 'player-a', 'player-b')).toBe(false);
   });
 });
