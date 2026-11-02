@@ -14,8 +14,8 @@ const icons: Record<string, React.ReactNode> = {
   profile: <><circle cx="12" cy="8" r="4" /><path d="M4 22a8 8 0 0 1 16 0" /></>,
 };
 
-function NavIcon({ name }: { name: string }) {
-  return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{icons[name]}</svg>;
+function NavIcon({ name, className = 'h-6 w-6' }: { name: string; className?: string }) {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{icons[name]}</svg>;
 }
 
 export default function Navbar() {
@@ -60,13 +60,20 @@ export default function Navbar() {
           </div>
         </div>
       </nav>
-      <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-50 border-t border-accent-gray-200 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] backdrop-blur dark:bg-[#171321]/95 sm:hidden">
-        <div className="grid h-[4.5rem] grid-cols-5 items-end px-[max(0.25rem,env(safe-area-inset-left))] pr-[max(0.25rem,env(safe-area-inset-right))]">
+      <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-50 border-t border-accent-gray-200 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_24px_rgba(0,0,0,0.07)] backdrop-blur dark:bg-[#171321]/95 sm:hidden">
+        <div className="grid h-[3.75rem] grid-cols-5 items-center px-[max(0.25rem,env(safe-area-inset-left))] pr-[max(0.25rem,env(safe-area-inset-right))]">
           {items.map((item) => (
-            <Link key={item.label} href={item.href} aria-current={active(item.href) ? 'page' : undefined}
-              className={`relative flex min-h-16 flex-col items-center justify-center gap-1 text-[10px] font-bold ${active(item.href) ? 'text-primary-purple' : 'text-accent-gray-500'} ${item.primary ? '-mt-5' : ''}`}>
-              <span className={item.primary ? 'flex h-14 w-14 items-center justify-center rounded-full gradient-purple text-white shadow-purple-glow' : ''}><NavIcon name={item.icon} /></span>
-              <span>{item.label}</span>
+            <Link
+              key={item.label}
+              href={item.href}
+              aria-label={item.label}
+              aria-current={active(item.href) ? 'page' : undefined}
+              className={`relative flex min-h-12 items-center justify-center rounded-full transition active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-purple focus-visible:ring-offset-2 ${active(item.href) ? 'text-primary-purple' : 'text-accent-gray-500'} ${item.primary ? '-translate-y-2' : ''}`}
+            >
+              <span className={item.primary ? `flex h-[3.25rem] w-[3.25rem] items-center justify-center rounded-full gradient-purple text-white shadow-purple-glow ${active(item.href) ? 'ring-4 ring-primary-purple/15' : ''}` : ''}>
+                <NavIcon name={item.icon} className={item.primary ? 'h-7 w-7' : 'h-6 w-6'} />
+              </span>
+              <span className="sr-only">{item.label}</span>
             </Link>
           ))}
         </div>
