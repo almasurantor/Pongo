@@ -46,12 +46,13 @@ export default function SignUpPage() {
 
       if (error) throw error;
 
-      if (data.user) {
-        toast.success('Account created! Please check your email to verify your account.');
-        // Redirect to login after a short delay
-        setTimeout(() => {
-          router.push('/login');
-        }, 2000);
+      if (data.session) {
+        toast.success('Account created!');
+        router.replace('/dashboard');
+        router.refresh();
+      } else if (data.user) {
+        toast.success('Account created! Check your email to verify it.');
+        router.replace('/login');
       }
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : 'Failed to create account');
@@ -97,10 +98,7 @@ export default function SignUpPage() {
             transition={{ delay: 0.2 }}
             className="text-center mb-8"
           >
-            <h1 className="text-4xl font-bold mb-2 gradient-text">
-              Create Account
-            </h1>
-            <p className="text-accent-gray-600">Join Beaver Smash</p>
+            <h1 className="text-4xl font-bold gradient-text">Create account</h1>
           </motion.div>
 
           <form onSubmit={handleSignUp} className="space-y-5 mb-6">

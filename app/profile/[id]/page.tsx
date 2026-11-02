@@ -21,7 +21,7 @@ export default async function ProfilePage({ params }: { params: { id: string } }
     redirect('/dashboard');
   }
 
-  // Get match history - last 3 confirmed matches
+  // Full confirmed history, newest first. The client keeps this list compact.
   const { data: matches } = await supabase
     .from('matches')
     .select(`
@@ -31,16 +31,14 @@ export default async function ProfilePage({ params }: { params: { id: string } }
     `)
     .eq('status', 'confirmed')
     .or(`player_one_id.eq.${params.id},player_two_id.eq.${params.id}`)
-    .order('confirmed_at', { ascending: false })
-    .limit(3);
+    .order('confirmed_at', { ascending: false });
 
-  const [{ data: ratings }, { data: rankedPlayers }, { data: opponentUsageRows }] = await Promise.all([
-    supabase.from('rating_events').select('*').eq('player_id', params.id).eq('is_active', true).order('created_at', { ascending: false }).limit(5),
+  const [{ data: rankedPlayers }, { data: opponentUsageRows }] = await Promise.all([
     supabase.from('profiles').select('id').order('current_elo', { ascending: false }),
     supabase.rpc('get_my_opponent_ranked_usage_v3'),
   ]);
   const rank = (rankedPlayers || []).findIndex((player) => player.id === params.id) + 1;
   const opponentUsage = ((opponentUsageRows || []) as OpponentRankedUsage[]).find((row) => row.opponent_id === params.id) || null;
 
-  return <ProfileClient profile={profile} matches={matches || []} ratingEvents={ratings || []} opponentUsage={opponentUsage} rank={rank || 1} currentUserId={user.id} />;
+  return <ProfileClient profile={profile} matches={matches || []} opponentUsage={opponentUsage} rank={rank || 1} currentUserId={user.id} />;
 }

@@ -8,12 +8,14 @@ import { useDatabaseRefresh } from '@/lib/use-database-refresh';
 import RankBadge from '@/components/RankBadge';
 
 export default function PlayersClient({ players, usage, currentUserId }: { players: Profile[]; usage: OpponentRankedUsage[]; currentUserId: string }) {
-  useDatabaseRefresh('players-list');
+  useDatabaseRefresh('players-list', ['profiles']);
   const [query, setQuery] = useState('');
+  const [visibleCount, setVisibleCount] = useState(40);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const filtered = players.filter((player) => player.id !== currentUserId && player.display_name.toLowerCase().includes(query.toLowerCase()));
+  const visiblePlayers = filtered.slice(0, visibleCount);
   const usageFor = (playerId: string) => usage.find((row) => row.opponent_id === playerId)
-    || { opponent_id: playerId, games_used: 0, games_limit: 3, games_remaining: 3 };
+    || { opponent_id: playerId, games_used: 0, games_limit: 20, games_remaining: 20 };
   const challenge = async (opponentId: string) => {
     setLoadingId(opponentId);
     try {
@@ -29,13 +31,19 @@ export default function PlayersClient({ players, usage, currentUserId }: { playe
   };
 
   return (
-    <main className="min-h-screen bg-accent-gray-50 px-4 py-7">
-      <div className="mx-auto max-w-3xl">
-        <h1 className="text-4xl font-black">Players</h1>
-        <p className="mt-1 text-accent-gray-600">Find your next opponent. Ranked play begins after they accept.</p>
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search club members" className="mt-6 h-14 w-full rounded-2xl border-2 border-accent-gray-200 bg-white px-5 text-lg focus:border-primary-purple focus:outline-none" />
-        <div className="mt-5 space-y-3">
-          {filtered.map((player) => {
+    <main className="app-screen fixed-list-screen min-h-screen bg-accent-gray-50 px-4 py-7">
+      <div className="app-screen-shell mx-auto max-w-3xl">
+        <div className="screen-fixed">
+          <h1 className="text-4xl font-black">Players</h1>
+          <input
+            value={query}
+            onChange={(event) => { setQuery(event.target.value); setVisibleCount(40); }}
+            placeholder="Search players"
+            className="mt-5 h-14 w-full rounded-2xl border-2 border-accent-gray-200 bg-white px-5 text-lg focus:border-primary-purple focus:outline-none"
+          />
+        </div>
+        <div className="widget-scroll scroll-fade screen-flex space-y-3 pr-1 sm:mt-5" tabIndex={0} aria-label="Player list">
+          {visiblePlayers.map((player) => {
             const rank = players.findIndex((candidate) => candidate.id === player.id) + 1;
             const today = usageFor(player.id);
             return (
@@ -48,12 +56,17 @@ export default function PlayersClient({ players, usage, currentUserId }: { playe
                   </Link>
                   <span className="rounded-full bg-primary-purple/10 px-3 py-1 text-sm font-black text-primary-purple">#{rank}</span>
                 </div>
-                <p className={`mt-3 rounded-xl px-3 py-2 text-sm font-bold ${today.games_remaining > 0 ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>{today.games_used}/{today.games_limit} games used today · {today.games_remaining} remaining</p>
+                <p className={`mt-3 rounded-xl px-3 py-2 text-sm font-bold ${today.games_remaining > 0 ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>{today.games_used}/{today.games_limit} today · {today.games_remaining} left</p>
                 <button onClick={() => challenge(player.id)} disabled={loadingId === player.id || today.games_remaining === 0} className="mt-3 min-h-12 w-full rounded-xl gradient-purple font-bold text-white disabled:opacity-50">{loadingId === player.id ? 'Sending…' : today.games_remaining === 0 ? 'Opponent limit reached today' : 'Challenge'}</button>
               </article>
             );
           })}
           {filtered.length === 0 && <div className="rounded-2xl bg-white p-10 text-center text-accent-gray-500">No players found.</div>}
+          {visibleCount < filtered.length && (
+            <button type="button" onClick={() => setVisibleCount((count) => count + 40)} className="min-h-12 w-full rounded-2xl border-2 border-primary-purple/20 bg-white font-black text-primary-purple">
+              Load more players
+            </button>
+          )}
         </div>
       </div>
     </main>

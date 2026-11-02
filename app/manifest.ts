@@ -4,7 +4,10 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Beaver Smash',
     short_name: 'Beaver Smash',
+    id: '/',
     description: 'A competitive table tennis ranking and match-tracking app for the CCNY Table Tennis Club.',
+    // The root performs a server-side session check: returning users reach the
+    // dashboard, while signed-out users receive the public landing page.
     start_url: '/',
     scope: '/',
     display: 'standalone',
@@ -34,6 +37,7 @@ export default function manifest(): MetadataRoute.Manifest {
     shortcuts: [
       { name: 'Home', short_name: 'Home', url: '/dashboard', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
       { name: 'Challenge a player', short_name: 'Play', url: '/players', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
+      { name: 'Live table queue', short_name: 'Queue', url: '/queue', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
       { name: 'Leaderboard', short_name: 'Ranks', url: '/leaderboard', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
       { name: 'Casual scorekeeper', short_name: 'Casual', url: '/play/casual', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
     ],

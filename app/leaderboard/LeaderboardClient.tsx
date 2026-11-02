@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import RankBadge from '@/components/RankBadge';
 import { LeaderboardArchiveEntry, LeaderboardEntry, LeaderboardScope } from '@/lib/types';
 import { splitLeaderboardRows } from '@/lib/leaderboards';
@@ -49,11 +50,9 @@ function StandingCard({ entry, scope, currentUserId }: { entry: LeaderboardEntry
           )}
         </span>
       </div>
-      <div className="mt-4 grid grid-cols-4 gap-2 border-t border-accent-gray-100 pt-3 text-center">
-        <div><p className="font-black">{entry.total_games}</p><p className="text-[11px] font-bold text-accent-gray-400">GAMES</p></div>
+      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-accent-gray-100 pt-3 text-center">
         <div><p className="font-black">{entry.wins}-{entry.losses}</p><p className="text-[11px] font-bold text-accent-gray-400">RECORD</p></div>
         <div><p className="font-black">{Number(entry.win_rate).toFixed(Number(entry.win_rate) % 1 ? 1 : 0)}%</p><p className="text-[11px] font-bold text-accent-gray-400">WIN RATE</p></div>
-        <div><p className="font-black">{entry.unique_opponents}</p><p className="text-[11px] font-bold text-accent-gray-400">OPPONENTS</p></div>
       </div>
     </Link>
   );
@@ -69,23 +68,26 @@ interface Props {
 }
 
 export default function LeaderboardClient({ entries, archives, scope, selectedPeriod, currentUserId, loadError }: Props) {
-  useDatabaseRefresh('unified-leaderboards');
+  useDatabaseRefresh('unified-leaderboards', ['rating_events', 'profiles']);
+  const [visibleCount, setVisibleCount] = useState(50);
   const { topRows, currentUserRow } = splitLeaderboardRows(entries, currentUserId);
+  const visibleTopRows = topRows.slice(0, visibleCount);
   const first = entries[0];
   const activePeriod = first?.period_start && first?.period_end
     ? periodLabel(first.period_start, first.period_end, scope)
     : selectedPeriod ? selectedPeriod : scope === 'all_time' ? 'Permanent ladder' : `Current ${scope === 'weekly' ? 'week' : 'month'}`;
 
+  useEffect(() => setVisibleCount(50), [scope, selectedPeriod]);
+
   return (
-    <main className="min-h-screen bg-accent-gray-50 px-4 py-7">
-      <div className="mx-auto max-w-4xl">
-        <div>
-          <p className="text-sm font-black uppercase text-primary-purple">Competitive standings</p>
+    <main className="app-screen fixed-list-screen min-h-screen bg-accent-gray-50 px-4 py-7">
+      <div className="app-screen-shell mx-auto max-w-4xl">
+        <div className="screen-fixed">
           <h1 className="text-4xl font-black">Leaderboard</h1>
           <p className="mt-1 text-accent-gray-600">{scope === 'all_time' ? 'Permanent ELO ranking' : `${activePeriod} · ranked by net ELO gained`}</p>
         </div>
 
-        <nav aria-label="Leaderboard period" className="mt-6 grid grid-cols-3 rounded-2xl bg-accent-gray-200 p-1">
+        <nav aria-label="Leaderboard period" className="screen-fixed grid grid-cols-3 rounded-2xl bg-accent-gray-200 p-1 sm:mt-6">
           {tabs.map((tab) => (
             <Link key={tab.scope} href={`/leaderboard?tab=${tab.scope}`} className={`rounded-xl px-3 py-3 text-center text-sm font-black transition ${scope === tab.scope ? 'bg-white text-primary-purple shadow-sm' : 'text-accent-gray-600'}`}>
               {tab.label}
@@ -93,18 +95,24 @@ export default function LeaderboardClient({ entries, archives, scope, selectedPe
           ))}
         </nav>
 
-        {selectedPeriod && (
-          <div className="mt-4 flex items-center justify-between rounded-2xl border border-primary-purple/20 bg-primary-purple/5 p-4">
+        <div className="widget-scroll scroll-fade screen-flex pr-1 sm:mt-6" tabIndex={0} aria-label="Leaderboard standings">
+          {selectedPeriod && (
+          <div className="mb-4 flex items-center justify-between rounded-2xl border border-primary-purple/20 bg-primary-purple/5 p-4">
             <div><p className="text-xs font-black uppercase text-primary-purple">Historical archive</p><p className="font-bold">{activePeriod}</p></div>
             <Link href={`/leaderboard?tab=${scope}`} className="rounded-xl bg-white px-3 py-2 text-sm font-black text-primary-purple">Current</Link>
           </div>
-        )}
+          )}
 
-        {loadError && <div className="mt-5 rounded-2xl border-2 border-red-200 bg-red-50 p-5 font-bold text-red-700">Could not load standings: {loadError}</div>}
+          {loadError && <div className="mb-4 rounded-2xl border-2 border-red-200 bg-red-50 p-5 font-bold text-red-700">Could not load standings: {loadError}</div>}
 
-        <section className="mt-6 space-y-3">
-          {topRows.map((entry) => <StandingCard key={entry.player_id} entry={entry} scope={scope} currentUserId={currentUserId} />)}
-          {!topRows.length && !loadError && <div className="rounded-3xl bg-white p-12 text-center"><p className="text-4xl">🏓</p><h2 className="mt-3 text-xl font-black">No ranked results</h2><p className="mt-1 text-accent-gray-500">This period does not have any confirmed ranked matches.</p></div>}
+        <section className="space-y-3">
+          {visibleTopRows.map((entry) => <StandingCard key={entry.player_id} entry={entry} scope={scope} currentUserId={currentUserId} />)}
+          {!topRows.length && !loadError && <div className="rounded-3xl bg-white p-10 text-center text-accent-gray-500">No ranked results.</div>}
+          {visibleCount < topRows.length && (
+            <button type="button" onClick={() => setVisibleCount((count) => count + 50)} className="min-h-12 w-full rounded-2xl border-2 border-primary-purple/20 bg-white font-black text-primary-purple">
+              Load more standings
+            </button>
+          )}
         </section>
 
         {currentUserRow && (
@@ -117,7 +125,6 @@ export default function LeaderboardClient({ entries, archives, scope, selectedPe
         {scope !== 'all_time' && !selectedPeriod && (
           <section className="mt-10">
             <h2 className="text-2xl font-black">Previous winners</h2>
-            <p className="mt-1 text-sm text-accent-gray-500">Open any completed {scope === 'weekly' ? 'week' : 'month'} to view its full standings.</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {archives.map((archive) => (
                 <Link key={archive.period_start} href={`/leaderboard?tab=${scope}&period=${archive.period_start}`} className="rounded-2xl border-2 border-accent-gray-200 bg-white p-4 shadow-sm">
@@ -132,6 +139,7 @@ export default function LeaderboardClient({ entries, archives, scope, selectedPe
             </div>
           </section>
         )}
+        </div>
       </div>
     </main>
   );

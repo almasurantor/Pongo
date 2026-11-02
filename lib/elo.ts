@@ -1,7 +1,7 @@
 /** Beaver Smash weighted, exactly zero-sum ELO. */
 
 const K_FACTOR = 40;
-const BASE_ELO = 1000;
+const BASE_ELO = 500;
 const SCORE_MARGIN_CAP = 0.1;
 const MIN_WIN_MARGIN = 2;
 const FULL_BONUS_MARGIN = 11;

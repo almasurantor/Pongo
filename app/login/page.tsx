@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
-import { useStore } from '@/store/useStore';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -13,7 +12,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
-  const { setUser } = useStore();
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,21 +25,8 @@ export default function LoginPage() {
 
       if (error) throw error;
 
-      // Fetch and update user profile in store
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (authUser) {
-        const { data: userProfile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authUser.id)
-          .single();
-        if (userProfile) {
-          setUser(userProfile);
-        }
-      }
-
       toast.success('Logged in successfully!');
-      router.push('/dashboard');
+      router.replace('/dashboard');
       router.refresh();
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : 'Failed to log in');
@@ -88,10 +73,7 @@ export default function LoginPage() {
             transition={{ delay: 0.2 }}
             className="text-center mb-8"
           >
-            <h1 className="text-4xl font-bold mb-2 gradient-text">
-              Beaver Smash
-            </h1>
-            <p className="text-accent-gray-600">CCNY Table Tennis Club</p>
+            <h1 className="text-4xl font-bold gradient-text">Sign in</h1>
           </motion.div>
 
           <form onSubmit={handleEmailLogin} className="space-y-5 mb-6">

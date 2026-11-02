@@ -40,7 +40,7 @@ export default function MatchClient({
   mySubmission: initialMySubmission,
   currentUserId,
 }: Props) {
-  useDatabaseRefresh(`match-${initialMatch.id}`);
+  useDatabaseRefresh(`match-${initialMatch.id}`, ['matches', 'disputes', 'match_cancellation_requests']);
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [match, setMatch] = useState(initialMatch);
@@ -285,9 +285,9 @@ export default function MatchClient({
   );
 
   return (
-    <main className="min-h-screen bg-accent-gray-50 px-4 py-6">
-      <div className="mx-auto max-w-xl">
-        <header className="mb-6">
+    <main className="app-screen fixed-list-screen min-h-screen bg-accent-gray-50 px-4 py-6">
+      <div className="app-screen-shell mx-auto max-w-xl">
+        <header className="screen-fixed sm:mb-6">
           <p className="text-sm font-bold text-primary-purple">Ranked match</p>
           <h1 className="text-3xl font-black">You vs {opponent?.display_name}</h1>
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -301,6 +301,7 @@ export default function MatchClient({
           )}
         </header>
 
+        <div className="widget-scroll scroll-fade screen-flex pr-1" tabIndex={0} aria-label="Match details and actions">
         {match.status === 'confirmed' && (
           <section className="rounded-3xl border-2 border-green-300 bg-white p-6 shadow-lg">
             <p className="font-black uppercase text-green-700">Result finalized</p>
@@ -328,7 +329,6 @@ export default function MatchClient({
                   <div><p className="text-accent-gray-500">Winning margin</p><p className="font-black">{calculation.score_margin} points</p></div>
                   <div><p className="text-accent-gray-500">Final transfer</p><p className="font-black">{calculation.final_delta} ELO</p></div>
                 </div>
-                <p className="mt-3 text-xs text-accent-gray-500">Exactly zero-sum: the winner gains what the loser gives up.</p>
               </div>
             )}
           </section>
@@ -338,13 +338,13 @@ export default function MatchClient({
           <section className="mt-5 rounded-3xl border-2 border-amber-300 bg-amber-50 p-6">
             <p className="text-sm font-black uppercase text-amber-700">Result dispute</p>
             {dispute.status === 'admin_review' ? (
-              <><h2 className="mt-2 text-xl font-black text-amber-900">Awaiting administrator review</h2><p className="mt-1 text-sm text-amber-800">The recorded result and ratings remain unchanged until an administrator resolves the dispute.</p></>
+              <><h2 className="mt-2 text-xl font-black text-amber-900">Admin review</h2><p className="mt-1 text-sm text-amber-800">Current result remains.</p></>
             ) : dispute.opened_by === currentUserId ? (
-              <><h2 className="mt-2 text-xl font-black text-amber-900">Waiting for {opponent?.display_name}</h2><p className="mt-1 text-sm text-amber-800">Your {dispute.requested_resolution === 'void' ? 'void request' : 'correction'} does not change ratings unless they approve it. No response will escalate it for review.</p></>
+              <><h2 className="mt-2 text-xl font-black text-amber-900">Waiting for {opponent?.display_name}</h2><p className="mt-1 text-sm text-amber-800">Pending approval.</p></>
             ) : (
               <>
                 <h2 className="mt-2 text-xl font-black text-amber-900">{opponent?.display_name} requested a {dispute.requested_resolution}</h2>
-                <p className="mt-1 text-sm text-amber-800">Approve to apply it and replay affected ratings, or decline to escalate without changing the current result.</p>
+                <p className="mt-1 text-sm text-amber-800">Approve or escalate.</p>
                 {dispute.requested_resolution === 'correction' && <p className="mt-3 rounded-xl bg-white p-3 font-black text-amber-900">Proposed score: {dispute.proposed_player_one_score}–{dispute.proposed_player_two_score}</p>}
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <button disabled={loading !== null} onClick={() => respondDispute('decline')} className="min-h-12 rounded-xl border-2 border-amber-400 bg-white font-bold text-amber-800 disabled:opacity-50">Decline & escalate</button>
@@ -363,7 +363,7 @@ export default function MatchClient({
         {canOpenDispute && showDisputeForm && (
           <section className="mt-5 rounded-3xl border-2 border-amber-300 bg-white p-6 shadow-lg">
             <h2 className="text-2xl font-black">Request a correction</h2>
-            <p className="mt-1 text-sm text-accent-gray-600">Ratings stay unchanged until your opponent approves or an administrator decides.</p>
+            <p className="mt-1 text-sm text-accent-gray-600">Changes require approval.</p>
             <label className="mt-5 block text-sm font-black">What is wrong?</label>
             <select value={disputeReason} onChange={(event) => {const reason=event.target.value as typeof disputeReason;setDisputeReason(reason);if(reason==='match_never_happened')setDisputeResolution('void');}} className="mt-2 h-12 w-full rounded-xl border-2 border-accent-gray-200 px-3">
               <option value="incorrect_score">Incorrect score</option>
@@ -400,12 +400,10 @@ export default function MatchClient({
             {match.verification_mode === 'dual' && (
               <section className="rounded-2xl border-2 border-blue-300 bg-blue-50 p-5">
                 <p className="font-black text-blue-900">Independent reporting enabled</p>
-                <p className="mt-1 text-sm text-blue-800">
-                  Each player submits privately. Ratings update only when both reports match; conflicting reports close the match without changing ratings and alert an administrator.
-                </p>
+                <p className="mt-1 text-sm text-blue-800">Both reports must match.</p>
                 {mySubmission && (
                   <p className="mt-3 rounded-xl bg-white p-3 text-sm font-black text-blue-900">
-                    Your report is saved. Waiting for {opponent?.display_name} to report independently.
+                    Waiting for {opponent?.display_name}.
                   </p>
                 )}
               </section>
@@ -415,12 +413,12 @@ export default function MatchClient({
                 {cancellationRequest.requested_by === currentUserId ? (
                   <>
                     <p className="font-black text-amber-800">Cancellation requested</p>
-                    <p className="mt-1 text-sm text-amber-700">Waiting for {opponent?.display_name}. The match deadline is unchanged.</p>
+                    <p className="mt-1 text-sm text-amber-700">Waiting for {opponent?.display_name}.</p>
                   </>
                 ) : (
                   <>
                     <p className="font-black text-amber-800">Cancellation requested by {opponent?.display_name}</p>
-                    <p className="mt-1 text-sm text-amber-700">Approve to cancel with no rating changes, or decline to keep playing.</p>
+                    <p className="mt-1 text-sm text-amber-700">Cancel or keep playing.</p>
                     <div className="mt-4 grid grid-cols-2 gap-3">
                       <button disabled={loading !== null} onClick={() => cancellationAction('decline')} className="min-h-12 rounded-xl border-2 border-amber-400 bg-white font-bold text-amber-800 disabled:opacity-50">Decline</button>
                       <button disabled={loading !== null} onClick={() => cancellationAction('approve')} className="min-h-12 rounded-xl bg-amber-600 font-bold text-white disabled:opacity-50">Approve</button>
@@ -432,16 +430,11 @@ export default function MatchClient({
 
             <section className="rounded-3xl bg-white p-6 shadow-lg">
               <h2 className="text-2xl font-black">Report the result</h2>
-              <p className="mt-1 text-sm text-accent-gray-600">
-                {match.verification_mode === 'dual'
-                  ? 'Your report stays private and ratings remain unchanged until both independent reports match.'
-                  : 'The first valid submission finalizes the score and ratings immediately.'}
-              </p>
+              <p className="mt-1 text-sm text-accent-gray-600">{match.verification_mode === 'dual' ? 'Both reports must match.' : 'First valid report is final.'}</p>
               {baselineWin != null && baselineLoss != null && (
                 <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-blue-50 p-4 text-center">
                   <div><p className="text-xs font-bold uppercase text-blue-600">If you win</p><p className="text-2xl font-black text-green-600">+{baselineWin}</p></div>
                   <div><p className="text-xs font-bold uppercase text-blue-600">If you lose</p><p className="text-2xl font-black text-red-600">{baselineLoss}</p></div>
-                  <p className="col-span-2 text-xs text-blue-700">Close-score estimate. The submitted margin can adjust the transfer by up to 10%.</p>
                 </div>
               )}
               <div className="mt-5 grid grid-cols-2 gap-3">
@@ -483,17 +476,14 @@ export default function MatchClient({
             <p className="mt-2 text-accent-gray-500">{match.status === 'voided' ? 'The result was removed and affected ratings were replayed.' : 'No rating or record changes were applied.'}</p>
           </section>
         )}
+        </div>
 
         {showReportConfirmation && (
           <div role="dialog" aria-modal="true" className="fixed inset-0 z-[80] flex items-end bg-black/55 p-4 sm:items-center sm:justify-center">
             <section className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
               <p className="text-sm font-black uppercase text-primary-purple">Final ranked result</p>
               <h2 className="mt-1 text-2xl font-black">Confirm before submitting</h2>
-              <p className="mt-2 text-sm text-accent-gray-600">
-                {match.verification_mode === 'dual'
-                  ? 'This report is private. Ratings update only if your opponent independently submits the same result.'
-                  : 'The first valid submission updates both players immediately. Corrections require mutual approval.'}
-              </p>
+              <p className="mt-2 text-sm text-accent-gray-600">{match.verification_mode === 'dual' ? 'Your opponent must match this report.' : 'This updates both ratings.'}</p>
               <div className="mt-5"><Score one={isPlayerOne ? myScore : theirScore} two={isPlayerOne ? theirScore : myScore} /></div>
               <p className="mt-4 text-center text-lg font-black">Winner: {winnerId === currentUserId ? 'You' : opponent?.display_name}</p>
               {projectedChange != null && <p className={`mt-2 text-center font-black ${projectedChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>Estimated change: {projectedChange >= 0 ? '+' : ''}{projectedChange} ELO</p>}
@@ -512,7 +502,7 @@ export default function MatchClient({
               <p className="mt-4 text-sm font-black uppercase tracking-widest text-white/75">{resultSummary.won ? 'Victory' : 'Defeat'}</p>
               <h2 className="mt-1 text-4xl font-black">{resultSummary.change >= 0 ? '+' : ''}{resultSummary.change} ELO</h2>
               {resultSummary.placementAfter != null && <div className="mt-5 rounded-2xl bg-white/10 p-4"><p className="text-sm font-bold text-white/75">All-time placement</p><p className="text-3xl font-black">#{resultSummary.placementAfter}</p>{resultSummary.placementChange !== 0 && <p className="mt-1 text-sm font-black">{resultSummary.placementChange > 0 ? `↑ ${resultSummary.placementChange}` : `↓ ${Math.abs(resultSummary.placementChange)}`} place{Math.abs(resultSummary.placementChange) === 1 ? '' : 's'}</p>}</div>}
-              <div className="mt-6 grid grid-cols-2 gap-3"><button onClick={() => setResultSummary(null)} className="min-h-12 rounded-xl border-2 border-white/30 font-bold">View result</button><button onClick={() => { window.location.href='/dashboard'; }} className="min-h-12 rounded-xl bg-white font-black text-accent-gray-900">Dashboard</button></div>
+              <div className="mt-6 grid grid-cols-2 gap-3"><button onClick={() => setResultSummary(null)} className="min-h-12 rounded-xl border-2 border-white/30 font-bold">View result</button><button onClick={() => router.push('/dashboard')} className="min-h-12 rounded-xl bg-white font-black text-accent-gray-900">Dashboard</button></div>
             </section>
           </div>
         )}

@@ -4,6 +4,9 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import ConditionalNavbar from "@/components/ConditionalNavbar";
 import PWAClient from "@/components/PWAClient";
+import { ThemeProvider } from "@/components/ThemeProvider";
+import NavigationFeedback from "@/components/NavigationFeedback";
+import { Suspense } from "react";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -32,9 +35,22 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  colorScheme: "light",
-  themeColor: "#5B21B6",
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#5B21B6" },
+    { media: "(prefers-color-scheme: dark)", color: "#171321" },
+  ],
 };
+
+const themeScript = `
+  try {
+    var saved = localStorage.getItem('beaversmash-theme');
+    var automatic = saved !== 'light' && saved !== 'dark';
+    var dark = saved === 'dark' || (automatic && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.classList.toggle('dark', dark);
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  } catch (_) {}
+`;
 
 export default function RootLayout({
   children,
@@ -43,34 +59,39 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
       <body className={inter.className} suppressHydrationWarning>
-        <PWAClient />
-        <ConditionalNavbar />
-        {children}
-        <Toaster 
-          position="top-right"
-          toastOptions={{
-            style: {
-              background: '#FFFFFF',
-              color: '#000000',
-              border: '2px solid #7C3AED',
-              borderRadius: '12px',
-              boxShadow: '0 10px 25px rgba(124, 58, 237, 0.2)',
-            },
-            success: {
-              iconTheme: {
-                primary: '#7C3AED',
-                secondary: '#fff',
+        <ThemeProvider>
+          <PWAClient />
+          <Suspense fallback={null}><NavigationFeedback /></Suspense>
+          <ConditionalNavbar />
+          {children}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              style: {
+                background: '#FFFFFF',
+                color: '#000000',
+                border: '2px solid #7C3AED',
+                borderRadius: '12px',
+                boxShadow: '0 10px 25px rgba(124, 58, 237, 0.2)',
               },
-            },
-            error: {
-              iconTheme: {
-                primary: '#EF4444',
-                secondary: '#fff',
+              className: 'theme-toast',
+              success: {
+                iconTheme: {
+                  primary: '#7C3AED',
+                  secondary: '#fff',
+                },
               },
-            },
-          }}
-        />
+              error: {
+                iconTheme: {
+                  primary: '#EF4444',
+                  secondary: '#fff',
+                },
+              },
+            }}
+          />
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -62,7 +62,7 @@ export function RankProgress({ elo, totalGames, inverse = false }: { elo: number
       </div>
       {rank.isProvisional && (
         <p className={`mt-2 text-xs font-bold ${inverse ? 'text-white/75' : 'text-accent-gray-500'}`}>
-          {rank.placementGamesRemaining} placement {rank.placementGamesRemaining === 1 ? 'game' : 'games'} until your rank is official
+          {rank.placementGamesRemaining} placement {rank.placementGamesRemaining === 1 ? 'game' : 'games'} left
         </p>
       )}
     </div>

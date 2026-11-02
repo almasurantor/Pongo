@@ -4,52 +4,25 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
 import PingPongAnimation from '@/components/PingPongAnimation';
-import { createClient } from '@/lib/supabase/client';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useDatabaseRefresh } from '@/lib/use-database-refresh';
 import { BASE_ELO } from '@/lib/elo';
 
 export default function HomePageClient({ playerCount, matchCount }: { playerCount: number | null; matchCount: number | null }) {
-  useDatabaseRefresh('home-stats');
-  const supabase = createClient();
-  const router = useRouter();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setIsLoggedIn(!!user);
-      setLoading(false);
-    };
-
-    checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setIsLoggedIn(!!session?.user);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
   const features = [
     {
       title: 'Competitive Ranks',
-      description: 'Climb from Iron to Legend with permanent ELO, distinctive badges, and clear progress toward your next tier',
+      description: 'Iron to Legend.',
     },
     {
       title: 'Real-Time Updates',
-      description: 'See challenges, active matches, rating changes, and leaderboards refresh as club results are confirmed',
+      description: 'Live match and rating updates.',
     },
     {
       title: 'Live Leaderboards',
-      description: 'Compare weekly and monthly ELO gains, climb the permanent ladder, and revisit previous winners',
+      description: 'Weekly, monthly, and all-time.',
     },
     {
       title: 'Match Tracking',
-      description: 'Complete match history with detailed stats, ELO changes, and comprehensive performance analytics',
+      description: 'Scores, records, and ELO history.',
     },
   ];
 
@@ -61,9 +34,9 @@ export default function HomePageClient({ playerCount, matchCount }: { playerCoun
   ];
 
   const steps = [
-    { step: '1', title: 'Challenge Players', desc: 'Send challenges to any player in the club and wait for acceptance' },
-    { step: '2', title: 'Play & Report', desc: 'Either player submits the final score and the first valid report finalizes it' },
-    { step: '3', title: 'Climb Rankings', desc: 'Watch your ELO update instantly and progress from Iron to Legend' },
+    { step: '1', title: 'Challenge', desc: 'Invite a player.' },
+    { step: '2', title: 'Play', desc: 'Report the score.' },
+    { step: '3', title: 'Climb', desc: 'Move up the ladder.' },
   ];
 
   return (
@@ -91,29 +64,15 @@ export default function HomePageClient({ playerCount, matchCount }: { playerCoun
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
             >
-              {!loading && (
-                isLoggedIn ? (
-                  <Link href="/dashboard">
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="px-8 py-3 gradient-purple text-white rounded-xl shadow-lg hover:shadow-purple-glow transition-all font-semibold"
-                    >
-                      Go to Dashboard
-                    </motion.button>
-                  </Link>
-                ) : (
-                  <Link href="/login">
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="px-8 py-3 gradient-purple text-white rounded-xl shadow-lg hover:shadow-purple-glow transition-all font-semibold"
-                    >
-                      Sign In
-                    </motion.button>
-                  </Link>
-                )
-              )}
+              <Link href="/login">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="px-8 py-3 gradient-purple text-white rounded-xl shadow-lg hover:shadow-purple-glow transition-all font-semibold"
+                >
+                  Sign In
+                </motion.button>
+              </Link>
             </motion.div>
           </div>
         </div>
@@ -173,7 +132,7 @@ export default function HomePageClient({ playerCount, matchCount }: { playerCoun
               transition={{ delay: 0.4 }}
               className="text-xl md:text-2xl text-accent-gray-600 mb-0 max-w-3xl mx-auto leading-relaxed font-medium"
             >
-              The ultimate ELO-based ladder system. Challenge players, track your progress, and dominate the leaderboard.
+              CCNY table tennis rankings.
             </motion.p>
           </motion.div>
 
@@ -193,13 +152,13 @@ export default function HomePageClient({ playerCount, matchCount }: { playerCoun
               transition={{ delay: 0.8 }}
               className="flex flex-col sm:flex-row gap-6 justify-center items-center"
             >
-              <Link href={isLoggedIn ? "/dashboard" : "/signup"}>
+              <Link href="/signup">
               <motion.button
                 whileHover={{ scale: 1.05, boxShadow: '0 0 40px rgba(124, 58, 237, 0.5)' }}
                 whileTap={{ scale: 0.95 }}
                 className="relative px-10 py-5 gradient-purple text-white text-xl font-bold rounded-xl shadow-2xl hover:shadow-purple-glow-lg transition-all overflow-hidden group"
               >
-                <span className="relative z-10">Get Started</span>
+                <span className="relative z-10">Sign Up</span>
                 <motion.div
                   className="absolute inset-0 bg-gradient-to-r from-primary-purpleLight to-primary-purple opacity-0 group-hover:opacity-100 transition-opacity"
                   initial={false}
@@ -214,7 +173,7 @@ export default function HomePageClient({ playerCount, matchCount }: { playerCoun
               }}
               className="px-10 py-5 bg-white border-2 border-primary-purple text-primary-purple text-xl font-bold rounded-xl shadow-lg hover:shadow-xl hover:bg-primary-purple/5 transition-all"
             >
-              Learn More
+              Features
             </motion.button>
           </motion.div>
         </div>
@@ -257,11 +216,8 @@ export default function HomePageClient({ playerCount, matchCount }: { playerCoun
           className="text-center mb-20"
         >
           <h2 className="text-5xl md:text-6xl font-bold text-accent-black mb-6">
-            Why <span className="gradient-text">Beaver Smash</span>?
+            <span className="gradient-text">Features</span>
           </h2>
-          <p className="text-2xl text-accent-gray-600 max-w-3xl mx-auto">
-            Everything you need to compete, track, and improve your table tennis game
-          </p>
         </motion.div>
 
         <div className="grid md:grid-cols-2 gap-6 md:gap-8">
@@ -292,11 +248,8 @@ export default function HomePageClient({ playerCount, matchCount }: { playerCoun
           className="text-center mb-20"
         >
           <h2 className="text-5xl md:text-6xl font-bold text-accent-black mb-6">
-            How It <span className="gradient-text">Works</span>
+            How it <span className="gradient-text">works</span>
           </h2>
-          <p className="text-xl text-accent-gray-600 max-w-2xl mx-auto">
-            Get started in three simple steps
-          </p>
         </motion.div>
 
         <div className="grid md:grid-cols-3 gap-8 md:gap-10">
@@ -338,49 +291,11 @@ export default function HomePageClient({ playerCount, matchCount }: { playerCoun
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          className="bg-gradient-to-r from-primary-purple to-primary-purpleLight rounded-3xl p-16 md:p-20 text-center shadow-2xl"
-        >
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-5xl md:text-6xl font-bold text-white mb-8"
-          >
-            Ready to Compete?
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-            className="text-2xl text-white/90 mb-12 max-w-3xl mx-auto leading-relaxed"
-          >
-            Join the CCNY Table Tennis Club ladder and start your journey to the top
-          </motion.p>
-          <Link href={isLoggedIn ? "/dashboard" : "/signup"}>
-            <motion.button
-              whileHover={{ scale: 1.1, boxShadow: '0 0 50px rgba(255, 255, 255, 0.6)' }}
-              whileTap={{ scale: 0.95 }}
-              className="px-12 py-6 bg-white text-primary-purple text-xl font-bold rounded-xl shadow-2xl hover:shadow-white/50 transition-all"
-            >
-              {isLoggedIn ? "Go to Dashboard" : "Get Started Now"}
-            </motion.button>
-          </Link>
-        </motion.div>
-      </section>
-
       {/* Footer */}
       <footer className="border-t border-accent-gray-200 py-12 mt-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center text-accent-gray-600">
-            <p className="font-bold text-accent-black text-xl mb-3">Beaver Smash</p>
-            <p className="text-lg">CCNY Table Tennis Club • Built with passion for competition</p>
+            <p className="font-bold text-accent-black">CCNY Table Tennis Club</p>
           </div>
         </div>
       </footer>

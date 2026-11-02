@@ -29,8 +29,7 @@ export default function PWAClient() {
     <aside className="fixed inset-x-0 top-0 z-[90] bg-accent-gray-900 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] text-white shadow-xl" role="status">
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
         <div>
-          <p className="font-black">You&apos;re offline</p>
-          <p className="text-sm text-white/75">Reconnect to update matches and rankings.</p>
+          <p className="font-black">Offline</p>
         </div>
         <button type="button" onClick={() => window.location.reload()} className="min-h-11 shrink-0 rounded-xl bg-white px-4 font-bold text-accent-gray-900">
           Retry

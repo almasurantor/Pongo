@@ -2,8 +2,7 @@ import { type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
-  // Always update session but don't redirect from homepage or login/signup
-  // This allows users to stay logged in when visiting homepage
+  // Refresh auth cookies and enforce protected/public launch routes.
   return await updateSession(request)
 }
 

@@ -1,4 +1,5 @@
 export const PLACEMENT_GAME_COUNT = 5;
+export const STARTING_ELO = 500;
 
 export type RankTierName =
   | 'Iron'
@@ -30,10 +31,10 @@ export interface RankDetails {
 // Keep this in sync with competitive_rank_tiers in the Phase 4 migration.
 export const RANK_TIERS: readonly RankTier[] = [
   { name: 'Iron', minElo: null },
-  { name: 'Bronze', minElo: 850 },
-  { name: 'Silver', minElo: 950 },
-  { name: 'Gold', minElo: 1050 },
-  { name: 'Platinum', minElo: 1150 },
+  { name: 'Bronze', minElo: 650 },
+  { name: 'Silver', minElo: 800 },
+  { name: 'Gold', minElo: 950 },
+  { name: 'Platinum', minElo: 1100 },
   { name: 'Diamond', minElo: 1250 },
   { name: 'Legend', minElo: 1400 },
 ] as const;
@@ -69,8 +70,8 @@ export function getRankDetails(elo: number, totalGames = 0): RankDetails {
     };
   }
 
-  // Iron has no lower bound, so use one normal 100-point tier band for its bar.
-  const progressFloor = tier.minElo ?? nextTier.minElo - 100;
+  // Iron has no hard lower bound, but new players begin at this floor.
+  const progressFloor = tier.minElo ?? STARTING_ELO;
   const progressPercent = Math.round(
     Math.min(1, Math.max(0, (elo - progressFloor) / (nextTier.minElo - progressFloor))) * 100,
   );
