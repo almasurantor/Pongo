@@ -60,7 +60,7 @@ SELECT pg_temp.assert_true(
   'the first challenger must receive a server-timed call while later players wait'
 );
 
--- B checks in. Only either active participant may report a valid final score.
+-- B checks in. Only either active participant may report an outcome.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000002',TRUE);
 SELECT public.beaver_queue_confirm_v1();
@@ -77,24 +77,24 @@ SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000004',TRUE);
 DO $$
 BEGIN
-  PERFORM public.beaver_queue_report_v1((SELECT id FROM queue_test_ids),11,9);
-  RAISE EXCEPTION 'Expected unrelated score reporter rejection';
+  PERFORM public.beaver_queue_report_outcome_v2((SELECT id FROM queue_test_ids),'won');
+  RAISE EXCEPTION 'Expected unrelated outcome reporter rejection';
 EXCEPTION WHEN OTHERS THEN
-  IF SQLERRM='Expected unrelated score reporter rejection' THEN RAISE; END IF;
+  IF SQLERRM='Expected unrelated outcome reporter rejection' THEN RAISE; END IF;
   IF SQLERRM NOT ILIKE '%only players%' THEN RAISE; END IF;
 END;
 $$;
 SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000001',TRUE);
 DO $$
 BEGIN
-  PERFORM public.beaver_queue_report_v1((SELECT id FROM queue_test_ids),11,10);
-  RAISE EXCEPTION 'Expected invalid score rejection';
+  PERFORM public.beaver_queue_report_outcome_v2((SELECT id FROM queue_test_ids),'maybe');
+  RAISE EXCEPTION 'Expected invalid outcome rejection';
 EXCEPTION WHEN OTHERS THEN
-  IF SQLERRM='Expected invalid score rejection' THEN RAISE; END IF;
-  IF SQLERRM NOT ILIKE '%invalid table-tennis score%' THEN RAISE; END IF;
+  IF SQLERRM='Expected invalid outcome rejection' THEN RAISE; END IF;
+  IF SQLERRM NOT ILIKE '%outcome must be%' THEN RAISE; END IF;
 END;
 $$;
-SELECT public.beaver_queue_report_v1((SELECT id FROM queue_test_ids),11,9);
+SELECT public.beaver_queue_report_outcome_v2((SELECT id FROM queue_test_ids),'won');
 RESET ROLE;
 
 SELECT pg_temp.assert_true(
@@ -115,11 +115,11 @@ SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000002',TRUE);
 DO $$
 BEGIN
-  PERFORM public.beaver_queue_report_v1((SELECT id FROM queue_test_ids),9,11);
+  PERFORM public.beaver_queue_report_outcome_v2((SELECT id FROM queue_test_ids),'won');
   RAISE EXCEPTION 'Expected duplicate finalization rejection';
 EXCEPTION WHEN OTHERS THEN
   IF SQLERRM='Expected duplicate finalization rejection' THEN RAISE; END IF;
-  IF SQLERRM NOT ILIKE '%no longer active%' THEN RAISE; END IF;
+  IF SQLERRM NOT ILIKE '%administrator%' THEN RAISE; END IF;
 END;
 $$;
 RESET ROLE;
@@ -154,8 +154,8 @@ SELECT public.beaver_queue_leave_v1();
 SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000002',TRUE);
 SELECT public.beaver_queue_join_v1();
 SELECT public.beaver_queue_confirm_v1();
-SELECT public.beaver_queue_report_v1(
-  (SELECT game_id FROM public.beaver_queue_table WHERE id=1),9,11
+SELECT public.beaver_queue_report_outcome_v2(
+  (SELECT game_id FROM public.beaver_queue_table WHERE id=1),'won'
 );
 RESET ROLE;
 SELECT pg_temp.assert_true(
@@ -244,7 +244,8 @@ SELECT pg_temp.assert_true(
   has_function_privilege('authenticated','public.beaver_queue_join_v1()','EXECUTE')
   AND has_function_privilege('authenticated','public.beaver_queue_leave_v1()','EXECUTE')
   AND has_function_privilege('authenticated','public.beaver_queue_confirm_v1()','EXECUTE')
-  AND has_function_privilege('authenticated','public.beaver_queue_report_v1(uuid,integer,integer)','EXECUTE')
+  AND has_function_privilege('authenticated','public.beaver_queue_report_outcome_v2(uuid,text)','EXECUTE')
+  AND NOT has_function_privilege('authenticated','public.beaver_queue_report_v1(uuid,integer,integer)','EXECUTE')
   AND NOT has_function_privilege('anon','public.beaver_queue_join_v1()','EXECUTE')
   AND NOT has_function_privilege('authenticated','public.beaver_queue_advance_internal_v1()','EXECUTE')
   AND has_function_privilege('service_role','public.beaver_queue_advance_expired_v1()','EXECUTE')

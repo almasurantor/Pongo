@@ -45,6 +45,7 @@ For an existing Pongo project:
 18. Run `supabase/migrations/20261102_01_profile_settings_queue_alerts.sql` to enforce unique public display names and add the opt-in queue sound and device-reminder preferences.
 19. Run `supabase/migrations/20261103_01_coordinated_auth_rank_queue.sql` to remove placement ranks, add queue liveness cleanup, preserve K=40/500 starting ELO, and install challenge/match query indexes.
 20. Run `supabase/migrations/20261103_02_queue_production_repair.sql` to repair the production queue RPCs, re-assert grants/RLS/Realtime publication entries, and install the queue backend health check. Deploying application code does not run this SQL automatically.
+21. Manually run `supabase/migrations/20261103_03_queue_outcomes_swaps.sql` to install outcome-only queue games, the 10-minute abandoned-game deadline, mutual position swaps, v3 health checks, and audited admin history corrections. Deploying or pushing application code does not run this migration.
 
 The expand migration is retry-safe, keeps the legacy columns/statuses during rollout, creates audited opening-balance events, and bootstraps `almasurantor` using profile UUID `494357c8-607e-4605-980b-19260c8a2cfc` as the first administrator. The old `migration_single_reporter_match_flow.sql` is superseded and must not be applied.
 
@@ -62,7 +63,7 @@ For a brand-new project, provision the legacy base schema from `supabase/schema.
 
 Call `expire_mobile_ranking_items_v2()` from a trusted scheduled worker or Supabase Edge Function every five minutes. It expires stale challenges, accepted matches, and their pending cancellation requests, and escalates unanswered result disputes to administrators without changing ratings or trust. The live project does not currently have `pg_cron`, so scheduling is intentionally external.
 
-Call `beaver_queue_advance_expired_v1()` from a service-role worker every 5–15 seconds. This is the browser-independent path that removes a called player after 60 seconds and immediately calls the next player. `supabase/functions/queue-tick.sql` contains the worker query. Never expose the service-role key to the browser. Active queue members heartbeat every 30 seconds; Realtime changes only refetch state and never trigger a heartbeat.
+Call `beaver_queue_advance_expired_v1()` from a service-role worker every 5–15 seconds. This browser-independent path removes a called player after 60 seconds, abandons unfinished games after 10 minutes, expires invalid swap requests, and immediately advances the queue. `supabase/functions/queue-tick.sql` contains the worker query. Never expose the service-role key to the browser. Active queue members heartbeat every 30 seconds; Realtime changes only refetch state and never trigger a heartbeat.
 
 Weekly records do not need a reset job. `weekly_player_stats` stores one row per player and New York club week.
 
@@ -79,6 +80,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/phase7_mobile_experien
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/phase8_security_reliability.test.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/live_queue.test.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/queue_production_repair.test.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/queue_outcomes_swaps.test.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/profile_settings_queue_alerts.test.sql
 ```
 
@@ -136,5 +138,6 @@ Visit http://localhost:3000
 - `domain_events` and internal recipient rows remain server-side audit/delivery infrastructure used by match and dispute workflows; there is no user-facing notification center
 - Accounts placed in `dual_verification` by an administrator submit privately; only matching independent reports finalize, while conflicts expire without rating changes and enter the integrity queue
 - Two administrator-confirmed reporting violations automatically place a normal account in monitored status; administrators still decide whether to require dual verification or restrict ranked play
-- Queue results are stored only in `beaver_queue_games`; they never affect ranked ELO, limits, records, disputes, or leaderboards
-- Queue games deliberately have no duration timeout. If both participants abandon an active game without reporting it, a trusted operator must inspect the physical table and repair that queue state in the database; automatic abandonment rules can be added later without coupling the queue to ranked matches
+- Queue outcomes are stored only in `beaver_queue_games`; they never affect ranked ELO, limits, records, disputes, or leaderboards
+- Queue games use participant-only **I Won** / **I Lost** reporting. The first valid report wins atomically; the trusted worker records unfinished 10-minute games as abandoned audit rows and advances the queue
+- Waiting players can request a 60-second mutual position swap only with someone ahead; both players must remain waiting and the target must accept

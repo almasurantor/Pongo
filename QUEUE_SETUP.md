@@ -10,10 +10,12 @@ matches. Its tables, RPCs, recent results, and Realtime channels all use the
 2. Apply all existing migrations in filename order.
 3. Apply `supabase/migrations/20261101_01_live_queue.sql`,
    `supabase/migrations/20261103_01_coordinated_auth_rank_queue.sql`, and then
-   `supabase/migrations/20261103_02_queue_production_repair.sql` through the Supabase CLI
-   or SQL editor. A GitHub/Vercel deployment does not apply database migrations. Test
-   the repair against a disposable database before production.
-4. Verify `beaver_queue_table`, `beaver_queue_members`, and `beaver_queue_games` are in
+   `supabase/migrations/20261103_02_queue_production_repair.sql` and
+   `supabase/migrations/20261103_03_queue_outcomes_swaps.sql` through the Supabase CLI
+   or SQL editor. **A GitHub/Vercel deployment does not apply database migrations.**
+   Test the repair against a disposable database before production.
+4. Verify `beaver_queue_table`, `beaver_queue_members`, `beaver_queue_games`, and
+   `beaver_queue_swap_requests` are in
    the `supabase_realtime` publication.
 5. Deploy the application code together with the migration. An application deployed
    before its database migration will show a missing-RPC error at `/queue`.
@@ -25,6 +27,8 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f supabase/tests/live_queue.test.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f supabase/tests/queue_production_repair.test.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+  -f supabase/tests/queue_outcomes_swaps.test.sql
 ```
 
 The test runs in a transaction and rolls back its users and queue state. Follow
@@ -36,9 +40,11 @@ Run this in the Supabase SQL editor after applying the repair:
 
 ```sql
 SELECT
-  to_regprocedure('public.beaver_queue_health_v2()') IS NOT NULL AS repair_installed,
+  to_regprocedure('public.beaver_queue_health_v3()') IS NOT NULL AS repair_installed,
   has_function_privilege('authenticated','public.beaver_queue_heartbeat_v1()','EXECUTE') AS heartbeat_granted,
   has_function_privilege('authenticated','public.beaver_queue_join_v1()','EXECUTE') AS join_granted,
+  has_function_privilege('authenticated','public.beaver_queue_report_outcome_v2(uuid,text)','EXECUTE') AS outcome_granted,
+  has_function_privilege('authenticated','public.beaver_queue_request_swap_v1(uuid)','EXECUTE') AS swap_granted,
   EXISTS (
     SELECT 1 FROM pg_publication_tables
     WHERE pubname='supabase_realtime' AND schemaname='public'
@@ -46,8 +52,8 @@ SELECT
   ) AS members_realtime;
 ```
 
-All four values must be `true`. From an authenticated app session,
-`beaver_queue_health_v2()` must return version `20261103_02`. A `PGRST202` response means
+All values must be `true`. From an authenticated app session,
+`beaver_queue_health_v3()` must return version `20261103_03`. A `PGRST202` response means
 the migration was not applied or PostgREST has not reloaded its schema. A `42501`
 response for an authenticated user means the RPC grant is wrong; the same response for
 the anonymous role is expected.
@@ -70,6 +76,11 @@ changes. Only active queue members send a heartbeat, at a 30-second interval; Re
 events never trigger another heartbeat. The trusted worker is still what guarantees
 advancement when every browser is closed.
 
+The same worker enforces the 10-minute game deadline, stores the unfinished game as an
+`abandoned` audit row, removes both players, expires 60-second swap requests, and calls
+the next eligible players. Abandoned games are visible only in the admin Integrity
+audit; they never appear in player Queue Activity.
+
 ## Test with 3–5 phones or browser sessions
 
 1. Create three to five normal BeaverSmash accounts. Use separate devices, browser
@@ -78,8 +89,8 @@ advancement when every browser is closed.
 3. Join as A. A should become the table holder.
 4. Join as B, C, D, and optionally E. B should be called for 60 seconds; later players
    should remain in FIFO order and see the same state on every screen.
-5. Confirm as B. Only A and B should see score controls.
-6. Submit a valid score from A or B. Confirm that the winner stays, the loser can rejoin
+5. Confirm as B. Only A and B should see **I Won** and **I Lost** controls.
+6. Submit an outcome from A or B. Confirm that the winner stays, the loser can rejoin
    at the back, and C is called next.
 7. Let one call expire without its browser open. The worker should mark that player as a
    no-show and call the next player shortly after the displayed deadline.
@@ -88,11 +99,15 @@ advancement when every browser is closed.
    unauthorized reporting should fail.
 9. Confirm that no row was added to `matches` or `rating_events`, and no ranked ELO,
    win/loss record, limit, leaderboard, or dispute changed.
+10. While two or more players are waiting, request a swap from a player behind to one
+    ahead. Accept it from the target session and verify both positions exchange for all
+    clients. Decline and 60-second expiry must leave positions unchanged.
 
-## Operational limitation
+## Outcome corrections
 
-There is deliberately no game-duration timeout. A participant cannot leave while a game
-is active; either participant must submit the real final score. If both abandon an
-unfinished game, a trusted operator must inspect the physical-table situation and repair
-the queue state directly in PostgreSQL. An explicit mutual-abandonment workflow can be
-added later without coupling queue games to ranked matches.
+The first valid participant outcome atomically finalizes a queue game. Identical retries
+are idempotent; conflicting late reports are rejected. An administrator can change the
+recorded winner from **Integrity → Queue history audit** only with a reason. Every change
+creates an immutable correction row and updates history only—it never rewinds the current
+holder, later queue games, ranked matches, ratings, challenges, or limits. Abandoned games
+cannot be converted to completed games.

@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { validateMatchScore } from './match-result';
-import { orderedQueueLine, queuePlaceFor, QueueLineMember } from './queue';
+import {
+  canReportQueueOutcome,
+  canRequestQueueSwap,
+  orderedQueueLine,
+  queueGameSecondsRemaining,
+  queuePlaceFor,
+  queueSecondsUntil,
+  queueStatusLabel,
+  recentCompletedQueueGames,
+  type QueueLineMember,
+} from './queue';
 
 const member = (userId: string, status: QueueLineMember['status'], position: number): QueueLineMember => ({
   user_id: userId,
@@ -30,10 +39,37 @@ describe('live queue presentation rules', () => {
     expect(queuePlaceFor(members, 'missing')).toBeNull();
   });
 
-  it('uses the shared table-tennis score rules', () => {
-    expect(validateMatchScore(11, 9)).toBeNull();
-    expect(validateMatchScore(12, 10)).toBeNull();
-    expect(validateMatchScore(11, 10)).toMatch(/2 points/);
-    expect(validateMatchScore(13, 10)).toMatch(/exactly 2/);
+  it('uses database timestamps for the 60-second call and 10-minute game timers', () => {
+    const now = Date.parse('2026-11-03T12:00:00Z');
+    expect(queueSecondsUntil('2026-11-03T12:00:45Z', now)).toBe(45);
+    expect(queueSecondsUntil('2026-11-03T11:59:00Z', now)).toBe(0);
+    expect(queueGameSecondsRemaining('2026-11-03T11:56:30Z', now)).toBe(390);
+  });
+
+  it('maps every queue state to the compact header status', () => {
+    expect(queueStatusLabel(undefined, -1, 0)).toBe('Not in queue');
+    expect(queueStatusLabel('waiting', 1, 0)).toBe('In queue · #2');
+    expect(queueStatusLabel('king', -1, 0)).toBe('Holding table');
+    expect(queueStatusLabel('called', -1, 9)).toBe('Called · 0:09');
+    expect(queueStatusLabel('playing', -1, 0)).toBe('Playing');
+  });
+
+  it('shows outcome and swap controls only to eligible users', () => {
+    expect(canReportQueueOutcome('playing', 'holder', 'holder', 'challenger')).toBe(true);
+    expect(canReportQueueOutcome('playing', 'spectator', 'holder', 'challenger')).toBe(false);
+    expect(canReportQueueOutcome('called', 'holder', 'holder', 'challenger')).toBe(false);
+    const me = member('me', 'waiting', 3);
+    expect(canRequestQueueSwap(me, member('ahead', 'waiting', 2), false)).toBe(true);
+    expect(canRequestQueueSwap(me, member('behind', 'waiting', 4), false)).toBe(false);
+    expect(canRequestQueueSwap(me, member('ahead', 'waiting', 2), true)).toBe(false);
+  });
+
+  it('limits player activity to ten completed, score-free outcomes', () => {
+    const games = [
+      ...Array.from({ length: 12 }, (_, id) => ({ id, status: 'completed' as const })),
+      { id: 99, status: 'abandoned' as const },
+    ];
+    expect(recentCompletedQueueGames(games)).toHaveLength(10);
+    expect(recentCompletedQueueGames(games).some((game) => game.status === 'abandoned')).toBe(false);
   });
 });

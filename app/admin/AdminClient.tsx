@@ -47,9 +47,23 @@ type ResolutionPayload = {
   notes?: string;
 };
 
-export default function AdminClient({ disputes, integrity, flags }: { disputes: AdminDispute[]; integrity: IntegrityRow[]; flags: IntegrityFlag[] }) {
+type QueueGame = {
+  id: string;
+  king_id: string;
+  challenger_id: string;
+  king_name: string;
+  challenger_name: string;
+  status: 'completed' | 'abandoned';
+  winner_id: string | null;
+  loser_id: string | null;
+  reported_by: string | null;
+  completed_at: string;
+  corrected_at: string | null;
+};
+
+export default function AdminClient({ disputes, integrity, flags, queueGames }: { disputes: AdminDispute[]; integrity: IntegrityRow[]; flags: IntegrityFlag[]; queueGames: QueueGame[] }) {
   const router = useRouter();
-  useDatabaseRefresh('admin-review', ['disputes', 'integrity_flags', 'player_integrity']);
+  useDatabaseRefresh('admin-review', ['disputes', 'integrity_flags', 'player_integrity', 'beaver_queue_games', 'beaver_queue_game_corrections']);
   const [selected, setSelected] = useState<AdminDispute | null>(null);
   const [loading, setLoading] = useState(false);
   const [customWinner, setCustomWinner] = useState('');
@@ -81,6 +95,21 @@ export default function AdminClient({ disputes, integrity, flags }: { disputes: 
   const reviewFlag = async (flagId: string) => {
     try { const response=await fetch(`/api/admin/integrity-flags/${flagId}/review`,{method:'POST'});const result=await response.json();if(!response.ok)throw new Error(result.error||'Could not review flag');toast.success('Integrity flag reviewed');router.refresh(); }
     catch(error){toast.error(error instanceof Error?error.message:'Could not review flag');}
+  };
+  const correctQueueGame = async (game: QueueGame) => {
+    if (game.status !== 'completed' || !game.winner_id) return;
+    const newWinnerId = game.winner_id === game.king_id ? game.challenger_id : game.king_id;
+    const newWinnerName = newWinnerId === game.king_id ? game.king_name : game.challenger_name;
+    const reason = window.prompt(`Change this queue result so ${newWinnerName} is the winner? Enter the required audit reason:`)?.trim();
+    if (!reason) return;
+    if (reason.length < 3) { toast.error('The correction reason must be at least 3 characters.'); return; }
+    try {
+      const response = await fetch(`/api/admin/queue-games/${game.id}/correct`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ winner_id: newWinnerId, reason }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Could not correct queue game');
+      toast.success('Queue history corrected. Live queue state was not changed.');
+      router.refresh();
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not correct queue game'); }
   };
   const resolveWithViolation = () => {
     const payload: ResolutionPayload = { violation_user_id: violationUser };
@@ -155,6 +184,39 @@ export default function AdminClient({ disputes, integrity, flags }: { disputes: 
               </div>
             ))}
             {!flags.length && <div className="rounded-2xl bg-white p-8 text-center text-accent-gray-500">No unreviewed integrity signals.</div>}
+          </div>
+        </section>
+
+        <section className="mt-8">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-black">Queue history audit</h2>
+              <p className="mt-1 text-sm text-accent-gray-500">Corrections change history only. They never alter the live holder, ELO, or ranked records.</p>
+            </div>
+            <span className="shrink-0 text-xs font-bold text-accent-gray-400">Latest 50</span>
+          </div>
+          <div className="mt-3 max-h-[32rem] space-y-3 overflow-y-auto pr-1">
+            {queueGames.map((game) => {
+              const winnerName = game.winner_id === game.king_id ? game.king_name : game.challenger_name;
+              const loserName = game.loser_id === game.king_id ? game.king_name : game.challenger_name;
+              return (
+                <div key={game.id} className="rounded-2xl border-2 border-accent-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-[#111827]">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-black">{game.status === 'abandoned' ? `${game.king_name} vs ${game.challenger_name}` : `${winnerName} won vs ${loserName}`}</p>
+                      <p className="mt-1 text-xs text-accent-gray-500">{new Date(game.completed_at).toLocaleString()}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {game.status === 'abandoned' && <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-black text-amber-800">Abandoned · 10m</span>}
+                      {game.corrected_at && <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-black text-blue-800">Corrected</span>}
+                    </div>
+                  </div>
+                  {game.status === 'completed' && <button onClick={() => void correctQueueGame(game)} className="mt-3 rounded-xl border-2 border-accent-gray-200 px-3 py-2 text-sm font-black transition hover:border-blue-300 hover:text-blue-700 dark:border-slate-600">Change recorded winner</button>}
+                  {game.status === 'abandoned' && <p className="mt-3 text-xs text-accent-gray-500">Audit only — an abandoned game cannot be assigned a winner.</p>}
+                </div>
+              );
+            })}
+            {!queueGames.length && <div className="rounded-2xl bg-white p-8 text-center text-accent-gray-500 dark:bg-[#111827]">No queue games to audit.</div>}
           </div>
         </section>
 

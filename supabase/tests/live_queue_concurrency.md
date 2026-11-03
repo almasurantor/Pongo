@@ -14,14 +14,27 @@ point for every mutation.
    distinct, and the smaller committed sequence position was selected first. Repeating
    either join must not change membership or position.
 
-## Competing final scores
+## Competing outcomes
 
 1. Start one game and copy its `game_id` into both participant sessions.
-2. Begin both transactions. Submit different valid scores with
-   `beaver_queue_report_v1(game_id, king_score, challenger_score)` and commit.
-3. One request must complete; the other blocks on the singleton row and then fails with
-   `This game is no longer active`. Verify one game row, one winner, one holder, and no
-   ranked match or rating event.
+2. Begin both transactions. Submit conflicting outcomes with
+   `beaver_queue_report_outcome_v2(game_id, 'won')` from both players and commit.
+3. One request must complete; the other blocks on the singleton row and then receives the
+   conflicting-finalization/admin-correction error. An identical retry by either player
+   must return `idempotent: true`. Verify one completed game row, one winner, one holder,
+   and no ranked match or rating event.
+
+## Swap acceptance versus departure/advancement
+
+1. Create a pending request from a waiting player behind to a waiting player ahead.
+2. Race `beaver_queue_respond_swap_v1(request_id, 'accept')` in the target session
+   against `beaver_queue_leave_v1()` in the requester session.
+3. The singleton lock must produce exactly one valid result: either the positions swap
+   before the requester leaves, or the departure cancels the request before acceptance.
+   Verify there are no duplicate positions and no pending request involving a non-waiting
+   player.
+4. Repeat while the trusted worker advances an expired call. A player promoted to called
+   or holder must have every pending swap canceled before an acceptance can change spots.
 
 ## Confirmation at the deadline
 

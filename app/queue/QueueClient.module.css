@@ -228,6 +228,38 @@
   line-height: 1.55;
 }
 
+.queueHeaderCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 16rem);
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.heroMain { min-width: 0; }
+
+.heroTagline {
+  margin: 0;
+  color: #4b5563;
+  font-size: .9rem;
+  font-weight: 700;
+}
+
+.queueControls {
+  display: grid;
+  align-content: center;
+  gap: .65rem;
+  border-left: 1px solid #93c5fd;
+  padding-left: 1.25rem;
+}
+
+.statusLabel {
+  color: #1e3a8a;
+  font-size: .8rem;
+  font-weight: 900;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
 .statRow {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -362,6 +394,72 @@
 
 .callBanner strong.urgent { color: #dc2626; }
 
+.gamePanel {
+  display: grid;
+  gap: .75rem;
+  border-top: 1px solid #e5e7eb;
+  padding-top: .8rem;
+}
+
+.gameTimer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  border-radius: .9rem;
+  padding: .7rem .85rem;
+  color: #1e3a8a;
+  background: #eff6ff;
+  font-size: .8rem;
+  font-weight: 850;
+}
+
+.gameTimer strong {
+  color: #2563eb;
+  font-size: 1.45rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 950;
+}
+
+.gameTimer strong.urgent { color: #dc2626; }
+
+.outcomeActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .7rem;
+}
+
+.winButton,
+.lossButton {
+  min-height: 3.15rem;
+  border-radius: .9rem;
+  padding: .75rem 1rem;
+  font-size: .95rem;
+  font-weight: 950;
+  cursor: pointer;
+  transition: transform .15s ease, filter .15s ease;
+}
+
+.winButton {
+  border: 0;
+  color: #fff;
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  box-shadow: 0 10px 20px rgba(22, 163, 74, .2);
+}
+
+.lossButton {
+  border: 2px solid #fca5a5;
+  color: #b91c1c;
+  background: #fff;
+}
+
+.winButton:hover:not(:disabled),
+.lossButton:hover:not(:disabled) { filter: brightness(1.03); }
+.winButton:active:not(:disabled),
+.lossButton:active:not(:disabled) { transform: scale(.99); }
+.winButton:disabled,
+.lossButton:disabled { cursor: not-allowed; opacity: .5; }
+
 .primaryButton,
 .secondaryButton {
   display: flex;
@@ -494,7 +592,8 @@
   -webkit-overflow-scrolling: touch;
 }
 .waitList li {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: .75rem;
   border: 1px solid #e5e7eb;
@@ -518,6 +617,121 @@
   background: #2563eb;
   font-size: .78rem;
   font-weight: 900;
+}
+
+.activityCard { min-height: 0; }
+
+.activityScroll {
+  display: grid;
+  max-height: min(34rem, 58dvh);
+  gap: 1rem;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding-right: .25rem;
+  scrollbar-color: rgba(37, 99, 235, .35) transparent;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.activityScroll:focus-visible {
+  border-radius: .75rem;
+  outline: 3px solid rgba(37, 99, 235, .25);
+  outline-offset: 3px;
+}
+
+.activitySection {
+  display: grid;
+  gap: .65rem;
+}
+
+.activitySection + .activitySection {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1rem;
+}
+
+.activityHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .75rem;
+}
+
+.activityHeading h3 {
+  margin: 0;
+  color: #111827;
+  font-size: .95rem;
+  font-weight: 900;
+}
+
+.activityHeading span {
+  color: #6b7280;
+  font-size: .7rem;
+  font-weight: 750;
+}
+
+.waitingName {
+  display: grid;
+  min-width: 0;
+  gap: .15rem;
+}
+
+.waitingName strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.swapRequestButton,
+.swapActions button {
+  border: 1px solid #93c5fd;
+  border-radius: .7rem;
+  padding: .48rem .62rem;
+  color: #1d4ed8;
+  background: #eff6ff;
+  font-size: .68rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.swapRequestButton:disabled,
+.swapActions button:disabled { cursor: not-allowed; opacity: .5; }
+
+.swapNotice {
+  display: grid;
+  gap: .35rem;
+  border: 2px solid #fdba74;
+  border-radius: 1rem;
+  padding: .85rem;
+  color: #7c2d12;
+  background: #fff7ed;
+}
+
+.swapNotice p { margin: 0; font-size: .82rem; line-height: 1.45; }
+.swapNotice small { color: #9a3412; font-size: .7rem; font-weight: 800; }
+.swapActions { display: flex; gap: .5rem; margin-top: .25rem; }
+.swapActions button:first-child { border-color: #2563eb; color: #fff; background: #2563eb; }
+
+.outgoingSwap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  border-radius: .9rem;
+  padding: .7rem .8rem;
+  color: #1e3a8a;
+  background: #eff6ff;
+  font-size: .76rem;
+}
+
+.outgoingSwap span { flex-shrink: 0; font-variant-numeric: tabular-nums; font-weight: 850; }
+
+.compactEmpty {
+  margin: 0;
+  border-radius: .85rem;
+  padding: .7rem .8rem;
+  color: #6b7280;
+  background: #f8fafc;
+  font-size: .8rem;
 }
 
 .resultRow {
@@ -569,6 +783,9 @@
 }
 
 :global(.dark) .hero h1 { color: #f8fafc; }
+:global(.dark) .heroTagline { color: #cbd5e1; }
+:global(.dark) .queueControls { border-color: #1e40af; }
+:global(.dark) .statusLabel { color: #bfdbfe; }
 :global(.dark) .statRow { border-color: #1e3a8a; }
 :global(.dark) .statRow span,
 :global(.dark) .muted,
@@ -598,6 +815,20 @@
 :global(.dark) .secondaryButton { border-color: #475569; color: #e2e8f0; background: #0b1120; }
 :global(.dark) .scoreField input { border-color: #475569; color: #f8fafc; background: #0b1120; }
 :global(.dark) .resultRow { border-color: #334155; }
+:global(.dark) .gamePanel,
+:global(.dark) .activitySection + .activitySection { border-color: #334155; }
+:global(.dark) .gameTimer,
+:global(.dark) .outgoingSwap { color: #bfdbfe; background: #172554; }
+:global(.dark) .lossButton { border-color: #7f1d1d; color: #fca5a5; background: #0b1120; }
+:global(.dark) .activityHeading h3 { color: #f8fafc; }
+:global(.dark) .activityHeading span,
+:global(.dark) .compactEmpty { color: #b9b2c8; }
+:global(.dark) .compactEmpty { background: #0b1120; }
+:global(.dark) .swapNotice { border-color: #9a3412; color: #fed7aa; background: #431407; }
+:global(.dark) .swapNotice small { color: #fdba74; }
+:global(.dark) .swapRequestButton,
+:global(.dark) .swapActions button { border-color: #1e40af; color: #bfdbfe; background: #172554; }
+:global(.dark) .swapActions button:first-child { color: #fff; background: #2563eb; }
 
 @media (min-width: 768px) {
   .page { padding-top: 2.5rem; }
@@ -643,6 +874,26 @@
     padding: 1rem;
   }
 
+  .queueHeaderCard {
+    grid-template-columns: 1fr;
+    gap: .75rem;
+  }
+
+  .queueControls {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    border-top: 1px solid #93c5fd;
+    border-left: 0;
+    padding-top: .75rem;
+    padding-left: 0;
+  }
+
+  .queueControls .primaryButton { grid-column: 1 / -1; }
+
+  .queueControls .leaveButton {
+    justify-self: end;
+  }
+
   .hero h1 {
     margin: 0 0 .55rem;
     font-size: clamp(1.65rem, 8vw, 2.1rem);
@@ -675,11 +926,26 @@
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
   }
+
+  .activityScroll { max-height: min(31rem, 54dvh); }
+
+  .waitList li {
+    gap: .55rem;
+    padding: .7rem;
+  }
+
+  .swapRequestButton {
+    max-width: 4.6rem;
+    padding: .42rem .48rem;
+    line-height: 1.15;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .primaryButton,
   .secondaryButton,
+  .winButton,
+  .lossButton,
   .turnButton { transition: none; }
   .turnCard,
   .turnPulse span { animation: none; }
