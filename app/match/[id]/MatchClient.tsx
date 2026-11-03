@@ -12,6 +12,7 @@ import { useDatabaseRefresh } from '@/lib/use-database-refresh';
 import RankBadge from '@/components/RankBadge';
 import { rankTransition } from '@/lib/ranks';
 import DeadlineCountdown from '@/components/DeadlineCountdown';
+import { RESULT_POPUP_FADE_MS, RESULT_POPUP_VISIBLE_MS, rememberResultPopupDismissal, wasResultPopupDismissed } from '@/lib/result-popup';
 
 interface Props {
   match: Match;
@@ -50,6 +51,7 @@ export default function MatchClient({
   const [loading, setLoading] = useState<string | null>(null);
   const [showReportConfirmation, setShowReportConfirmation] = useState(false);
   const [resultSummary, setResultSummary] = useState<{ won: boolean; change: number; placementAfter: number | null } | null>(null);
+  const [resultPopupExiting, setResultPopupExiting] = useState(false);
   const [showDisputeForm, setShowDisputeForm] = useState(false);
   const [disputeReason, setDisputeReason] = useState<'incorrect_score' | 'incorrect_winner' | 'match_never_happened' | 'other'>('incorrect_score');
   const [disputeResolution, setDisputeResolution] = useState<'correction' | 'void'>('correction');
@@ -77,6 +79,24 @@ export default function MatchClient({
   const calculation = match.rating_calculation;
   const disputeDeadline = match.confirmed_at ? new Date(match.confirmed_at).getTime() + 48 * 60 * 60 * 1000 : 0;
   const canOpenDispute = match.status === 'confirmed' && !dispute && disputeDeadline > Date.now();
+
+  const closeResultPopup = (navigateToDashboard = false) => {
+    rememberResultPopupDismissal(match.id);
+    setResultPopupExiting(true);
+    window.setTimeout(() => {
+      setResultSummary(null);
+      setResultPopupExiting(false);
+      if (navigateToDashboard) router.push('/dashboard');
+    }, RESULT_POPUP_FADE_MS);
+  };
+
+  useEffect(() => {
+    if (!resultSummary) return;
+    const timer = window.setTimeout(() => closeResultPopup(), RESULT_POPUP_VISIBLE_MS);
+    return () => window.clearTimeout(timer);
+    // The popup timer intentionally restarts only for a newly finalized result.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultSummary]);
 
   useEffect(() => {
     if (mine != null && theirs != null) {
@@ -170,11 +190,13 @@ export default function MatchClient({
       }
       const change = isPlayerOne ? result.player_one_change : result.player_two_change;
       setShowReportConfirmation(false);
-      setResultSummary({
-        won: result.match?.winner_id === currentUserId,
-        change,
-        placementAfter: result.placement_after,
-      });
+      if (!wasResultPopupDismissed(match.id)) {
+        setResultSummary({
+          won: result.match?.winner_id === currentUserId,
+          change,
+          placementAfter: result.placement_after,
+        });
+      }
       toast.success(
         result.already_finalized
           ? 'This result was already finalized.'
@@ -457,13 +479,13 @@ export default function MatchClient({
         )}
 
         {resultSummary && (
-          <div role="dialog" aria-modal="true" className="fixed inset-0 z-[90] flex items-center justify-center bg-accent-gray-950/80 p-4">
-            <section className={`w-full max-w-md rounded-3xl p-7 text-center text-white shadow-2xl ${resultSummary.won ? 'bg-gradient-to-br from-green-600 to-emerald-800' : 'bg-gradient-to-br from-slate-700 to-slate-950'}`}>
+          <div role="dialog" aria-modal="true" aria-live="polite" className={`result-popup-backdrop fixed inset-0 z-[90] flex items-center justify-center bg-accent-gray-950/80 p-4 ${resultPopupExiting ? 'result-popup-exit pointer-events-none' : ''}`}>
+            <section className={`result-popup-card w-full max-w-md rounded-3xl p-7 text-center text-white shadow-2xl ${resultSummary.won ? 'bg-gradient-to-br from-green-600 to-emerald-800' : 'bg-gradient-to-br from-slate-700 to-slate-950'}`}>
               <p className="text-6xl">{resultSummary.won ? '🏆' : '🏓'}</p>
               <p className="mt-4 text-sm font-black uppercase tracking-widest text-white/75">{resultSummary.won ? 'Victory' : 'Defeat'}</p>
               <h2 className="mt-1 text-4xl font-black">{resultSummary.change >= 0 ? '+' : ''}{resultSummary.change} ELO</h2>
               {resultSummary.placementAfter != null && <div className="mt-5 rounded-2xl bg-white/10 p-4"><p className="text-sm font-bold text-white/75">All-time placement</p><p className="text-3xl font-black">#{resultSummary.placementAfter}</p></div>}
-              <div className="mt-6 grid grid-cols-2 gap-3"><button onClick={() => setResultSummary(null)} className="min-h-12 rounded-xl border-2 border-white/30 font-bold">View result</button><button onClick={() => router.push('/dashboard')} className="min-h-12 rounded-xl bg-white font-black text-accent-gray-900">Dashboard</button></div>
+              <div className="mt-6 grid grid-cols-2 gap-3"><button onClick={() => closeResultPopup()} className="min-h-12 rounded-xl border-2 border-white/30 font-bold">View result</button><button onClick={() => closeResultPopup(true)} className="min-h-12 rounded-xl bg-white font-black text-accent-gray-900">Dashboard</button></div>
             </section>
           </div>
         )}

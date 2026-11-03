@@ -201,8 +201,8 @@ export default function Navbar() {
           </div>
         </div>
       </nav>
-      <nav aria-label="Primary" className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-50 border-t-2 border-[#E2E8F0] bg-[#FFFFFF] px-2 pb-[env(safe-area-inset-bottom)] dark:border-[#334155] dark:bg-[#0B1120] sm:hidden">
-        <div className="grid h-16 grid-cols-5 items-center">
+      <nav aria-label="Primary" className="mobile-bottom-nav fixed inset-x-0 z-50 px-2 sm:hidden">
+        <div className="mobile-nav-island mx-auto grid max-w-md grid-cols-5 items-center">
           {items.map((item) => {
             const isActive = active(item.href);
             return (
@@ -218,7 +218,7 @@ export default function Navbar() {
                     router.refresh();
                   }
                 }}
-                className={`relative mx-auto flex h-12 w-12 items-center justify-center rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB] dark:focus-visible:outline-[#60A5FA] ${item.primary ? 'bg-[#2563EB] text-white shadow-sm dark:bg-[#3B82F6]' : isActive ? 'bg-[#EFF6FF] text-[#2563EB] dark:bg-[#17243C] dark:text-[#60A5FA]' : 'text-accent-gray-500 hover:bg-[#F1F5F9] dark:text-accent-gray-300 dark:hover:bg-[#1F2937]'}`}
+                className={`mobile-nav-item relative mx-auto flex items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB] dark:focus-visible:outline-[#60A5FA] ${item.primary ? 'mobile-nav-play text-white' : isActive ? 'mobile-nav-active text-[#2563EB] dark:text-[#93C5FD]' : 'text-accent-gray-500 dark:text-accent-gray-300'}`}
               >
                 <NavIcon name={item.icon} className="h-6 w-6" />
                 {item.label === 'Queue' && queueCalled && (
