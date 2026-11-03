@@ -21,6 +21,13 @@ BEGIN
 END;
 $dependencies$;
 
+-- Some production databases have the queue objects but are missing the
+-- singleton state row (for example, after an interrupted or manually applied
+-- base migration). Repair that state before any RPC or cleanup can lock it.
+INSERT INTO public.beaver_queue_table(id)
+VALUES(1)
+ON CONFLICT(id) DO NOTHING;
+
 CREATE INDEX IF NOT EXISTS beaver_queue_active_heartbeat_v2
   ON public.beaver_queue_members(updated_at)
   WHERE status IN ('waiting','called','king');

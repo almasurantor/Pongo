@@ -16,6 +16,11 @@ SELECT pg_temp.assert_true(
   'repair migration and least-privilege RPC grants must be installed'
 );
 
+SELECT pg_temp.assert_true(
+  (SELECT COUNT(*)=1 FROM public.beaver_queue_table WHERE id=1),
+  'repair migration must initialize the singleton queue state row'
+);
+
 INSERT INTO auth.users(id,email,raw_user_meta_data,created_at,updated_at)
 VALUES
   ('fb000000-0000-4000-8000-000000000001','queue-repair-a@example.test',jsonb_build_object('display_name','Repair Alpha'),NOW(),NOW()),
