@@ -359,7 +359,12 @@ body {
 }
 
 @media (display-mode: standalone) {
-  html { background-color: #2563EB; }
+  html,
+  html.dark,
+  body,
+  html.dark body {
+    background-color: #2563EB;
+  }
 }
 
 [role="dialog"] {

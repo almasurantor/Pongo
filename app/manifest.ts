@@ -16,30 +16,30 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ['sports', 'social'],
     icons: [
       {
-        src: '/icons/icon-192.png?v=3',
+        src: '/icons/icon-192.png?v=4',
         sizes: '192x192',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: '/icons/icon-512.png?v=3',
+        src: '/icons/icon-512.png?v=4',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: '/icons/icon-maskable-512.png?v=3',
+        src: '/icons/icon-maskable-512.png?v=4',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'maskable',
       },
     ],
     shortcuts: [
-      { name: 'Home', short_name: 'Home', url: '/dashboard', icons: [{ src: '/icons/icon-192.png?v=3', sizes: '192x192' }] },
-      { name: 'Challenge a player', short_name: 'Play', url: '/players', icons: [{ src: '/icons/icon-192.png?v=3', sizes: '192x192' }] },
-      { name: 'Live table queue', short_name: 'Queue', url: '/queue', icons: [{ src: '/icons/icon-192.png?v=3', sizes: '192x192' }] },
-      { name: 'Leaderboard', short_name: 'Ranks', url: '/leaderboard', icons: [{ src: '/icons/icon-192.png?v=3', sizes: '192x192' }] },
-      { name: 'Casual scorekeeper', short_name: 'Casual', url: '/play/casual', icons: [{ src: '/icons/icon-192.png?v=3', sizes: '192x192' }] },
+      { name: 'Home', short_name: 'Home', url: '/dashboard', icons: [{ src: '/icons/icon-192.png?v=4', sizes: '192x192' }] },
+      { name: 'Challenge a player', short_name: 'Play', url: '/players', icons: [{ src: '/icons/icon-192.png?v=4', sizes: '192x192' }] },
+      { name: 'Live table queue', short_name: 'Queue', url: '/queue', icons: [{ src: '/icons/icon-192.png?v=4', sizes: '192x192' }] },
+      { name: 'Leaderboard', short_name: 'Ranks', url: '/leaderboard', icons: [{ src: '/icons/icon-192.png?v=4', sizes: '192x192' }] },
+      { name: 'Casual scorekeeper', short_name: 'Casual', url: '/play/casual', icons: [{ src: '/icons/icon-192.png?v=4', sizes: '192x192' }] },
     ],
   };
 }

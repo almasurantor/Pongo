@@ -19,8 +19,8 @@ export const metadata: Metadata = {
   description: "Challenge players, track matches, and climb the table tennis ranks.",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: [{ url: "/icon.png", type: "image/png", sizes: "512x512" }],
-    apple: [{ url: "/apple-icon.png", type: "image/png", sizes: "180x180" }],
+    icon: [{ url: "/icon.png?v=4", type: "image/png", sizes: "512x512" }],
+    apple: [{ url: "/apple-icon.png?v=4", type: "image/png", sizes: "180x180" }],
   },
   appleWebApp: {
     capable: true,
@@ -40,10 +40,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   colorScheme: "light dark",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#2563EB" },
-    { media: "(prefers-color-scheme: dark)", color: "#0B1120" },
-  ],
+  themeColor: "#2563EB",
 };
 
 const themeScript = `
