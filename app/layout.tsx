@@ -7,6 +7,7 @@ import PWAClient from "@/components/PWAClient";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import NavigationFeedback from "@/components/NavigationFeedback";
 import { Suspense } from "react";
+import AppResumeRedirect from "@/components/AppResumeRedirect";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -65,6 +66,7 @@ export default function RootLayout({
         <ThemeProvider>
           <PWAClient />
           <Suspense fallback={null}><NavigationFeedback /></Suspense>
+          <AppResumeRedirect />
           <ConditionalNavbar />
           {children}
           <Toaster

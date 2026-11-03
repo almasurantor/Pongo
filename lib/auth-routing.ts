@@ -1,7 +1,7 @@
-const PUBLIC_PREFIXES = ['/login', '/signup', '/forgot-password', '/reset-password', '/_next', '/api', '/auth'];
+const PUBLIC_PREFIXES = ['/landing', '/login', '/signup', '/forgot-password', '/reset-password', '/_next', '/api', '/auth'];
 const PUBLIC_FILES = new Set(['/', '/manifest.webmanifest', '/sw.js', '/offline.html']);
 
-export function authRedirectForPath(pathname: string, authenticated: boolean): '/dashboard' | '/login' | null {
+export function authRedirectForPath(pathname: string, authenticated: boolean): '/dashboard' | '/' | null {
   const authEntry = pathname === '/'
     || pathname.startsWith('/login')
     || pathname.startsWith('/signup');
@@ -11,6 +11,6 @@ export function authRedirectForPath(pathname: string, authenticated: boolean): '
 
   const publicPath = PUBLIC_FILES.has(pathname)
     || PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-  return publicPath ? null : '/login';
+  return publicPath ? null : '/';
 }
 

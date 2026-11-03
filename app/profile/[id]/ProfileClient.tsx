@@ -142,6 +142,9 @@ export default function ProfileClient({ profile, matches, opponentUsage, rank, c
               <ThemeSettings embedded />
             </div>
             <InstallAppHint />
+            <Link href="/landing" className="flex min-h-12 w-full items-center justify-center rounded-2xl border-2 border-[#2563EB]/25 bg-[#EFF6FF] px-4 font-black text-[#1D4ED8] transition hover:border-[#2563EB] hover:bg-[#DBEAFE] active:scale-[.99] dark:bg-[#17243C] dark:text-[#93C5FD]">
+              View Landing Page
+            </Link>
             <button onClick={logout} className="min-h-12 w-full rounded-2xl border-2 border-red-200 font-bold text-red-600">Log out</button>
             </div>
           </section>

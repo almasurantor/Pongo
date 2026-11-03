@@ -12,9 +12,9 @@ describe('PWA startup auth routing', () => {
     expect(authRedirectForPath('/', false)).toBeNull();
   });
 
-  it('sends expired protected sessions to login', () => {
-    expect(authRedirectForPath('/dashboard', false)).toBe('/login');
-    expect(authRedirectForPath('/profile/player-id', false)).toBe('/login');
+  it('sends signed-out protected visits to the public landing page', () => {
+    expect(authRedirectForPath('/dashboard', false)).toBe('/');
+    expect(authRedirectForPath('/profile/player-id', false)).toBe('/');
   });
 
   it('keeps authentication and static support routes public', () => {
@@ -22,6 +22,8 @@ describe('PWA startup auth routing', () => {
     expect(authRedirectForPath('/auth/callback', false)).toBeNull();
     expect(authRedirectForPath('/forgot-password', false)).toBeNull();
     expect(authRedirectForPath('/reset-password', false)).toBeNull();
+    expect(authRedirectForPath('/landing', false)).toBeNull();
+    expect(authRedirectForPath('/landing', true)).toBeNull();
     expect(authRedirectForPath('/manifest.webmanifest', false)).toBeNull();
   });
 });

@@ -7,7 +7,7 @@ export default function ConditionalNavbar() {
   const pathname = usePathname();
   
   // Don't show navbar on homepage, login, or signup pages
-  if (pathname === '/' || pathname === '/login' || pathname === '/signup') {
+  if (pathname === '/' || pathname === '/landing' || pathname === '/login' || pathname === '/signup') {
     return null;
   }
   
