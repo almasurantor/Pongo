@@ -254,12 +254,8 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
         </section>
       )}
       <div className={styles.shell}>
-        <header className={styles.header}>
-          <div className={styles.liveBadge}><span className={styles.liveDot} /> Live</div>
-        </header>
-
         <section className={styles.hero}>
-          <h1>Live table<br /><span>queue.</span></h1>
+          <h1>Live table <span>queue.</span></h1>
           <div className={styles.statRow}>
             <div><strong>{activeMembers.length}</strong><span>Active</span></div>
             <div><strong>{waiting.length}</strong><span>Waiting</span></div>

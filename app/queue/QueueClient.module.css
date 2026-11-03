@@ -237,7 +237,13 @@
   border-top: 1px solid #bfdbfe;
 }
 
-.statRow > div { display: grid; min-width: 0; gap: .3rem; }
+.statRow > div {
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  gap: .3rem;
+  text-align: center;
+}
 .statRow strong { color: #1d4ed8; font-size: 1.3rem; font-weight: 900; line-height: 1; }
 .statRow span { color: #6b7280; font-size: .72rem; line-height: 1.35; }
 
