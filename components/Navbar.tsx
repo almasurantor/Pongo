@@ -220,7 +220,7 @@ export default function Navbar() {
                 }}
                 className={`mobile-nav-item relative mx-auto flex items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB] dark:focus-visible:outline-[#60A5FA] ${item.primary ? 'mobile-nav-play text-white' : isActive ? 'mobile-nav-active text-[#2563EB] dark:text-[#93C5FD]' : 'text-accent-gray-500 dark:text-accent-gray-300'}`}
               >
-                <NavIcon name={item.icon} className={item.primary ? 'h-5 w-5' : 'h-[1.15rem] w-[1.15rem]'} />
+                <NavIcon name={item.icon} className={item.primary ? 'h-[1.35rem] w-[1.35rem]' : 'h-5 w-5'} />
                 {item.label === 'Queue' && queueCalled && (
                   <span aria-hidden="true" className="absolute right-1.5 top-1.5 h-3 w-3 rounded-full border-2 border-white bg-[#F97316] dark:border-[#0B1120]" />
                 )}
