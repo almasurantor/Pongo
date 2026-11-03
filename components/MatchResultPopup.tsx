@@ -22,6 +22,7 @@ export default function MatchResultPopup() {
   useEffect(() => {
     let active = true;
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let fallbackPoll: number | null = null;
 
     const show = (matchId: string, winnerId: string, userId: string, eloChange: number) => {
       if (!matchId || shownMatch.current === matchId || wasResultPopupDismissed(matchId)) return;
@@ -52,6 +53,26 @@ export default function MatchResultPopup() {
         })
         .subscribe();
 
+      const checkRecentResult = async () => {
+        const since = new Date(Date.now() - 2 * 60_000).toISOString();
+        const { data: recent } = await supabase
+          .from('matches')
+          .select('id,status,winner_id,player_one_id,player_two_id,player_one_elo_change,player_two_elo_change,confirmed_at')
+          .eq('status', 'confirmed')
+          .gte('confirmed_at', since)
+          .or(`player_one_id.eq.${userId},player_two_id.eq.${userId}`)
+          .order('confirmed_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!active || !recent?.winner_id) return;
+        const eloChange = recent.player_one_id === userId
+          ? Number(recent.player_one_elo_change ?? 0)
+          : Number(recent.player_two_elo_change ?? 0);
+        show(recent.id, recent.winner_id, userId, eloChange);
+      };
+      void checkRecentResult();
+      fallbackPoll = window.setInterval(() => void checkRecentResult(), 10_000);
+
       const cleanup = () => window.removeEventListener(MATCH_RESULT_EVENT, announced);
       if (!active) cleanup();
       else cleanupRef.current = cleanup;
@@ -61,6 +82,7 @@ export default function MatchResultPopup() {
       active = false;
       cleanupRef.current?.();
       cleanupRef.current = null;
+      if (fallbackPoll !== null) window.clearInterval(fallbackPoll);
       if (channel) void supabase.removeChannel(channel);
     };
   }, [supabase]);

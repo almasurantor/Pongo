@@ -10,7 +10,6 @@ import { isMatchOverdue } from '@/lib/ranking-rules';
 import { createClient } from '@/lib/supabase/client';
 import { useDatabaseRefresh } from '@/lib/use-database-refresh';
 import RankBadge from '@/components/RankBadge';
-import { rankTransition } from '@/lib/ranks';
 import DeadlineCountdown from '@/components/DeadlineCountdown';
 import { MATCH_RESULT_EVENT } from '@/components/MatchResultPopup';
 
@@ -68,13 +67,7 @@ export default function MatchClient({
   const opponent = isPlayerOne ? match.player_two : match.player_one;
   const mine = isPlayerOne ? match.player_one_score : match.player_two_score;
   const theirs = isPlayerOne ? match.player_two_score : match.player_one_score;
-  const myRatingChange = (isPlayerOne ? match.player_one_elo_change : match.player_two_elo_change) ?? 0;
-  const myRatingBefore = isPlayerOne ? match.player_one_elo_before : match.player_two_elo_before;
-  const myRankTransition = myRatingBefore == null
-    ? null
-    : rankTransition(myRatingBefore, myRatingBefore + myRatingChange);
   const overdue = match.status === 'ready' && isMatchOverdue(match.expires_at);
-  const calculation = match.rating_calculation;
   const disputeDeadline = match.confirmed_at ? new Date(match.confirmed_at).getTime() + 48 * 60 * 60 * 1000 : 0;
   const canOpenDispute = match.status === 'confirmed' && !dispute && disputeDeadline > Date.now();
 
@@ -269,38 +262,6 @@ export default function MatchClient({
         </header>
 
         <div className="widget-scroll screen-flex pr-1" tabIndex={0} aria-label="Match details and actions">
-        {match.status === 'confirmed' && (
-          <section className="rounded-3xl border-2 border-green-300 bg-white p-6 shadow-lg">
-            <p className="font-black uppercase text-green-700">Result finalized</p>
-            <div className="mt-4"><Score one={match.player_one_score} two={match.player_two_score} /></div>
-            <div className="mt-5 flex items-center justify-between rounded-2xl bg-green-50 p-4">
-              <span className="font-bold">Your rating change</span>
-              <span className={`text-2xl font-black ${myRatingChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {myRatingChange >= 0 ? '+' : ''}{myRatingChange}
-              </span>
-            </div>
-            {myRankTransition?.changed && (
-              <div className={`mt-4 rounded-2xl p-5 text-center ${myRankTransition.direction === 'promotion' ? 'bg-primary-purple/10 text-primary-purple' : 'bg-amber-50 text-amber-800'}`}>
-                <p className="text-sm font-black uppercase">{myRankTransition.direction === 'promotion' ? 'Rank promotion' : 'Rank demotion'}</p>
-                <p className="mt-1 text-2xl font-black">{myRankTransition.beforeTier} → {myRankTransition.afterTier}</p>
-              </div>
-            )}
-            {calculation && (
-              <div className="mt-4 rounded-2xl border border-green-200 p-4">
-                <p className="font-black text-accent-gray-800">Rating breakdown</p>
-                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                  <div><p className="text-accent-gray-500">Winner expectation</p><p className="font-black">{Math.round(calculation.winner_expected * 100)}%</p></div>
-                  <div><p className="text-accent-gray-500">K-factor</p><p className="font-black">{calculation.k_factor}</p></div>
-                  <div><p className="text-accent-gray-500">Base change</p><p className="font-black">+{calculation.base_delta}</p></div>
-                  <div><p className="text-accent-gray-500">Score adjustment</p><p className="font-black">+{calculation.margin_bonus}</p></div>
-                  <div><p className="text-accent-gray-500">Winning margin</p><p className="font-black">{calculation.score_margin} points</p></div>
-                  <div><p className="text-accent-gray-500">Final transfer</p><p className="font-black">{calculation.final_delta} ELO</p></div>
-                </div>
-              </div>
-            )}
-          </section>
-        )}
-
         {match.status === 'confirmed' && dispute && (
           <section className="mt-5 rounded-3xl border-2 border-amber-300 bg-amber-50 p-6">
             <p className="text-sm font-black uppercase text-amber-700">Result dispute</p>
