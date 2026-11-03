@@ -146,6 +146,8 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
   const me = members.find((member) => member.user_id === currentUserId);
   const nameOf = (id: string | null) =>
     members.find((member) => member.user_id === id)?.display_name ?? 'Player';
+  const gameNameOf = (id: string, snapshot: string) =>
+    members.find((member) => member.user_id === id)?.display_name ?? snapshot;
   const king = table?.king_id ?? null;
   const challenger = table?.challenger_id ?? null;
   const isCalled = me?.status === 'called' && challenger === currentUserId;
@@ -177,6 +179,35 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
 
   return (
     <main className={styles.page}>
+      {isCalled && (
+        <section
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="queue-turn-title"
+          aria-describedby="queue-turn-description"
+          className={styles.turnOverlay}
+        >
+          <div className={`${styles.turnCard} ${secondsLeft <= 15 ? styles.turnCardUrgent : ''}`}>
+            <div className={styles.turnPulse} aria-hidden="true"><span /></div>
+            <p className={styles.turnEyebrow}>Table ready</p>
+            <h1 id="queue-turn-title">YOU’RE UP!</h1>
+            <p className={styles.turnOpponent}>vs. <strong>{nameOf(king)}</strong></p>
+            <div className={styles.turnTimer} aria-label={`${secondsLeft} seconds remaining`}>
+              {formatTimer(secondsLeft)}
+            </div>
+            <p id="queue-turn-description" className={styles.turnDescription}>
+              Check in now or your spot moves to the next player.
+            </p>
+            <button
+              className={styles.turnButton}
+              disabled={busy || secondsLeft === 0}
+              onClick={() => void action('beaver_queue_confirm_v1')}
+            >
+              {busy ? 'Checking in…' : 'I’m Here'}
+            </button>
+          </div>
+        </section>
+      )}
       <div className={styles.shell}>
         <header className={styles.header}>
           <div>
@@ -199,7 +230,7 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
         <div className={styles.widgets} aria-label="Queue sections">
         {loading && !table ? <div className={styles.card}>Loading live queue…</div> : (
           <>
-            <section className={styles.card}>
+            <section className={`${styles.card} ${styles.currentMatchCard}`}>
               <div className={styles.sectionHeading}>
                 <h2>Current match</h2>
                 <span className={styles.pill}>{table?.phase === 'playing' ? 'GAME IN PROGRESS' : table?.phase === 'called' ? 'CHECK-IN' : 'READY'}</span>
@@ -268,13 +299,17 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
                 </>
               )}
               {me?.status === 'waiting' && myPlace && (
-                <p className={styles.positionText}>You’re <strong>#{myPlace.position}</strong> in line with {myPlace.playersAhead} {myPlace.playersAhead === 1 ? 'player' : 'players'} ahead.</p>
+                <div className={styles.positionCard}>
+                  <span>Your position</span>
+                  <strong>#{myPlace.position}</strong>
+                  <small>{myPlace.playersAhead} {myPlace.playersAhead === 1 ? 'player' : 'players'} ahead</small>
+                </div>
               )}
               {me?.status === 'king' && <p className={styles.muted}>You hold the table.</p>}
               {me?.status === 'called' && <p className={styles.muted}>Check in within one minute.</p>}
               {me?.status === 'playing' && <p className={styles.muted}>Game in progress.</p>}
               {active && !amPlaying && (
-                <button className={styles.secondaryButton} disabled={busy} onClick={() => void action('beaver_queue_leave_v1')}>Leave Queue / Table</button>
+                <button className={`${styles.secondaryButton} ${styles.leaveButton}`} disabled={busy} onClick={() => void action('beaver_queue_leave_v1')}>Leave Queue</button>
               )}
             </section>
 
@@ -299,8 +334,12 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
                   {games.map((game) => (
                     <div key={game.id} className={styles.resultRow}>
                       <div>
-                        <strong>{game.winner_id === game.king_id ? game.king_name : game.challenger_name} won</strong>
-                        <div className={styles.mutedSmall}>{game.king_name} vs. {game.challenger_name}</div>
+                        <strong>{game.winner_id === game.king_id
+                          ? gameNameOf(game.king_id, game.king_name)
+                          : gameNameOf(game.challenger_id, game.challenger_name)} won</strong>
+                        <div className={styles.mutedSmall}>
+                          {gameNameOf(game.king_id, game.king_name)} vs. {gameNameOf(game.challenger_id, game.challenger_name)}
+                        </div>
                       </div>
                       <strong className={styles.finalScore}>{game.king_score}–{game.challenger_score}</strong>
                     </div>

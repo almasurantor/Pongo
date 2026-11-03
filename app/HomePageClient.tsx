@@ -1,304 +1,107 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import Link from 'next/link';
-import Image from 'next/image';
+import { motion } from 'framer-motion';
+import LandingFeatureShowcase from '@/components/LandingFeatureShowcase';
 import PingPongAnimation from '@/components/PingPongAnimation';
-import { BASE_ELO } from '@/lib/elo';
+import PongoLogo from '@/components/PongoLogo';
+import PongoWordmark from '@/components/PongoWordmark';
+import { RankIcon } from '@/components/RankBadge';
+import { useTheme } from '@/components/ThemeProvider';
+import { RankTierName } from '@/lib/ranks';
 
-export default function HomePageClient({ playerCount, matchCount }: { playerCount: number | null; matchCount: number | null }) {
-  const features = [
-    {
-      title: 'Competitive Ranks',
-      description: 'Iron to Legend.',
-    },
-    {
-      title: 'Real-Time Updates',
-      description: 'Live match and rating updates.',
-    },
-    {
-      title: 'Live Leaderboards',
-      description: 'Weekly, monthly, and all-time.',
-    },
-    {
-      title: 'Match Tracking',
-      description: 'Scores, records, and ELO history.',
-    },
-  ];
+const ranks: { name: RankTierName; range: string }[] = [
+  { name: 'Iron', range: '500–649 ELO' },
+  { name: 'Bronze', range: '650–799 ELO' },
+  { name: 'Silver', range: '800–949 ELO' },
+  { name: 'Gold', range: '950–1099 ELO' },
+  { name: 'Platinum', range: '1100–1249 ELO' },
+  { name: 'Diamond', range: '1250–1399 ELO' },
+  { name: 'Legend', range: '1400+ ELO' },
+];
 
-  const stats = [
-    { value: playerCount?.toLocaleString() ?? 'Unavailable', label: 'Registered Players' },
-    { value: matchCount?.toLocaleString() ?? 'Unavailable', label: 'Confirmed Matches' },
-    { value: BASE_ELO.toLocaleString(), label: 'Starting ELO' },
-    { value: '24/7', label: 'Available' },
-  ];
+export default function HomePageClient() {
+  const { setPreference } = useTheme();
 
-  const steps = [
-    { step: '1', title: 'Challenge', desc: 'Invite a player.' },
-    { step: '2', title: 'Play', desc: 'Report the score.' },
-    { step: '3', title: 'Climb', desc: 'Move up the ladder.' },
-  ];
+  const toggleTheme = () => {
+    const isDark = document.documentElement.classList.contains('dark');
+    setPreference(isDark ? 'light' : 'dark');
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-accent-white via-accent-gray-50 to-primary-purple/5">
-      {/* Navigation Bar */}
-      <nav className="glass-effect border-b border-accent-gray-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center"
-            >
-                <Image
-                  src="/beaver-logo.png"
-                  alt="Beaver"
-                  width={40}
-                  height={40}
-                  className="h-10 w-10 object-contain -mr-1 -mt-1"
-                  priority
-                />
-              <span className="text-3xl font-bold gradient-text">SMASH</span>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-            >
-              <Link href="/login">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="px-8 py-3 gradient-purple text-white rounded-xl shadow-lg hover:shadow-purple-glow transition-all font-semibold"
-                >
-                  Sign In
-                </motion.button>
-              </Link>
-            </motion.div>
-          </div>
+    <main className="landing-page min-h-screen overflow-x-hidden bg-[#F8FAFC] text-[#0F172A] dark:bg-[#0B1120] dark:text-[#F8FAFC]">
+      <nav className="sticky top-0 z-50 border-b border-[#E2E8F0] bg-[#F8FAFC] shadow-sm shadow-slate-900/5 dark:border-[#334155] dark:bg-[#0B1120]">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:h-[4.5rem] sm:px-8">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label="Pongo — switch light or dark theme"
+            title="Switch light or dark theme"
+            className="group flex items-center gap-2 rounded-xl pr-2 text-[1.65rem] leading-none outline-none transition active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F8FAFC] dark:focus-visible:ring-[#60A5FA] dark:focus-visible:ring-offset-[#0B1120] sm:text-3xl"
+          >
+            <PongoLogo priority imageClassName="transition-transform group-hover:rotate-[-3deg] group-hover:scale-105" />
+            <PongoWordmark />
+          </button>
+          <Link href="/login" className="flex min-h-11 items-center rounded-xl px-4 py-2 text-lg font-bold text-[#1D4ED8] transition hover:bg-[#DBEAFE] active:scale-95 dark:text-[#60A5FA] dark:hover:bg-[#1E40AF]/30 sm:px-5 sm:text-xl">
+            Sign in
+          </Link>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-32 overflow-hidden">
-        {/* Background decorative elements */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <motion.div
-            animate={{
-              x: [0, 100, 0],
-              y: [0, 50, 0],
-              rotate: [0, 180, 360],
-            }}
-            transition={{
-              duration: 20,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-            className="absolute top-20 left-10 w-72 h-72 bg-primary-purple/10 rounded-full blur-3xl"
-          />
-          <motion.div
-            animate={{
-              x: [0, -80, 0],
-              y: [0, -60, 0],
-              rotate: [360, 180, 0],
-            }}
-            transition={{
-              duration: 25,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-            className="absolute bottom-20 right-10 w-96 h-96 bg-primary-purple/5 rounded-full blur-3xl"
-          />
-        </div>
-        
-        <div className="text-center relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <motion.h1
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2, duration: 0.5 }}
-              className="text-7xl md:text-8xl lg:text-9xl font-extrabold mb-8 tracking-tight"
-            >
-              <span className="gradient-text bg-clip-text text-transparent bg-gradient-to-r from-primary-purple via-primary-purpleLight to-primary-purple">
-                Beaver Smash
-              </span>
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="text-xl md:text-2xl text-accent-gray-600 mb-0 max-w-3xl mx-auto leading-relaxed font-medium"
-            >
-              CCNY table tennis rankings.
-            </motion.p>
-          </motion.div>
+      <section className="relative mx-auto grid min-h-[calc(100svh-7rem)] w-full max-w-6xl grid-cols-[minmax(0,1fr)] items-center gap-8 overflow-hidden px-5 py-10 sm:min-h-[calc(100svh-4.5rem)] sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:py-16">
+        <motion.div initial={false} className="relative z-10 min-w-0 text-center lg:text-left">
+          <h1 className="text-balance text-4xl font-black leading-[0.96] tracking-[-0.045em] sm:text-6xl sm:tracking-[-0.055em] lg:text-7xl">
+            Play more.<br /><span className="text-[#2563EB]">Climb higher.</span>
+          </h1>
+          <p className="mx-auto mt-5 max-w-[22rem] text-lg font-medium leading-relaxed text-[#475569] dark:text-[#CBD5E1] sm:max-w-xl lg:mx-0">
+            Challenge players, track every match, and climb from Iron to Legend.
+          </p>
+          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
+            <Link href="/signup" className="rounded-2xl bg-[#F97316] px-7 py-4 text-center text-base font-black text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#EA580C] active:scale-[0.97]">Get started</Link>
+            <Link href="/login" className="rounded-2xl border-2 border-[#2563EB] bg-white px-7 py-4 text-center text-base font-black text-[#1D4ED8] transition hover:bg-[#EFF6FF] active:scale-[0.97] dark:bg-[#111827] dark:text-[#60A5FA] dark:hover:bg-[#1F2937]">Sign in</Link>
+          </div>
+        </motion.div>
+        <motion.div initial={false} className="relative z-10 min-w-0 w-full max-w-full">
+          <PingPongAnimation />
+        </motion.div>
+      </section>
 
-          {/* Animated Table Tennis Scene - CodePen Style */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.6, duration: 0.5 }}
-            className="flex justify-start items-center mb-24 -ml-12 md:-ml-24 -mt-4"
-          >
-            <PingPongAnimation />
-          </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-              className="flex flex-col sm:flex-row gap-6 justify-center items-center"
-            >
-              <Link href="/signup">
-              <motion.button
-                whileHover={{ scale: 1.05, boxShadow: '0 0 40px rgba(124, 58, 237, 0.5)' }}
-                whileTap={{ scale: 0.95 }}
-                className="relative px-10 py-5 gradient-purple text-white text-xl font-bold rounded-xl shadow-2xl hover:shadow-purple-glow-lg transition-all overflow-hidden group"
-              >
-                <span className="relative z-10">Sign Up</span>
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-primary-purpleLight to-primary-purple opacity-0 group-hover:opacity-100 transition-opacity"
-                  initial={false}
-                />
-              </motion.button>
-            </Link>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="px-10 py-5 bg-white border-2 border-primary-purple text-primary-purple text-xl font-bold rounded-xl shadow-lg hover:shadow-xl hover:bg-primary-purple/5 transition-all"
-            >
-              Features
-            </motion.button>
-          </motion.div>
+      <section id="features" className="flex min-h-[100svh] items-center border-y border-[#E2E8F0] bg-white px-5 py-16 dark:border-[#334155] dark:bg-[#111827] sm:px-8 sm:py-20">
+        <div className="mx-auto w-full max-w-6xl">
+          <div className="mx-auto mb-10 max-w-2xl text-center">
+            <p className="text-sm font-black uppercase tracking-[0.2em] text-[#F97316]">Built for match day</p>
+            <h2 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">Everything you need to play.</h2>
+            <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-accent-gray-500 dark:text-accent-gray-300">Try each preview to see how a match moves through Pongo.</p>
+          </div>
+          <LandingFeatureShowcase />
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
-          {stats.map((stat, index) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ scale: 1.05, y: -5, boxShadow: '0 20px 40px rgba(124, 58, 237, 0.15)' }}
-              className="bg-white border-2 border-accent-gray-200 rounded-2xl p-6 md:p-8 shadow-lg text-center hover:border-primary-purple/50 transition-all cursor-default"
-            >
-              <motion.div
-                initial={{ scale: 0 }}
-                whileInView={{ scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 + 0.2, type: 'spring', stiffness: 200 }}
-                className="text-4xl md:text-5xl font-bold gradient-text mb-3"
-              >
-                {stat.value}
+      <section className="px-5 pb-6 pt-12 sm:px-8 sm:py-24">
+        <div className="mx-auto max-w-6xl text-center">
+          <p className="text-sm font-black uppercase tracking-[0.2em] text-[#2563EB]">Your rank journey</p>
+          <h2 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">Start at Iron. Climb to Legend.</h2>
+          <div className="mx-auto mt-6 inline-flex items-center gap-2 rounded-full bg-[#DBEAFE] px-4 py-2 text-sm font-black text-[#1E40AF] dark:bg-[#1E40AF]/30 dark:text-[#93C5FD]">Starting ELO <span className="text-lg">500</span></div>
+          <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+            {ranks.map((rank) => (
+              <motion.div key={rank.name} initial={false} whileHover={{ y: -4 }} className="flex min-h-36 flex-col items-center justify-center rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-sm dark:border-[#334155] dark:bg-[#111827]">
+                <RankIcon tier={rank.name} className="h-14 w-14" />
+                <strong className="mt-2 text-sm">{rank.name}</strong>
+                <span className="mt-1 text-[11px] font-medium text-accent-gray-500 dark:text-accent-gray-400">{rank.range}</span>
               </motion.div>
-              <div className="text-accent-gray-600 font-semibold text-base md:text-lg">{stat.label}</div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center mb-20"
-        >
-          <h2 className="text-5xl md:text-6xl font-bold text-accent-black mb-6">
-            <span className="gradient-text">Features</span>
-          </h2>
-        </motion.div>
-
-        <div className="grid md:grid-cols-2 gap-6 md:gap-8">
-          {features.map((feature, index) => (
-            <motion.div
-              key={feature.title}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ scale: 1.02, y: -8, boxShadow: '0 25px 50px rgba(124, 58, 237, 0.2)' }}
-              className="bg-white border-2 border-accent-gray-200 rounded-2xl p-8 md:p-10 shadow-xl hover:shadow-2xl hover:border-primary-purple transition-all group relative overflow-hidden"
-            >
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary-purple to-primary-purpleLight opacity-0 group-hover:opacity-100 transition-opacity" />
-              <h3 className="text-2xl font-bold text-accent-black mb-4 group-hover:text-primary-purple transition-colors">{feature.title}</h3>
-              <p className="text-lg text-accent-gray-600 leading-relaxed">{feature.description}</p>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center mb-20"
-        >
-          <h2 className="text-5xl md:text-6xl font-bold text-accent-black mb-6">
-            How it <span className="gradient-text">works</span>
-          </h2>
-        </motion.div>
-
-        <div className="grid md:grid-cols-3 gap-8 md:gap-10">
-          {steps.map((item, index) => (
-            <motion.div
-              key={item.step}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.15 }}
-              whileHover={{ y: -5 }}
-              className="relative"
-            >
-              <div className="bg-white border-2 border-primary-purple/30 rounded-2xl p-8 md:p-10 shadow-xl h-full hover:border-primary-purple hover:shadow-2xl transition-all">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  whileInView={{ scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.15 + 0.2, type: 'spring', stiffness: 200 }}
-                  whileHover={{ scale: 1.1, rotate: 360 }}
-                  className="w-20 h-20 rounded-full gradient-purple flex items-center justify-center text-3xl font-bold text-white mb-6 shadow-lg"
-                >
-                  {item.step}
-                </motion.div>
-                <h3 className="text-2xl font-bold text-accent-black mb-4">{item.title}</h3>
-                <p className="text-lg text-accent-gray-600 leading-relaxed">{item.desc}</p>
-              </div>
-              {index < 2 && (
-                <motion.div
-                  animate={{ x: [0, 5, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, delay: index * 0.3 }}
-                  className="hidden md:block absolute top-1/2 -right-5 transform -translate-y-1/2 text-5xl text-primary-purple/50"
-                >
-                  →
-                </motion.div>
-              )}
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-accent-gray-200 py-12 mt-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center text-accent-gray-600">
-            <p className="font-bold text-accent-black">CCNY Table Tennis Club</p>
+            ))}
+          </div>
+          <div className="mt-8 rounded-[2rem] bg-[#2563EB] px-6 py-7 text-white shadow-xl shadow-blue-600/20 sm:mt-14 sm:px-10 sm:py-10">
+            <PongoLogo alt="Pongo mascot" size="xl" className="mx-auto mb-2" />
+            <h3 className="text-3xl font-black">Take the #1 spot.</h3>
+            <p className="mx-auto mt-3 max-w-md text-[#DBEAFE]">Find your next opponent and make every game count.</p>
+            <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+              <Link href="/signup" className="rounded-2xl bg-[#F97316] px-7 py-4 font-black text-white transition hover:bg-[#EA580C] active:scale-[0.97]">Join Pongo</Link>
+              <Link href="/login" className="rounded-2xl border border-white/40 px-7 py-4 font-black text-white transition hover:bg-white/10 active:scale-[0.97]">Sign in</Link>
+            </div>
           </div>
         </div>
-      </footer>
-    </div>
+      </section>
+    </main>
   );
 }

@@ -57,7 +57,7 @@ export default async function DashboardPage() {
   ]);
 
   const profile = (players || []).find((player) => player.id === user.id);
-  if (!profile) throw new Error('Your BeaverSmash profile could not be loaded.');
+  if (!profile) throw new Error('Your Pongo profile could not be loaded.');
 
   const activeMatchIds = (activeMatches || []).map((match) => match.id);
   const { data: cancellationRequests } = activeMatchIds.length

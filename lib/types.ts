@@ -1,6 +1,8 @@
 export interface Profile {
   id: string;
   display_name: string;
+  queue_turn_sound_enabled?: boolean;
+  queue_turn_push_enabled?: boolean;
   current_elo: number;
   total_wins: number;
   total_losses: number;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { OpponentRankedUsage, Profile } from '@/lib/types';
@@ -10,9 +10,11 @@ import RankBadge from '@/components/RankBadge';
 export default function PlayersClient({ players, usage, currentUserId }: { players: Profile[]; usage: OpponentRankedUsage[]; currentUserId: string }) {
   useDatabaseRefresh('players-list', ['profiles']);
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [visibleCount, setVisibleCount] = useState(40);
   const [loadingId, setLoadingId] = useState<string | null>(null);
-  const filtered = players.filter((player) => player.id !== currentUserId && player.display_name.toLowerCase().includes(query.toLowerCase()));
+  const listRef = useRef<HTMLDivElement>(null);
+  const filtered = players.filter((player) => player.id !== currentUserId && player.display_name.toLowerCase().includes(debouncedQuery.toLowerCase()));
   const visiblePlayers = filtered.slice(0, visibleCount);
   const usageFor = (playerId: string) => usage.find((row) => row.opponent_id === playerId)
     || { opponent_id: playerId, games_used: 0, games_limit: 20, games_remaining: 20 };
@@ -30,26 +32,48 @@ export default function PlayersClient({ players, usage, currentUserId }: { playe
     }
   };
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 180);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (list) list.scrollTop = Number(window.sessionStorage.getItem('pongo-player-list-scroll') || 0);
+    return () => {
+      document.body.classList.remove('keyboard-open');
+      if (list) window.sessionStorage.setItem('pongo-player-list-scroll', String(list.scrollTop));
+    };
+  }, []);
+
+  const keyboardOpen = () => document.body.classList.add('keyboard-open');
+  const keyboardClosed = () => window.setTimeout(() => document.body.classList.remove('keyboard-open'), 120);
+
   return (
     <main className="app-screen fixed-list-screen min-h-screen bg-accent-gray-50 px-4 py-7">
       <div className="app-screen-shell mx-auto max-w-3xl">
         <div className="screen-fixed">
           <h1 className="text-4xl font-black">Players</h1>
           <input
+            type="search"
             value={query}
             onChange={(event) => { setQuery(event.target.value); setVisibleCount(40); }}
+            onFocus={keyboardOpen}
+            onBlur={keyboardClosed}
             placeholder="Search players"
-            className="mt-5 h-14 w-full rounded-2xl border-2 border-accent-gray-200 bg-white px-5 text-lg focus:border-primary-purple focus:outline-none"
+            autoComplete="off"
+            enterKeyHint="search"
+            className="mt-5 h-14 w-full rounded-2xl border-2 border-accent-gray-200 bg-white px-5 text-base focus:border-primary-purple focus:outline-none"
           />
         </div>
-        <div className="widget-scroll scroll-fade screen-flex space-y-3 pr-1 sm:mt-5" tabIndex={0} aria-label="Player list">
+        <div ref={listRef} onScroll={(event) => window.sessionStorage.setItem('pongo-player-list-scroll', String(event.currentTarget.scrollTop))} className="widget-scroll screen-flex space-y-3 pr-1 sm:mt-5" tabIndex={0} aria-label="Player list">
           {visiblePlayers.map((player) => {
             const rank = players.findIndex((candidate) => candidate.id === player.id) + 1;
             const today = usageFor(player.id);
             return (
               <article key={player.id} className="rounded-2xl border-2 border-accent-gray-200 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
-                  <Link href={`/profile/${player.id}`} className="min-w-0">
+                  <Link href={`/profile/${player.id}`} className="min-h-11 min-w-0 flex-1">
                     <p className="truncate text-lg font-black">{player.display_name}</p>
                     <p className="text-sm text-accent-gray-500">#{rank} overall · {player.current_elo} ELO · {player.total_wins}-{player.total_losses}</p>
                     <span className="mt-2 block"><RankBadge elo={player.current_elo} totalGames={player.total_wins + player.total_losses} compact /></span>

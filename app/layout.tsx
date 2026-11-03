@@ -11,16 +11,16 @@ import { Suspense } from "react";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  applicationName: "Beaver Smash",
+  applicationName: "Pongo",
   title: {
-    default: "Beaver Smash",
-    template: "%s · Beaver Smash",
+    default: "Pongo",
+    template: "%s · Pongo",
   },
-  description: "A competitive table tennis ranking and match-tracking app for the CCNY Table Tennis Club.",
+  description: "Challenge players, track matches, and climb the table tennis ranks.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Beaver Smash",
+    title: "Pongo",
     statusBarStyle: "black-translucent",
   },
   other: {
@@ -37,8 +37,8 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   colorScheme: "light dark",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#5B21B6" },
-    { media: "(prefers-color-scheme: dark)", color: "#171321" },
+    { media: "(prefers-color-scheme: light)", color: "#2563EB" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B1120" },
   ],
 };
 
@@ -71,15 +71,15 @@ export default function RootLayout({
             toastOptions={{
               style: {
                 background: '#FFFFFF',
-                color: '#000000',
-                border: '2px solid #7C3AED',
+                color: '#0F172A',
+                border: '2px solid #2563EB',
                 borderRadius: '12px',
-                boxShadow: '0 10px 25px rgba(124, 58, 237, 0.2)',
+                boxShadow: '0 10px 25px rgba(37, 99, 235, 0.2)',
               },
               className: 'theme-toast',
               success: {
                 iconTheme: {
-                  primary: '#7C3AED',
+                  primary: '#2563EB',
                   secondary: '#fff',
                 },
               },

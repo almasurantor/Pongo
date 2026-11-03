@@ -35,7 +35,7 @@ function StandingCard({ entry, scope, currentUserId }: { entry: LeaderboardEntry
   const mine = entry.player_id === currentUserId;
   const change = Number(entry.net_elo_change);
   return (
-    <Link href={`/profile/${entry.player_id}`} className={`block rounded-2xl border-2 p-4 shadow-sm transition active:scale-[.99] ${mine ? 'border-primary-purple bg-primary-purple/5' : 'border-accent-gray-200 bg-white'}`}>
+    <Link href={`/profile/${entry.player_id}`} className={`app-surface-card block p-3.5 transition active:scale-[.99] ${mine ? 'app-surface-card--active' : ''}`}>
       <div className="grid grid-cols-[3rem_1fr_auto] items-start gap-3">
         <span className={`text-xl font-black ${entry.placement <= 3 ? 'text-primary-purple' : 'text-accent-gray-500'}`}>#{entry.placement}</span>
         <span className="min-w-0">
@@ -50,7 +50,7 @@ function StandingCard({ entry, scope, currentUserId }: { entry: LeaderboardEntry
           )}
         </span>
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-accent-gray-100 pt-3 text-center">
+      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-accent-gray-100 pt-2.5 text-center">
         <div><p className="font-black">{entry.wins}-{entry.losses}</p><p className="text-[11px] font-bold text-accent-gray-400">RECORD</p></div>
         <div><p className="font-black">{Number(entry.win_rate).toFixed(Number(entry.win_rate) % 1 ? 1 : 0)}%</p><p className="text-[11px] font-bold text-accent-gray-400">WIN RATE</p></div>
       </div>
@@ -80,22 +80,22 @@ export default function LeaderboardClient({ entries, archives, scope, selectedPe
   useEffect(() => setVisibleCount(50), [scope, selectedPeriod]);
 
   return (
-    <main className="app-screen fixed-list-screen min-h-screen bg-accent-gray-50 px-4 py-7">
+    <main className="app-screen fixed-list-screen min-h-screen bg-gradient-to-br from-white via-accent-gray-50 to-primary-purple/5 px-4 py-6 sm:py-10">
       <div className="app-screen-shell mx-auto max-w-4xl">
         <div className="screen-fixed">
-          <h1 className="text-4xl font-black">Leaderboard</h1>
+          <h1 className="text-3xl font-black sm:text-4xl">Leaderboard</h1>
           <p className="mt-1 text-accent-gray-600">{scope === 'all_time' ? 'Permanent ELO ranking' : `${activePeriod} · ranked by net ELO gained`}</p>
         </div>
 
-        <nav aria-label="Leaderboard period" className="screen-fixed grid grid-cols-3 rounded-2xl bg-accent-gray-200 p-1 sm:mt-6">
+        <nav aria-label="Leaderboard period" className="screen-fixed grid grid-cols-3 rounded-2xl border border-accent-gray-200 p-1 sm:mt-5">
           {tabs.map((tab) => (
-            <Link key={tab.scope} href={`/leaderboard?tab=${tab.scope}`} className={`rounded-xl px-3 py-3 text-center text-sm font-black transition ${scope === tab.scope ? 'bg-white text-primary-purple shadow-sm' : 'text-accent-gray-600'}`}>
+            <Link key={tab.scope} href={`/leaderboard?tab=${tab.scope}`} className={`rounded-xl px-3 py-3 text-center text-sm font-black transition ${scope === tab.scope ? 'bg-primary-purple/10 text-primary-purple dark:bg-primary-purple/20 dark:text-primary-purpleLight' : 'text-accent-gray-600 hover:bg-accent-gray-100 dark:hover:bg-accent-gray-800'}`}>
               {tab.label}
             </Link>
           ))}
         </nav>
 
-        <div className="widget-scroll scroll-fade screen-flex pr-1 sm:mt-6" tabIndex={0} aria-label="Leaderboard standings">
+        <div className="widget-scroll screen-flex pr-1 sm:mt-5" tabIndex={0} aria-label="Leaderboard standings">
           {selectedPeriod && (
           <div className="mb-4 flex items-center justify-between rounded-2xl border border-primary-purple/20 bg-primary-purple/5 p-4">
             <div><p className="text-xs font-black uppercase text-primary-purple">Historical archive</p><p className="font-bold">{activePeriod}</p></div>
@@ -105,11 +105,11 @@ export default function LeaderboardClient({ entries, archives, scope, selectedPe
 
           {loadError && <div className="mb-4 rounded-2xl border-2 border-red-200 bg-red-50 p-5 font-bold text-red-700">Could not load standings: {loadError}</div>}
 
-        <section className="space-y-3">
+        <section className="space-y-2.5">
           {visibleTopRows.map((entry) => <StandingCard key={entry.player_id} entry={entry} scope={scope} currentUserId={currentUserId} />)}
-          {!topRows.length && !loadError && <div className="rounded-3xl bg-white p-10 text-center text-accent-gray-500">No ranked results.</div>}
+          {!topRows.length && !loadError && <div className="app-surface-card p-8 text-center text-accent-gray-500">No ranked results.</div>}
           {visibleCount < topRows.length && (
-            <button type="button" onClick={() => setVisibleCount((count) => count + 50)} className="min-h-12 w-full rounded-2xl border-2 border-primary-purple/20 bg-white font-black text-primary-purple">
+            <button type="button" onClick={() => setVisibleCount((count) => count + 50)} className="app-surface-card min-h-12 w-full font-black text-primary-purple">
               Load more standings
             </button>
           )}
@@ -123,11 +123,11 @@ export default function LeaderboardClient({ entries, archives, scope, selectedPe
         )}
 
         {scope !== 'all_time' && !selectedPeriod && (
-          <section className="mt-10">
+          <section className="mt-7">
             <h2 className="text-2xl font-black">Previous winners</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {archives.map((archive) => (
-                <Link key={archive.period_start} href={`/leaderboard?tab=${scope}&period=${archive.period_start}`} className="rounded-2xl border-2 border-accent-gray-200 bg-white p-4 shadow-sm">
+                <Link key={archive.period_start} href={`/leaderboard?tab=${scope}&period=${archive.period_start}`} className="app-surface-card p-4 transition active:scale-[.99]">
                   <p className="text-xs font-black uppercase text-accent-gray-400">{periodLabel(archive.period_start, archive.period_end, scope)}</p>
                   <div className="mt-3 flex items-center justify-between gap-3">
                     <div className="min-w-0"><p className="truncate font-black">{archive.winner_name}</p><div className="mt-1"><RankBadge elo={archive.winner_current_elo} totalGames={archive.winner_is_provisional ? 0 : 5} compact /></div><p className="mt-1 text-sm text-accent-gray-500">{archive.total_players} players</p></div>
@@ -135,7 +135,7 @@ export default function LeaderboardClient({ entries, archives, scope, selectedPe
                   </div>
                 </Link>
               ))}
-              {!archives.length && <div className="rounded-2xl bg-white p-6 text-center text-accent-gray-500 sm:col-span-2">Completed periods will appear here.</div>}
+              {!archives.length && <div className="app-surface-card p-6 text-center text-accent-gray-500 sm:col-span-2">Completed periods will appear here.</div>}
             </div>
           </section>
         )}

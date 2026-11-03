@@ -1,0 +1,27 @@
+.panel { width: 100%; max-width: 560px; min-width: 0; margin: 0 auto; overflow: hidden; border: 1px solid #dbeafe; border-radius: 1.5rem; padding: .9rem; background: #fff; box-shadow: 0 22px 55px rgba(15, 23, 42, .11); }
+.header, .footer { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.header { min-height: 2.5rem; padding: 0 .25rem .65rem; }
+.heading { display: inline-flex; align-items: center; gap: .5rem; color: #334155; font-size: .68rem; font-weight: 900; letter-spacing: .1em; white-space: nowrap; }
+.liveDot { width: .5rem; height: .5rem; flex: none; border-radius: 50%; background: #f97316; }
+.scoreboard { display: flex; align-items: center; gap: .45rem; font-size: .7rem; font-weight: 900; white-space: nowrap; }
+.scoreboard strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.youLabel { display: inline-flex; align-items: center; gap: .3rem; color: #2563eb; }
+.autoLabel { display: inline-flex; align-items: center; gap: .3rem; color: #ea580c; }
+.scoreDivider { color: #94a3b8; font-size: 1.2rem; }
+.table { display: block; width: 100%; height: clamp(245px, 62vw, 320px); border-radius: 1rem; cursor: none; touch-action: none; }
+.table:focus-visible { outline: 3px solid #f97316; outline-offset: 3px; }
+.footer { min-height: 2.5rem; padding: .65rem .25rem 0; }
+.footer p { margin: 0; color: #64748b; font-size: .72rem; font-weight: 600; }
+.footer span { color: #2563eb; font-size: .65rem; font-weight: 900; letter-spacing: .07em; white-space: nowrap; }
+:global(.dark) .panel { border-color: #334155; background: #111827; box-shadow: 0 22px 55px rgba(0, 0, 0, .25); }
+:global(.dark) .heading { color: #cbd5e1; }
+:global(.dark) .footer p { color: #94a3b8; }
+:global(.dark) .youLabel, :global(.dark) .footer span { color: #60a5fa; }
+:global(.dark) .autoLabel { color: #fb923c; }
+@media (max-width: 400px) {
+  .panel { padding: .65rem; }
+  .heading { font-size: .6rem; }
+  .scoreboard { gap: .25rem; font-size: .62rem; }
+  .scoreboard strong { font-size: 1.15rem; }
+  .footer p { font-size: .66rem; }
+}

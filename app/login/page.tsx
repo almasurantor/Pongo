@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
+import PongoLogo from '@/components/PongoLogo';
+import PongoWordmark from '@/components/PongoWordmark';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -54,7 +56,7 @@ export default function LoginPage() {
 
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-accent-white via-accent-gray-50 to-primary-purple/10 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#0B1120] p-4 text-slate-100">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -65,15 +67,19 @@ export default function LoginPage() {
           initial={{ scale: 0.95 }}
           animate={{ scale: 1 }}
           transition={{ duration: 0.3 }}
-          className="bg-white border-2 border-accent-gray-200 rounded-2xl p-8 shadow-2xl"
+          className="rounded-2xl border border-slate-700 bg-[#111827] p-8 shadow-2xl shadow-black/30"
         >
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-center mb-8"
+            className="mb-8 text-center"
           >
-            <h1 className="text-4xl font-bold gradient-text">Sign in</h1>
+            <div className="flex items-center justify-center gap-3" aria-label="Pongo">
+              <PongoLogo alt="" size="lg" priority />
+              <PongoWordmark className="text-4xl" />
+            </div>
+            <h1 className="mt-5 text-4xl font-bold text-white">Sign in</h1>
           </motion.div>
 
           <form onSubmit={handleEmailLogin} className="space-y-5 mb-6">
@@ -82,7 +88,7 @@ export default function LoginPage() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <label htmlFor="email" className="block text-sm font-semibold mb-2 text-accent-gray-700">
+              <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-200">
                 Email
               </label>
               <input
@@ -91,7 +97,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-3 bg-accent-gray-50 border-2 border-accent-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-purple focus:border-transparent transition-all"
+                className="w-full rounded-lg border-2 border-slate-600 bg-[#0B1120] px-4 py-3 text-white placeholder:text-slate-500 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
                 placeholder="you@example.com"
               />
             </motion.div>
@@ -101,7 +107,7 @@ export default function LoginPage() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 }}
             >
-              <label htmlFor="password" className="block text-sm font-semibold mb-2 text-accent-gray-700">
+              <label htmlFor="password" className="mb-2 block text-sm font-semibold text-slate-200">
                 Password
               </label>
               <input
@@ -110,7 +116,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-3 bg-accent-gray-50 border-2 border-accent-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-purple focus:border-transparent transition-all"
+                className="w-full rounded-lg border-2 border-slate-600 bg-[#0B1120] px-4 py-3 text-white placeholder:text-slate-500 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
                 placeholder="••••••••"
               />
             </motion.div>
@@ -120,7 +126,7 @@ export default function LoginPage() {
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading}
-              className="w-full py-3 gradient-purple text-white font-semibold rounded-lg shadow-lg hover:shadow-purple-glow transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 gradient-orange text-white font-semibold rounded-lg shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="flex items-center justify-center">
@@ -138,10 +144,10 @@ export default function LoginPage() {
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-accent-gray-200"></div>
+              <div className="w-full border-t border-slate-700"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-accent-gray-500">Or</span>
+              <span className="bg-[#111827] px-4 text-slate-400">Or</span>
             </div>
           </div>
 
@@ -150,7 +156,7 @@ export default function LoginPage() {
             whileTap={{ scale: 0.98 }}
             onClick={handleGoogleLogin}
             disabled={loading}
-            className="w-full py-3 bg-white border-2 border-accent-gray-300 hover:border-primary-purple text-accent-gray-700 font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-4 flex items-center justify-center space-x-2"
+            className="mb-4 flex w-full items-center justify-center space-x-2 rounded-lg border-2 border-slate-600 bg-[#0B1120] py-3 font-semibold text-slate-100 transition-all hover:border-[#2563EB] hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -162,11 +168,11 @@ export default function LoginPage() {
           </motion.button>
 
           <div className="text-center mt-6">
-            <p className="text-accent-gray-600 text-sm">
+            <p className="text-sm text-slate-400">
               Don&apos;t have an account?{' '}
               <a
                 href="/signup"
-                className="text-primary-purple font-semibold hover:underline"
+                className="font-semibold text-[#60A5FA] hover:underline"
               >
                 Create Account
               </a>

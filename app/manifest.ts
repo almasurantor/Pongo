@@ -2,17 +2,17 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Beaver Smash',
-    short_name: 'Beaver Smash',
+    name: 'Pongo',
+    short_name: 'Pongo',
     id: '/',
-    description: 'A competitive table tennis ranking and match-tracking app for the CCNY Table Tennis Club.',
+    description: 'Challenge players, track matches, and climb the table tennis ranks.',
     // The root performs a server-side session check: returning users reach the
     // dashboard, while signed-out users receive the public landing page.
     start_url: '/',
     scope: '/',
     display: 'standalone',
-    background_color: '#F9FAFB',
-    theme_color: '#5B21B6',
+    background_color: '#F8FAFC',
+    theme_color: '#2563EB',
     categories: ['sports', 'social'],
     icons: [
       {

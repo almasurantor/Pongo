@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import PongoWordmark from './PongoWordmark';
+import PongoLogo from './PongoLogo';
 
 const icons: Record<string, React.ReactNode> = {
   home: <path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V10.5Z" />,
@@ -18,10 +19,80 @@ function NavIcon({ name, className = 'h-6 w-6' }: { name: string; className?: st
   return <svg aria-hidden="true" viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{icons[name]}</svg>;
 }
 
+let queueAudioContext: AudioContext | null = null;
+
+function getQueueAudioContext() {
+  if (!window.AudioContext) return null;
+  queueAudioContext ??= new window.AudioContext();
+  return queueAudioContext;
+}
+
+function playQueueChime(soft = false) {
+  const context = getQueueAudioContext();
+  if (!context) return;
+  const sound = () => {
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(0.0001, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(soft ? 0.08 : 0.18, context.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + (soft ? 0.35 : 0.8));
+    gain.connect(context.destination);
+    const notes = soft ? [659] : [523, 659, 784];
+    notes.forEach((frequency, index) => {
+      const oscillator = context.createOscillator();
+      oscillator.type = 'sine';
+      oscillator.frequency.value = frequency;
+      oscillator.connect(gain);
+      const start = context.currentTime + index * 0.16;
+      oscillator.start(start);
+      oscillator.stop(start + 0.28);
+    });
+  };
+  if (context.state === 'suspended') void context.resume().then(sound);
+  else sound();
+}
+
+async function showQueueNotification() {
+  if (!('Notification' in window) || Notification.permission !== 'granted' || !('serviceWorker' in navigator)) return;
+  const registration = await navigator.serviceWorker.ready;
+  await registration.showNotification("Pongo — You're up!", {
+    body: 'Confirm within 60 seconds to keep your spot.',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: 'pongo-queue-turn',
+    requireInteraction: true,
+    data: { url: '/queue' },
+  });
+}
+
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [userId, setUserId] = useState<string | null>(null);
+  const [queueCalled, setQueueCalled] = useState(false);
+  const [queueSoundEnabled, setQueueSoundEnabled] = useState(true);
+  const [queuePushEnabled, setQueuePushEnabled] = useState(false);
+  const wasCalled = useRef(false);
+  const queueSoundEnabledRef = useRef(true);
+  const queuePushEnabledRef = useRef(false);
+
+  useEffect(() => {
+    const unlockAudio = () => {
+      const context = getQueueAudioContext();
+      if (context?.state === 'suspended') void context.resume();
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+    window.addEventListener('pointerdown', unlockAudio, { passive: true });
+    window.addEventListener('keydown', unlockAudio);
+    return () => {
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+  }, []);
+
+  useEffect(() => { queueSoundEnabledRef.current = queueSoundEnabled; }, [queueSoundEnabled]);
+  useEffect(() => { queuePushEnabledRef.current = queuePushEnabled; }, [queuePushEnabled]);
 
   useEffect(() => {
     let mounted = true;
@@ -33,6 +104,49 @@ export default function Navbar() {
     });
     return () => { mounted = false; subscription.unsubscribe(); };
   }, [supabase]);
+
+  useEffect(() => {
+    if (!userId) {
+      setQueueCalled(false);
+      return;
+    }
+    const syncQueue = async () => {
+      const [memberResponse, profileResponse] = await Promise.all([
+        supabase.from('beaver_queue_members').select('status').eq('user_id', userId).maybeSingle(),
+        supabase.from('profiles').select('queue_turn_sound_enabled,queue_turn_push_enabled').eq('id', userId).maybeSingle(),
+      ]);
+      setQueueCalled(memberResponse.data?.status === 'called');
+      if (profileResponse.data) {
+        setQueueSoundEnabled(profileResponse.data.queue_turn_sound_enabled ?? true);
+        setQueuePushEnabled(profileResponse.data.queue_turn_push_enabled ?? false);
+      }
+    };
+    void syncQueue();
+    const channel = supabase.channel(`queue-nav-${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_members', filter: `user_id=eq.${userId}` }, () => void syncQueue())
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [supabase, userId]);
+
+  useEffect(() => {
+    if (!queueCalled) {
+      wasCalled.current = false;
+      if ('serviceWorker' in navigator) {
+        void navigator.serviceWorker.ready
+          .then((registration) => registration.getNotifications({ tag: 'pongo-queue-turn' }))
+          .then((notifications) => notifications.forEach((notification) => notification.close()));
+      }
+      return;
+    }
+    if (wasCalled.current) return;
+    wasCalled.current = true;
+    if (queueSoundEnabledRef.current && document.visibilityState === 'visible') playQueueChime();
+    if (queuePushEnabledRef.current) void showQueueNotification();
+    const reminder = window.setTimeout(() => {
+      if (wasCalled.current && queueSoundEnabledRef.current && document.visibilityState === 'visible') playQueueChime(true);
+    }, 30_000);
+    return () => window.clearTimeout(reminder);
+  }, [queueCalled]);
 
   const profileHref = userId ? `/profile/${userId}` : '/dashboard';
   const items = [
@@ -48,34 +162,45 @@ export default function Navbar() {
     <>
       <nav className="glass-effect sticky top-0 z-40 hidden border-b border-accent-gray-200 sm:block">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <Link href="/dashboard" className="flex items-center gap-1" aria-label="Beaver Smash home">
-            <Image src="/beaver-logo.png" alt="" width={34} height={34} className="object-contain" priority />
-            <span className="text-xl font-black gradient-text">SMASH</span>
+          <Link href="/dashboard" className="flex items-center gap-2 rounded-xl pr-2 text-xl transition active:scale-[0.98]" aria-label="Pongo home">
+            <PongoLogo size="sm" priority />
+            <PongoWordmark />
           </Link>
           <div className="flex items-center gap-5 lg:gap-7">
             {items.map((item) => <Link key={item.label} href={item.href}
-              className={`text-sm font-bold transition ${active(item.href) ? 'text-primary-purple' : 'text-accent-gray-600 hover:text-primary-purple'} ${item.primary ? 'rounded-full bg-primary-purple px-5 py-2.5 text-white hover:text-white' : ''}`}>
+              className={`text-sm font-bold transition ${active(item.href) ? 'text-primary-purple' : 'text-accent-gray-600 hover:text-primary-purple'} ${item.primary ? 'rounded-full bg-brand-orange px-5 py-2.5 text-white hover:bg-brand-orangeDark hover:text-white' : ''}`}>
               {item.label}
             </Link>)}
           </div>
         </div>
       </nav>
-      <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-50 border-t border-accent-gray-200 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_24px_rgba(0,0,0,0.07)] backdrop-blur dark:bg-[#171321]/95 sm:hidden">
-        <div className="grid h-[3.75rem] grid-cols-5 items-center px-[max(0.25rem,env(safe-area-inset-left))] pr-[max(0.25rem,env(safe-area-inset-right))]">
-          {items.map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              aria-label={item.label}
-              aria-current={active(item.href) ? 'page' : undefined}
-              className={`relative flex min-h-12 items-center justify-center rounded-full transition active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-purple focus-visible:ring-offset-2 ${active(item.href) ? 'text-primary-purple' : 'text-accent-gray-500'} ${item.primary ? '-translate-y-2' : ''}`}
-            >
-              <span className={item.primary ? `flex h-[3.25rem] w-[3.25rem] items-center justify-center rounded-full gradient-purple text-white shadow-purple-glow ${active(item.href) ? 'ring-4 ring-primary-purple/15' : ''}` : ''}>
-                <NavIcon name={item.icon} className={item.primary ? 'h-7 w-7' : 'h-6 w-6'} />
-              </span>
-              <span className="sr-only">{item.label}</span>
-            </Link>
-          ))}
+      <nav aria-label="Primary" className="mobile-bottom-nav fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 mx-auto max-w-md rounded-[1.5rem] border border-[#E2E8F0] bg-[#FFFFFF] p-1.5 dark:border-[#334155] dark:bg-[#0B1120] sm:hidden">
+        <div className="grid h-[3.5rem] grid-cols-5 items-center">
+          {items.map((item) => {
+            const isActive = active(item.href);
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                aria-label={item.label}
+                aria-current={isActive ? 'page' : undefined}
+                onClick={(event) => {
+                  if (event.detail > 0) event.currentTarget.blur();
+                  if (item.href === '/dashboard' && pathname === '/dashboard') {
+                    event.preventDefault();
+                    router.refresh();
+                  }
+                }}
+                className={`relative mx-auto flex h-12 w-12 items-center justify-center rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB] dark:focus-visible:outline-[#60A5FA] ${isActive ? 'bg-[#EFF6FF] text-[#2563EB] dark:bg-[#17243C] dark:text-[#60A5FA]' : 'text-accent-gray-500 hover:bg-[#F1F5F9] dark:text-accent-gray-300 dark:hover:bg-[#1F2937]'}`}
+              >
+                <NavIcon name={item.icon} className="h-6 w-6" />
+                {item.label === 'Queue' && queueCalled && (
+                  <span aria-hidden="true" className="absolute right-1.5 top-1.5 h-3 w-3 rounded-full border-2 border-white bg-[#F97316] dark:border-[#0B1120]" />
+                )}
+                <span className="sr-only">{item.label}</span>
+              </Link>
+            );
+          })}
         </div>
       </nav>
     </>

@@ -185,9 +185,9 @@ export default function DashboardClient({
           onScroll={syncSelectedCard}
           className="screen-flex grid min-h-0 snap-x snap-mandatory auto-cols-[100%] grid-flow-col gap-3 overflow-x-auto overscroll-x-contain scroll-smooth pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid-flow-row sm:grid-cols-3 sm:overflow-visible"
         >
-          <section className="mobile-widget scroll-widget h-full min-w-0 snap-start rounded-3xl border-2 border-accent-gray-200 bg-white p-4 shadow-lg dark:border-[#393246] dark:bg-[#1c1828]">
+          <section className="app-surface-card mobile-widget scroll-widget h-full min-w-0 snap-start p-4">
             <div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-black">Active Matches</h2><span className="text-sm font-bold text-accent-gray-500">{rankedUsage.active_used}/{rankedUsage.active_limit}</span></div>
-            <div className="widget-scroll scroll-fade space-y-3 pr-1" tabIndex={0} aria-label="Active matches and requests">
+            <div className="widget-scroll space-y-3 pr-1" tabIndex={0} aria-label="Active matches and requests">
               {disputesNeedResponse.map((dispute) => {
                 const disputedMatch = dispute.match;
                 const requester = disputedMatch?.player_one_id === dispute.opened_by ? disputedMatch.player_one : disputedMatch?.player_two;
@@ -206,10 +206,10 @@ export default function DashboardClient({
             </div>
           </section>
 
-          <section className="mobile-widget scroll-widget h-full min-w-0 snap-start rounded-3xl border-2 border-accent-gray-200 bg-white p-4 shadow-lg dark:border-[#393246] dark:bg-[#1c1828]">
+          <section className="app-surface-card mobile-widget scroll-widget h-full min-w-0 snap-start p-4">
             <div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-black">Friends</h2><Link href="/players" className="text-sm font-bold text-primary-purple">View all</Link></div>
             <input type="search" value={playerQuery} onChange={(event) => setPlayerQuery(event.target.value)} placeholder="Search by name" className="mb-3 min-h-11 w-full rounded-2xl border-2 border-accent-gray-200 bg-white px-4 outline-none transition focus:border-primary-purple" />
-            <div className="widget-scroll scroll-fade space-y-2 pr-1" tabIndex={0} aria-label="Friends and players">
+            <div className="widget-scroll space-y-2 pr-1" tabIndex={0} aria-label="Friends and players">
               {visiblePlayers.map((player) => {
                 const usage = usageFor(player.id);
                 const remaining = usage?.games_remaining ?? 20;
@@ -219,9 +219,9 @@ export default function DashboardClient({
             </div>
           </section>
 
-          <section className="mobile-widget scroll-widget h-full min-w-0 snap-start rounded-3xl border-2 border-accent-gray-200 bg-white p-4 shadow-lg dark:border-[#393246] dark:bg-[#1c1828]">
+          <section className="app-surface-card mobile-widget scroll-widget h-full min-w-0 snap-start p-4">
             <div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-black">Challenges</h2><span className="text-sm font-bold text-accent-gray-500">{incoming.length + outgoing.length}</span></div>
-            <div className="widget-scroll scroll-fade space-y-3 pr-1" tabIndex={0} aria-label="Incoming and outgoing challenges">
+            <div className="widget-scroll space-y-3 pr-1" tabIndex={0} aria-label="Incoming and outgoing challenges">
               {incoming.map((challenge) => <article key={challenge.id} className="rounded-2xl border-2 border-primary-purple/25 bg-white p-4 shadow-sm"><p className="text-xs font-black uppercase text-primary-purple">Incoming</p><p className="mt-1 text-lg font-black">{challenge.challenger?.display_name}</p>{challenge.challenger && <div className="mt-2"><RankBadge elo={challenge.challenger.current_elo} totalGames={challenge.challenger.total_wins + challenge.challenger.total_losses} compact /></div>}<DeadlineCountdown deadline={challenge.expires_at} className="mt-2 block text-sm font-bold text-accent-gray-500" /><div className="mt-3 grid grid-cols-2 gap-2"><button disabled={loading !== null} onClick={() => respondChallenge(challenge.id, 'decline')} className="min-h-11 rounded-xl border-2 border-accent-gray-300 font-bold disabled:opacity-50">Decline</button><button disabled={loading !== null} onClick={() => respondChallenge(challenge.id, 'accept')} className="min-h-11 rounded-xl gradient-purple font-bold text-white disabled:opacity-50">Accept</button></div></article>)}
               {outgoing.map((challenge) => <article key={challenge.id} className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm"><div><p className="text-xs font-black uppercase text-accent-gray-400">Sent</p><p className="font-bold">{challenge.opponent?.display_name}</p>{challenge.opponent && <div className="mt-1"><RankBadge elo={challenge.opponent.current_elo} totalGames={challenge.opponent.total_wins + challenge.opponent.total_losses} compact /></div>}<DeadlineCountdown deadline={challenge.expires_at} className="mt-1 block text-sm font-bold text-accent-gray-500" /></div><button disabled={loading !== null} onClick={() => cancelChallenge(challenge.id)} className="min-h-10 rounded-xl px-3 font-bold text-red-600 disabled:opacity-50">Cancel</button></article>)}
               {!incoming.length && !outgoing.length && <div className="rounded-2xl bg-accent-gray-50 p-6 text-center text-accent-gray-500">No pending challenges.</div>}

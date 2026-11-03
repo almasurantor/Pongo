@@ -1,4 +1,4 @@
-const CACHE_NAME = 'beaver-smash-static-v1';
+const CACHE_NAME = 'pongo-static-v2';
 const OFFLINE_ASSETS = [
   '/offline.html',
   '/icons/icon-192.png',
@@ -25,4 +25,19 @@ self.addEventListener('fetch', (event) => {
   // Pages and Supabase-backed data always come from the network. The cache is
   // used only for a static offline explanation when navigation truly fails.
   event.respondWith(fetch(request, { cache: 'no-store' }).catch(() => caches.match('/offline.html')));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || '/queue', self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      const existing = clients.find((client) => client.url.startsWith(self.location.origin));
+      if (existing) {
+        existing.navigate(targetUrl);
+        return existing.focus();
+      }
+      return self.clients.openWindow(targetUrl);
+    }),
+  );
 });

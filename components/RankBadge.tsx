@@ -10,7 +10,7 @@ const styles: Record<RankTierName, { shell: string; text: string; fill: string; 
   Legend: { shell: 'border-rose-400/50 bg-rose-50', text: 'text-rose-800', fill: '#e11d48', accent: '#fda4af' },
 };
 
-function RankIcon({ tier, className = 'h-8 w-8' }: { tier: RankTierName; className?: string }) {
+export function RankIcon({ tier, className = 'h-8 w-8' }: { tier: RankTierName; className?: string }) {
   const style = styles[tier];
   const tierIndex = ['Iron', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Legend'].indexOf(tier);
   return (

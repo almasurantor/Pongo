@@ -18,9 +18,9 @@ export default async function PlayPage() {
           <Link
             href="/queue"
             aria-label="Join table and open the live queue"
-            className="flex min-h-0 items-center gap-4 rounded-3xl border-2 border-primary-purple/25 bg-primary-purple/5 p-4 shadow-lg transition hover:border-primary-purple/40 active:scale-[.98] active:shadow-sm sm:block sm:p-6"
+            className="flex min-h-0 items-center gap-4 rounded-3xl gradient-orange p-4 text-white shadow-lg shadow-orange-500/20 transition hover:brightness-105 active:scale-[.98] active:shadow-sm sm:block sm:p-6"
           >
-            <span className="text-4xl">🏓</span><h2 className="text-2xl font-black text-accent-black sm:mt-3">Join Table &amp; Play</h2>
+            <span className="text-4xl">🏓</span><h2 className="text-2xl font-black sm:mt-3">Join Table &amp; Play</h2>
           </Link>
           <Link href="/play/casual" className="flex min-h-0 items-center gap-4 rounded-3xl border-2 border-cyan-200 bg-cyan-50 p-5 shadow-lg transition active:scale-[.98] sm:block sm:p-7">
             <span className="text-4xl">🧮</span><h2 className="text-2xl font-black text-cyan-950 sm:mt-4">Casual scorekeeper</h2>

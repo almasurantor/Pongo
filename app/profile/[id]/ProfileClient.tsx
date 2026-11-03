@@ -10,6 +10,7 @@ import { useDatabaseRefresh } from '@/lib/use-database-refresh';
 import InstallAppHint from '@/components/InstallAppHint';
 import RankBadge, { RankProgress } from '@/components/RankBadge';
 import ThemeSettings from '@/components/ThemeSettings';
+import ProfileSettings from '@/components/ProfileSettings';
 
 interface Props {
   profile: Profile;
@@ -23,6 +24,7 @@ export default function ProfileClient({ profile, matches, opponentUsage, rank, c
   useDatabaseRefresh(`profile-${profile.id}`, ['profiles', 'matches', 'rating_events']);
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
+  const [currentProfile, setCurrentProfile] = useState(profile);
   const mine = profile.id === currentUserId;
   const totalGames = profile.total_wins + profile.total_losses;
   const winRate = totalGames ? Math.round(profile.total_wins / totalGames * 100) : 0;
@@ -52,14 +54,14 @@ export default function ProfileClient({ profile, matches, opponentUsage, rank, c
 
   return (
     <main className="app-screen min-h-screen bg-accent-gray-50 px-4 py-7">
-      <div className="app-screen-shell mx-auto max-w-4xl space-y-0 sm:space-y-6">
+      <div className="app-screen-shell mx-auto w-full max-w-3xl space-y-0 sm:space-y-6">
         <section className="screen-fixed rounded-3xl gradient-purple p-4 text-white shadow-xl sm:p-6">
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white/20 text-2xl font-black">
-              {profile.display_name[0].toUpperCase()}
+              {currentProfile.display_name[0].toUpperCase()}
             </div>
             <div className="min-w-0">
-              <h1 className="truncate text-3xl font-black">{profile.display_name}</h1>
+              <h1 className="truncate text-3xl font-black">{currentProfile.display_name}</h1>
               <p className="text-sm text-white/70">Member since {format(new Date(profile.created_at), 'MMM yyyy')}</p>
               <RankBadge elo={profile.current_elo} totalGames={totalGames} compact className="mt-2" />
             </div>
@@ -72,9 +74,9 @@ export default function ProfileClient({ profile, matches, opponentUsage, rank, c
           <div className="mt-4 border-t border-white/20 pt-3"><RankProgress elo={profile.current_elo} totalGames={totalGames} inverse /></div>
         </section>
 
-        <div className="widget-stack profile-widgets sm:grid sm:gap-6">
+        <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
         {!mine && (
-          <section className="mobile-widget">
+          <section className="rounded-3xl border-2 border-accent-gray-200 bg-white p-4 shadow-sm sm:p-5">
             <p className={`mb-3 rounded-xl px-3 py-2 text-center text-sm font-bold ${(opponentUsage?.games_remaining ?? 3) > 0 ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
               {opponentUsage?.games_remaining ?? 20} ranked games available today
             </p>
@@ -84,8 +86,8 @@ export default function ProfileClient({ profile, matches, opponentUsage, rank, c
           </section>
         )}
 
-        <section className="mobile-widget">
-          <h2 className="mb-3 text-xl font-black sm:hidden">Performance</h2>
+        <section className="rounded-3xl border-2 border-accent-gray-200 bg-white p-4 shadow-sm sm:p-5">
+          <h2 className="mb-3 text-xl font-black">Performance</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
             { label: 'Record', value: `${profile.total_wins}-${profile.total_losses}` },
@@ -101,9 +103,9 @@ export default function ProfileClient({ profile, matches, opponentUsage, rank, c
           </div>
         </section>
 
-        <section className="mobile-widget scroll-widget">
+        <section className="min-w-0 rounded-3xl border-2 border-accent-gray-200 bg-white p-4 shadow-sm sm:p-5">
           <h2 className="mb-3 text-xl font-black">Recent games</h2>
-          <div className="widget-scroll scroll-fade max-h-[32rem] space-y-2 pr-1" tabIndex={0} aria-label="Recent games">
+          <div className="max-h-[20rem] space-y-2 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin] sm:max-h-[24rem]" tabIndex={0} aria-label="Recent games">
             {matches.map((match) => {
               const isPlayerOne = match.player_one_id === profile.id;
               const opponent = isPlayerOne ? match.player_two : match.player_one;
@@ -129,10 +131,19 @@ export default function ProfileClient({ profile, matches, opponentUsage, rank, c
         </section>
 
         {mine && (
-          <section className="mobile-widget space-y-4" aria-label="Profile settings">
-            <ThemeSettings />
+          <section className="rounded-3xl border-2 border-accent-gray-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Profile settings">
+            <div className="space-y-4">
+            <div>
+              <h2 className="text-xl font-black">Settings</h2>
+              <p className="mt-1 text-sm text-accent-gray-500">Your public name and queue reminders.</p>
+            </div>
+            <ProfileSettings profile={currentProfile} onSaved={setCurrentProfile} />
+            <div className="border-t border-accent-gray-200 pt-4 dark:border-[#334155]">
+              <ThemeSettings embedded />
+            </div>
             <InstallAppHint />
             <button onClick={logout} className="min-h-12 w-full rounded-2xl border-2 border-red-200 font-bold text-red-600">Log out</button>
+            </div>
           </section>
         )}
         </div>

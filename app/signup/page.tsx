@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import PongoLogo from '@/components/PongoLogo';
+import PongoWordmark from '@/components/PongoWordmark';
 
 export default function SignUpPage() {
   const [email, setEmail] = useState('');
@@ -98,7 +100,9 @@ export default function SignUpPage() {
             transition={{ delay: 0.2 }}
             className="text-center mb-8"
           >
-            <h1 className="text-4xl font-bold gradient-text">Create account</h1>
+            <PongoLogo alt="Pongo" size="lg" className="mx-auto mb-2" priority />
+            <PongoWordmark className="mb-2 text-xl" />
+            <h1 className="text-4xl font-bold text-accent-black">Create account</h1>
           </motion.div>
 
           <form onSubmit={handleSignUp} className="space-y-5 mb-6">
@@ -185,7 +189,7 @@ export default function SignUpPage() {
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading}
-              className="w-full py-3 gradient-purple text-white font-semibold rounded-lg shadow-lg hover:shadow-purple-glow transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 gradient-orange text-white font-semibold rounded-lg shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="flex items-center justify-center">

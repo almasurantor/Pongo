@@ -301,7 +301,7 @@ export default function MatchClient({
           )}
         </header>
 
-        <div className="widget-scroll scroll-fade screen-flex pr-1" tabIndex={0} aria-label="Match details and actions">
+        <div className="widget-scroll screen-flex pr-1" tabIndex={0} aria-label="Match details and actions">
         {match.status === 'confirmed' && (
           <section className="rounded-3xl border-2 border-green-300 bg-white p-6 shadow-lg">
             <p className="font-black uppercase text-green-700">Result finalized</p>

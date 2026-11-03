@@ -8,11 +8,11 @@ const choices: { value: ThemePreference; label: string }[] = [
   { value: 'auto', label: 'Auto' },
 ];
 
-export default function ThemeSettings() {
+export default function ThemeSettings({ embedded = false }: { embedded?: boolean }) {
   const { preference, setPreference } = useTheme();
 
   return (
-    <section className="rounded-3xl border border-accent-gray-200 bg-white p-5 shadow-sm">
+    <section className={embedded ? '' : 'rounded-3xl border border-accent-gray-200 bg-white p-5 shadow-sm'}>
       <h2 className="text-lg font-black">Appearance</h2>
       <div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Color theme">
         {choices.map((choice) => (
