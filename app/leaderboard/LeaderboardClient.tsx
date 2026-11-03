@@ -84,7 +84,7 @@ export default function LeaderboardClient({ entries, archives, scope, selectedPe
       <div className="app-screen-shell mx-auto max-w-4xl">
         <div className="screen-fixed">
           <h1 className="text-3xl font-black sm:text-4xl">Leaderboard</h1>
-          <p className="mt-1 text-accent-gray-600">{scope === 'all_time' ? 'Permanent ELO ranking' : `${activePeriod} · ranked by net ELO gained`}</p>
+          <p className="mt-1 text-accent-gray-600">{scope === 'all_time' ? 'Permanent ELO ranking' : activePeriod}</p>
         </div>
 
         <nav aria-label="Leaderboard period" className="screen-fixed grid grid-cols-3 rounded-2xl border border-accent-gray-200 p-1 sm:mt-5">

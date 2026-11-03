@@ -139,7 +139,7 @@
 .header {
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 1rem;
 }
 
@@ -209,7 +209,7 @@
   color: #2563eb;
 }
 
-.hero h2 {
+.hero h1 {
   margin: 0 0 .55rem;
   font-size: clamp(1.75rem, 6vw, 2.45rem);
   font-weight: 900;
@@ -218,7 +218,7 @@
   color: #111827;
 }
 
-.hero h2 span { color: #2563eb; white-space: nowrap; }
+.hero h1 span { color: #2563eb; white-space: nowrap; }
 
 .hero > p {
   max-width: 35rem;
@@ -562,7 +562,7 @@
   background: linear-gradient(135deg, #111827, #172554);
 }
 
-:global(.dark) .hero h2 { color: #f8fafc; }
+:global(.dark) .hero h1 { color: #f8fafc; }
 :global(.dark) .statRow { border-color: #1e3a8a; }
 :global(.dark) .statRow span,
 :global(.dark) .muted,
@@ -637,7 +637,7 @@
     padding: 1rem;
   }
 
-  .hero h2 {
+  .hero h1 {
     margin: 0 0 .55rem;
     font-size: clamp(1.65rem, 8vw, 2.1rem);
   }

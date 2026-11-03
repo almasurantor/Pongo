@@ -255,14 +255,11 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
       )}
       <div className={styles.shell}>
         <header className={styles.header}>
-          <div>
-            <h1 className={styles.brandName}>Live table queue</h1>
-          </div>
           <div className={styles.liveBadge}><span className={styles.liveDot} /> Live</div>
         </header>
 
         <section className={styles.hero}>
-          <h2>Winner stays.<br /><span>Next plays.</span></h2>
+          <h1>Live table<br /><span>queue.</span></h1>
           <div className={styles.statRow}>
             <div><strong>{activeMembers.length}</strong><span>Active</span></div>
             <div><strong>{waiting.length}</strong><span>Waiting</span></div>
