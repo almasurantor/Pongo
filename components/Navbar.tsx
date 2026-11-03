@@ -29,8 +29,10 @@ function getQueueAudioContext() {
 }
 
 function playQueueChime(soft = false) {
-  const context = getQueueAudioContext();
-  if (!context) return;
+  // Never construct or resume Web Audio from a Realtime callback. Browsers
+  // require both operations to originate from a real user gesture.
+  const context = queueAudioContext;
+  if (!context || context.state !== 'running') return;
   const sound = () => {
     const gain = context.createGain();
     gain.gain.setValueAtTime(0.0001, context.currentTime);
@@ -48,8 +50,7 @@ function playQueueChime(soft = false) {
       oscillator.stop(start + 0.28);
     });
   };
-  if (context.state === 'suspended') void context.resume().then(sound);
-  else sound();
+  sound();
 }
 
 async function showQueueNotification() {

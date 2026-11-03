@@ -170,8 +170,9 @@ export default function MatchClient({
       setShowReportConfirmation(false);
       const confirmedWinner = result.match?.winner_id;
       if (confirmedWinner) {
+        const eloChange = Number(isPlayerOne ? result.player_one_change : result.player_two_change) || 0;
         window.dispatchEvent(new CustomEvent(MATCH_RESULT_EVENT, {
-          detail: { matchId: match.id, winnerId: confirmedWinner },
+          detail: { matchId: match.id, winnerId: confirmedWinner, eloChange },
         }));
       }
     } catch {}

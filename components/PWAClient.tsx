@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { CHUNK_RECOVERY_KEY, isChunkLoadFailure } from '@/lib/chunk-recovery';
 
 export default function PWAClient() {
   const [online, setOnline] = useState(true);
@@ -11,6 +12,17 @@ export default function PWAClient() {
     window.addEventListener('online', syncConnection);
     window.addEventListener('offline', syncConnection);
 
+    const recoverChunk = (value: unknown) => {
+      if (!isChunkLoadFailure(value) || window.sessionStorage.getItem(CHUNK_RECOVERY_KEY)) return;
+      window.sessionStorage.setItem(CHUNK_RECOVERY_KEY, '1');
+      window.location.reload();
+    };
+    const scriptError = (event: ErrorEvent) => recoverChunk(event.error || event.message);
+    const rejected = (event: PromiseRejectionEvent) => recoverChunk(event.reason);
+    window.addEventListener('error', scriptError);
+    window.addEventListener('unhandledrejection', rejected);
+    const recoveryReset = window.setTimeout(() => window.sessionStorage.removeItem(CHUNK_RECOVERY_KEY), 10_000);
+
     if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {
         // The website remains fully functional if registration is unavailable.
@@ -20,6 +32,9 @@ export default function PWAClient() {
     return () => {
       window.removeEventListener('online', syncConnection);
       window.removeEventListener('offline', syncConnection);
+      window.removeEventListener('error', scriptError);
+      window.removeEventListener('unhandledrejection', rejected);
+      window.clearTimeout(recoveryReset);
     };
   }, []);
 
