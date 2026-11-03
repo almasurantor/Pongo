@@ -27,6 +27,7 @@ UPDATE public.beaver_queue_table SET
 WHERE id=1;
 SELECT setval('public.beaver_queue_position_seq',1,FALSE);
 CREATE TEMP TABLE queue_test_ids(id UUID PRIMARY KEY) ON COMMIT DROP;
+GRANT SELECT ON queue_test_ids TO authenticated;
 
 -- A is immediately seated. Rejoining is idempotent and cannot move their turn.
 SET LOCAL ROLE authenticated;

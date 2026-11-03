@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import PongoWordmark from './PongoWordmark';
 import PongoLogo from './PongoLogo';
+import { isActiveQueueStatus, isQueueBackendHealthy, isRetryableQueueError, shouldSendQueueHeartbeat, type QueueSyncTrigger } from '@/lib/queue-client';
 
 const icons: Record<string, React.ReactNode> = {
   home: <path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V10.5Z" />,
@@ -75,6 +76,7 @@ export default function Navbar() {
   const wasCalled = useRef(false);
   const queueSoundEnabledRef = useRef(true);
   const queuePushEnabledRef = useRef(false);
+  const heartbeatFailures = useRef(0);
 
   useEffect(() => {
     const unlockAudio = () => {
@@ -110,25 +112,48 @@ export default function Navbar() {
       setQueueCalled(false);
       return;
     }
-    const syncQueue = async () => {
-      await supabase.rpc('beaver_queue_heartbeat_v1');
+    let backendReady = false;
+    const syncQueue = async (trigger: QueueSyncTrigger) => {
       const [memberResponse, profileResponse] = await Promise.all([
         supabase.from('beaver_queue_members').select('status').eq('user_id', userId).maybeSingle(),
         supabase.from('profiles').select('queue_turn_sound_enabled,queue_turn_push_enabled').eq('id', userId).maybeSingle(),
       ]);
-      setQueueCalled(memberResponse.data?.status === 'called');
+      const status = memberResponse.data?.status ?? null;
+      setQueueCalled(status === 'called');
+      if (!isActiveQueueStatus(status)) heartbeatFailures.current = 0;
+      if (backendReady && !pathname.startsWith('/queue') && shouldSendQueueHeartbeat(status, trigger, heartbeatFailures.current)) {
+        const heartbeat = await supabase.rpc('beaver_queue_heartbeat_v1');
+        if (heartbeat.error) {
+          heartbeatFailures.current = isRetryableQueueError(heartbeat.error)
+            ? heartbeatFailures.current + 1
+            : 3;
+        } else {
+          heartbeatFailures.current = 0;
+        }
+      }
       if (profileResponse.data) {
         setQueueSoundEnabled(profileResponse.data.queue_turn_sound_enabled ?? true);
         setQueuePushEnabled(profileResponse.data.queue_turn_push_enabled ?? false);
       }
     };
-    void syncQueue();
-    const heartbeat = window.setInterval(() => void syncQueue(), 30_000);
+    const start = async () => {
+      const health = await supabase.rpc('beaver_queue_health_v2');
+      backendReady = !health.error && isQueueBackendHealthy(health.data);
+      await syncQueue('initial');
+    };
+    void start();
+    const heartbeat = window.setInterval(() => void syncQueue('interval'), 30_000);
+    const focus = () => void syncQueue('focus');
+    window.addEventListener('focus', focus);
     const channel = supabase.channel(`queue-nav-${userId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_members', filter: `user_id=eq.${userId}` }, () => void syncQueue())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_members', filter: `user_id=eq.${userId}` }, () => void syncQueue('realtime'))
       .subscribe();
-    return () => { window.clearInterval(heartbeat); void supabase.removeChannel(channel); };
-  }, [supabase, userId]);
+    return () => {
+      window.clearInterval(heartbeat);
+      window.removeEventListener('focus', focus);
+      void supabase.removeChannel(channel);
+    };
+  }, [pathname, supabase, userId]);
 
   useEffect(() => {
     if (!queueCalled) {

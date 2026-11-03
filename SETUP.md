@@ -44,6 +44,7 @@ For an existing Pongo project:
 17. Run `supabase/migrations/20261101_02_v4_starting_elo_and_ranks.sql` to set new accounts to 500 ELO, recalibrate the Iron-to-Legend thresholds, and keep K=40. It does not reset existing profile ratings.
 18. Run `supabase/migrations/20261102_01_profile_settings_queue_alerts.sql` to enforce unique public display names and add the opt-in queue sound and device-reminder preferences.
 19. Run `supabase/migrations/20261103_01_coordinated_auth_rank_queue.sql` to remove placement ranks, add queue liveness cleanup, preserve K=40/500 starting ELO, and install challenge/match query indexes.
+20. Run `supabase/migrations/20261103_02_queue_production_repair.sql` to repair the production queue RPCs, re-assert grants/RLS/Realtime publication entries, and install the queue backend health check. Deploying application code does not run this SQL automatically.
 
 The expand migration is retry-safe, keeps the legacy columns/statuses during rollout, creates audited opening-balance events, and bootstraps `almasurantor` using profile UUID `494357c8-607e-4605-980b-19260c8a2cfc` as the first administrator. The old `migration_single_reporter_match_flow.sql` is superseded and must not be applied.
 
@@ -61,7 +62,7 @@ For a brand-new project, provision the legacy base schema from `supabase/schema.
 
 Call `expire_mobile_ranking_items_v2()` from a trusted scheduled worker or Supabase Edge Function every five minutes. It expires stale challenges, accepted matches, and their pending cancellation requests, and escalates unanswered result disputes to administrators without changing ratings or trust. The live project does not currently have `pg_cron`, so scheduling is intentionally external.
 
-Call `beaver_queue_advance_expired_v1()` from a service-role worker every 5–15 seconds. This is the browser-independent path that removes a called player after 60 seconds and immediately calls the next player. `supabase/functions/queue-tick.sql` contains the worker query. Never expose the service-role key to the browser. The `/queue` client also performs authenticated ticks while open, but that is only a responsive fallback and not a replacement for the trusted worker.
+Call `beaver_queue_advance_expired_v1()` from a service-role worker every 5–15 seconds. This is the browser-independent path that removes a called player after 60 seconds and immediately calls the next player. `supabase/functions/queue-tick.sql` contains the worker query. Never expose the service-role key to the browser. Active queue members heartbeat every 30 seconds; Realtime changes only refetch state and never trigger a heartbeat.
 
 Weekly records do not need a reset job. `weekly_player_stats` stores one row per player and New York club week.
 
@@ -77,6 +78,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/phase6_disputes_correc
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/phase7_mobile_experience.test.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/phase8_security_reliability.test.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/live_queue.test.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/queue_production_repair.test.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/profile_settings_queue_alerts.test.sql
 ```
 

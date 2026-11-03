@@ -1,0 +1,43 @@
+import { describe, expect, it } from 'vitest';
+import {
+  isActiveQueueStatus,
+  isQueueBackendHealthy,
+  isRetryableQueueError,
+  queueErrorMessage,
+  shouldSendQueueHeartbeat,
+} from './queue-client';
+
+describe('queue client safety', () => {
+  it('heartbeats only active members and never in response to its own realtime update', () => {
+    expect(shouldSendQueueHeartbeat('waiting', 'interval', 0)).toBe(true);
+    expect(shouldSendQueueHeartbeat('called', 'focus', 0)).toBe(true);
+    expect(shouldSendQueueHeartbeat('king', 'realtime', 0)).toBe(false);
+    expect(shouldSendQueueHeartbeat('left', 'interval', 0)).toBe(false);
+    expect(shouldSendQueueHeartbeat(null, 'initial', 0)).toBe(false);
+  });
+
+  it('opens the heartbeat circuit after three consecutive failures', () => {
+    expect(shouldSendQueueHeartbeat('playing', 'interval', 2)).toBe(true);
+    expect(shouldSendQueueHeartbeat('playing', 'interval', 3)).toBe(false);
+  });
+
+  it('requires the repaired backend version and both RPC grants', () => {
+    expect(isQueueBackendHealthy({ version: '20261103_02', initialized: true, heartbeat_granted: true, join_granted: true })).toBe(true);
+    expect(isQueueBackendHealthy({ version: '20261103_01', initialized: true, heartbeat_granted: true, join_granted: true })).toBe(false);
+    expect(isQueueBackendHealthy({ version: '20261103_02', initialized: true, heartbeat_granted: false, join_granted: true })).toBe(false);
+  });
+
+  it('maps database failures to actionable messages without hiding the cause', () => {
+    expect(queueErrorMessage({ code: 'PGRST202', message: 'schema cache' })).toContain('latest queue migration');
+    expect(queueErrorMessage({ code: '42501', message: 'permission denied' })).toContain('RPC grants and RLS');
+    expect(queueErrorMessage({ code: '23503', message: 'foreign key violation' })).toContain('profile');
+    expect(queueErrorMessage({ code: '40P01', message: 'deadlock detected' })).toContain('try again');
+    expect(queueErrorMessage({ code: 'XX000', message: 'specific database failure' })).toBe('specific database failure');
+  });
+
+  it('classifies only transient database contention as retryable', () => {
+    expect(isRetryableQueueError({ code: '40001' })).toBe(true);
+    expect(isRetryableQueueError({ code: 'PGRST202' })).toBe(false);
+    expect(isActiveQueueStatus('no_show')).toBe(false);
+  });
+});

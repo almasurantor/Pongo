@@ -8,9 +8,11 @@ matches. Its tables, RPCs, recent results, and Realtime channels all use the
 
 1. Back up the project as usual and test against a disposable Supabase project first.
 2. Apply all existing migrations in filename order.
-3. Apply `supabase/migrations/20261101_01_live_queue.sql`, then
-   `supabase/migrations/20261103_01_coordinated_auth_rank_queue.sql`, through the Supabase
-   CLI or SQL editor. Do not paste them into a production project before testing them.
+3. Apply `supabase/migrations/20261101_01_live_queue.sql`,
+   `supabase/migrations/20261103_01_coordinated_auth_rank_queue.sql`, and then
+   `supabase/migrations/20261103_02_queue_production_repair.sql` through the Supabase CLI
+   or SQL editor. A GitHub/Vercel deployment does not apply database migrations. Test
+   the repair against a disposable database before production.
 4. Verify `beaver_queue_table`, `beaver_queue_members`, and `beaver_queue_games` are in
    the `supabase_realtime` publication.
 5. Deploy the application code together with the migration. An application deployed
@@ -21,10 +23,34 @@ For a disposable database with `psql` available, run:
 ```bash
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f supabase/tests/live_queue.test.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+  -f supabase/tests/queue_production_repair.test.sql
 ```
 
 The test runs in a transaction and rolls back its users and queue state. Follow
 `supabase/tests/live_queue_concurrency.md` for two-session race checks.
+
+## Verify production deployment
+
+Run this in the Supabase SQL editor after applying the repair:
+
+```sql
+SELECT
+  to_regprocedure('public.beaver_queue_health_v2()') IS NOT NULL AS repair_installed,
+  has_function_privilege('authenticated','public.beaver_queue_heartbeat_v1()','EXECUTE') AS heartbeat_granted,
+  has_function_privilege('authenticated','public.beaver_queue_join_v1()','EXECUTE') AS join_granted,
+  EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname='supabase_realtime' AND schemaname='public'
+      AND tablename='beaver_queue_members'
+  ) AS members_realtime;
+```
+
+All four values must be `true`. From an authenticated app session,
+`beaver_queue_health_v2()` must return version `20261103_02`. A `PGRST202` response means
+the migration was not applied or PostgREST has not reloaded its schema. A `42501`
+response for an authenticated user means the RPC grant is wrong; the same response for
+the anonymous role is expected.
 
 ## Run the deadline worker
 
@@ -39,9 +65,10 @@ in `supabase/functions/queue-tick.sql`. Keep the service-role key exclusively on
 server. The function uses database time and locks the singleton queue row, so it is safe
 for overlapping worker calls and for races with a player's **I'm Here** action.
 
-The page also calls the authenticated heartbeat RPC every four seconds, after Realtime
-changes, and when the window regains focus. That makes active screens responsive, but the
-trusted worker is what guarantees advancement when every browser is closed.
+The page refetches the authoritative snapshot every four seconds and after Realtime
+changes. Only active queue members send a heartbeat, at a 30-second interval; Realtime
+events never trigger another heartbeat. The trusted worker is still what guarantees
+advancement when every browser is closed.
 
 ## Test with 3–5 phones or browser sessions
 

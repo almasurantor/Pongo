@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { validateMatchScore } from '@/lib/match-result';
 import { orderedQueueLine, queuePlaceFor, QueueMemberStatus } from '@/lib/queue';
+import { isActiveQueueStatus, isQueueBackendHealthy, isRetryableQueueError, queueErrorMessage } from '@/lib/queue-client';
 import styles from './QueueClient.module.css';
 
 interface QueueMember {
@@ -38,17 +39,6 @@ interface QueueGame {
 
 const formatTimer = (seconds: number) => `0:${String(seconds).padStart(2, '0')}`;
 
-function errorMessage(caught: unknown, fallback: string) {
-  const message = caught instanceof Error
-    ? caught.message
-    : caught && typeof caught === 'object' && 'message' in caught && typeof caught.message === 'string'
-      ? caught.message
-      : '';
-  if (message.includes('beaver_queue_') && message.includes('schema cache')) return 'Queue setup required.';
-  if (message) return message;
-  return fallback;
-}
-
 export default function QueueClient({ currentUserId }: { currentUserId: string }) {
   const supabase = useMemo(() => createClient(), []);
   const [table, setTable] = useState<TableState | null>(null);
@@ -58,17 +48,37 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [backendError, setBackendError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [heartbeatError, setHeartbeatError] = useState('');
   const [kingScore, setKingScore] = useState('11');
   const [challengerScore, setChallengerScore] = useState('9');
   const reading = useRef(false);
+  const heartbeatFailures = useRef(0);
+  const me = members.find((member) => member.user_id === currentUserId);
+
+  useEffect(() => {
+    let cancelled = false;
+    void supabase.rpc('beaver_queue_health_v2').then(({ data, error: healthCheckError }) => {
+      if (cancelled) return;
+      if (healthCheckError) {
+        setBackendError(queueErrorMessage(healthCheckError, 'Unable to verify the queue database version.'));
+        return;
+      }
+      if (!isQueueBackendHealthy(data)) {
+        setBackendError('The queue database is out of date. Apply migration 20261103_02, then reload this page.');
+        return;
+      }
+      setBackendError('');
+    });
+    return () => { cancelled = true; };
+  }, [supabase]);
 
   const refresh = useCallback(async () => {
     if (reading.current) return;
     reading.current = true;
     try {
-      const tick = await supabase.rpc('beaver_queue_heartbeat_v1');
-      if (tick.error) throw tick.error;
       const [stateResponse, memberResponse, gameResponse] = await Promise.all([
         supabase.from('beaver_queue_table').select('*').eq('id', 1).single(),
         supabase.from('beaver_queue_members').select('*').order('queue_position'),
@@ -80,9 +90,9 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
       setTable(stateResponse.data as TableState);
       setMembers((memberResponse.data ?? []) as QueueMember[]);
       setGames((gameResponse.data ?? []) as QueueGame[]);
-      setError('');
+      setLoadError('');
     } catch (caught) {
-      setError(errorMessage(caught, 'Unable to load the queue.'));
+      setLoadError(queueErrorMessage(caught, 'Unable to load the queue.'));
     } finally {
       reading.current = false;
       setLoading(false);
@@ -110,14 +120,50 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
   }, [refresh, supabase]);
 
   useEffect(() => {
+    if (!isActiveQueueStatus(me?.status)) {
+      heartbeatFailures.current = 0;
+      setHeartbeatError('');
+      return;
+    }
+
+    let cancelled = false;
+    const heartbeat = async () => {
+      if (heartbeatFailures.current >= 3) return;
+      const result = await supabase.rpc('beaver_queue_heartbeat_v1');
+      if (cancelled) return;
+      if (result.error) {
+        heartbeatFailures.current = isRetryableQueueError(result.error)
+          ? heartbeatFailures.current + 1
+          : 3;
+        const paused = heartbeatFailures.current >= 3 ? ' Automatic heartbeats are paused until this page is reloaded.' : '';
+        setHeartbeatError(`${queueErrorMessage(result.error, 'Unable to keep your queue spot active.')}${paused}`);
+        return;
+      }
+      heartbeatFailures.current = 0;
+      setHeartbeatError('');
+    };
+
+    void heartbeat();
+    const interval = window.setInterval(() => void heartbeat(), 30_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [me?.status, supabase]);
+
+  useEffect(() => {
     setKingScore('11');
     setChallengerScore('9');
   }, [table?.game_id]);
 
   const action = async (name: string, args: Record<string, unknown> = {}) => {
     if (busy) return;
+    if (backendError) {
+      setActionError(backendError);
+      return;
+    }
     setBusy(true);
-    setError('');
+    setActionError('');
     setMessage('');
     try {
       const result = await supabase.rpc(name, args);
@@ -131,7 +177,7 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
       );
       await refresh();
     } catch (caught) {
-      setError(errorMessage(caught, 'Something went wrong.'));
+      setActionError(queueErrorMessage(caught, 'Something went wrong.'));
       await refresh();
     } finally {
       setBusy(false);
@@ -143,7 +189,6 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
   const waiting = members.filter((member) => member.status === 'waiting');
   const line = orderedQueueLine(members);
   const myPlace = queuePlaceFor(members, currentUserId);
-  const me = members.find((member) => member.user_id === currentUserId);
   const nameOf = (id: string | null) =>
     members.find((member) => member.user_id === id)?.display_name ?? 'Player';
   const gameNameOf = (id: string, snapshot: string) =>
@@ -153,7 +198,7 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
   const isCalled = me?.status === 'called' && challenger === currentUserId;
   const amPlaying = Boolean(table && table.phase === 'playing'
     && (king === currentUserId || challenger === currentUserId));
-  const active = Boolean(me && ['waiting', 'called', 'king', 'playing'].includes(me.status));
+  const active = isActiveQueueStatus(me?.status);
   const secondsLeft = table?.call_expires_at
     ? Math.max(0, Math.ceil((new Date(table.call_expires_at).getTime() - now) / 1000))
     : 0;
@@ -225,7 +270,7 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
           </div>
         </section>
 
-        {error && <div role="alert" className={styles.error}>{error}</div>}
+        {(backendError || actionError || heartbeatError || loadError) && <div role="alert" className={styles.error}>{backendError || actionError || heartbeatError || loadError}</div>}
         {message && <div role="status" className={styles.success}>{message}</div>}
         <div className={styles.widgets} aria-label="Queue sections">
         {loading && !table ? <div className={styles.card}>Loading live queue…</div> : (
