@@ -35,19 +35,23 @@ interface RankBadgeProps {
 export default function RankBadge({ elo, totalGames = 5, compact = false, className = '' }: RankBadgeProps) {
   const rank = getRankDetails(elo, totalGames);
   const style = styles[rank.tier];
+  const unranked = totalGames === 0;
   return (
     <span
       className={`inline-flex items-center rounded-full border font-black ${style.shell} ${style.text} ${compact ? 'gap-1.5 px-2 py-1 text-xs' : 'gap-2 px-3 py-1.5 text-sm'} ${className}`}
-      aria-label={`${rank.isProvisional ? 'Provisional ' : ''}${rank.tier} rank`}
+      aria-label={unranked ? 'Unranked' : `${rank.tier} rank`}
     >
       <RankIcon tier={rank.tier} className={compact ? 'h-5 w-5' : 'h-7 w-7'} />
-      <span>{rank.isProvisional && <span className="mr-1 font-bold opacity-70">Provisional</span>}{rank.tier}</span>
+      <span>{unranked ? 'Unranked' : rank.tier}</span>
     </span>
   );
 }
 
 export function RankProgress({ elo, totalGames, inverse = false }: { elo: number; totalGames: number; inverse?: boolean }) {
   const rank = getRankDetails(elo, totalGames);
+  if (totalGames === 0) {
+    return <p className={`text-xs font-bold ${inverse ? 'text-white/80' : 'text-accent-gray-600'}`}>Complete one ranked match to receive your rank.</p>;
+  }
   return (
     <div>
       <div className={`flex items-center justify-between text-xs font-bold ${inverse ? 'text-white/80' : 'text-accent-gray-600'}`}>
@@ -60,11 +64,6 @@ export function RankProgress({ elo, totalGames, inverse = false }: { elo: number
           style={{ width: `${rank.progressPercent}%` }}
         />
       </div>
-      {rank.isProvisional && (
-        <p className={`mt-2 text-xs font-bold ${inverse ? 'text-white/75' : 'text-accent-gray-500'}`}>
-          {rank.placementGamesRemaining} placement {rank.placementGamesRemaining === 1 ? 'game' : 'games'} left
-        </p>
-      )}
     </div>
   );
 }

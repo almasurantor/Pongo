@@ -20,6 +20,8 @@ describe('PWA startup auth routing', () => {
   it('keeps authentication and static support routes public', () => {
     expect(authRedirectForPath('/login', false)).toBeNull();
     expect(authRedirectForPath('/auth/callback', false)).toBeNull();
+    expect(authRedirectForPath('/forgot-password', false)).toBeNull();
+    expect(authRedirectForPath('/reset-password', false)).toBeNull();
     expect(authRedirectForPath('/manifest.webmanifest', false)).toBeNull();
   });
 });

@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import MatchClient from './MatchClient';
-import { Dispute, MatchSubmission, RatingPreview } from '@/lib/types';
+import { Dispute, MatchSubmission } from '@/lib/types';
 
 export default async function MatchPage({ params }: { params: { id: string } }) {
   const supabase = await createClient();
@@ -28,7 +28,6 @@ export default async function MatchPage({ params }: { params: { id: string } }) 
     .eq('match_id', match.id)
     .eq('status', 'pending')
     .maybeSingle();
-  const { data: ratingPreview } = await supabase.rpc('get_match_rating_preview_v3', { p_match: match.id });
   const { data: dispute } = await supabase
     .from('disputes')
     .select('*')
@@ -50,7 +49,6 @@ export default async function MatchPage({ params }: { params: { id: string } }) 
     <MatchClient
       match={match}
       cancellationRequest={cancellationRequest}
-      ratingPreview={ratingPreview as RatingPreview | null}
       dispute={dispute as Dispute | null}
       mySubmission={mySubmission as MatchSubmission | null}
       currentUserId={user.id}

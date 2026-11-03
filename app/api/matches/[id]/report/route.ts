@@ -15,9 +15,6 @@ export async function POST(request: Request, { params }: { params: { id: string 
   if (validationError || winnerScore <= loserScore) return NextResponse.json({ error: validationError || 'Winner score must be higher' }, { status: 400 });
   if (typeof body.winner_id !== 'string') return NextResponse.json({ error: 'Winner is required' }, { status: 400 });
 
-  const { data: beforeStandings } = await supabase.rpc('get_leaderboard_v3', { p_scope: 'all_time', p_period_start: null });
-  const placementBefore = (beforeStandings || []).find((entry: { player_id: string }) => entry.player_id === user.id)?.placement ?? null;
-
   const { data, error } = await supabase.rpc('submit_match_report_v2', {
     p_match: params.id,
     p_winner: body.winner_id,
@@ -40,8 +37,6 @@ export async function POST(request: Request, { params }: { params: { id: string 
   return NextResponse.json({
     ...data,
     match: finalizedMatch,
-    placement_before: placementBefore,
     placement_after: placementAfter,
-    placement_change: placementBefore != null && placementAfter != null ? placementBefore - placementAfter : 0,
   });
 }

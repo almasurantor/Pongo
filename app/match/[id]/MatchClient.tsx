@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import ScoreStepper from '@/components/ScoreStepper';
 import { validateMatchScore } from '@/lib/match-result';
-import { calculateElo } from '@/lib/elo';
-import { Dispute, Match, MatchCancellationRequest, MatchSubmission, RatingPreview } from '@/lib/types';
+import { Dispute, Match, MatchCancellationRequest, MatchSubmission } from '@/lib/types';
 import { isMatchOverdue } from '@/lib/ranking-rules';
 import { createClient } from '@/lib/supabase/client';
 import { useDatabaseRefresh } from '@/lib/use-database-refresh';
@@ -17,7 +16,6 @@ import DeadlineCountdown from '@/components/DeadlineCountdown';
 interface Props {
   match: Match;
   cancellationRequest: MatchCancellationRequest | null;
-  ratingPreview: RatingPreview | null;
   dispute: Dispute | null;
   mySubmission: MatchSubmission | null;
   currentUserId: string;
@@ -35,7 +33,6 @@ const deadlineFormatter = new Intl.DateTimeFormat('en-US', {
 export default function MatchClient({
   match: initialMatch,
   cancellationRequest: initialCancellationRequest,
-  ratingPreview,
   dispute: initialDispute,
   mySubmission: initialMySubmission,
   currentUserId,
@@ -52,7 +49,7 @@ export default function MatchClient({
   const [theirScore, setTheirScore] = useState(9);
   const [loading, setLoading] = useState<string | null>(null);
   const [showReportConfirmation, setShowReportConfirmation] = useState(false);
-  const [resultSummary, setResultSummary] = useState<{ won: boolean; change: number; placementBefore: number | null; placementAfter: number | null; placementChange: number } | null>(null);
+  const [resultSummary, setResultSummary] = useState<{ won: boolean; change: number; placementAfter: number | null } | null>(null);
   const [showDisputeForm, setShowDisputeForm] = useState(false);
   const [disputeReason, setDisputeReason] = useState<'incorrect_score' | 'incorrect_winner' | 'match_never_happened' | 'other'>('incorrect_score');
   const [disputeResolution, setDisputeResolution] = useState<'correction' | 'void'>('correction');
@@ -77,28 +74,6 @@ export default function MatchClient({
     ? null
     : rankTransition(myRatingBefore, myRatingBefore + myRatingChange);
   const overdue = match.status === 'ready' && isMatchOverdue(match.expires_at);
-  const baselineWin = ratingPreview
-    ? (isPlayerOne ? ratingPreview.player_one_win_change : ratingPreview.player_two_win_change)
-    : null;
-  const baselineLoss = ratingPreview
-    ? (isPlayerOne ? ratingPreview.player_one_loss_change : ratingPreview.player_two_loss_change)
-    : null;
-  const projectedChange = useMemo(() => {
-    if (!ratingPreview || validateMatchScore(myScore, theirScore)) return null;
-    const selectedWinnerHasHigherScore = winnerId === currentUserId
-      ? myScore > theirScore
-      : theirScore > myScore;
-    if (!selectedWinnerHasHigherScore) return null;
-    const playerOneScore = isPlayerOne ? myScore : theirScore;
-    const playerTwoScore = isPlayerOne ? theirScore : myScore;
-    const result = calculateElo(
-      ratingPreview.player_one_rating,
-      ratingPreview.player_two_rating,
-      playerOneScore,
-      playerTwoScore,
-    );
-    return isPlayerOne ? result.eloChangeA : result.eloChangeB;
-  }, [currentUserId, isPlayerOne, myScore, ratingPreview, theirScore, winnerId]);
   const calculation = match.rating_calculation;
   const disputeDeadline = match.confirmed_at ? new Date(match.confirmed_at).getTime() + 48 * 60 * 60 * 1000 : 0;
   const canOpenDispute = match.status === 'confirmed' && !dispute && disputeDeadline > Date.now();
@@ -198,9 +173,7 @@ export default function MatchClient({
       setResultSummary({
         won: result.match?.winner_id === currentUserId,
         change,
-        placementBefore: result.placement_before,
         placementAfter: result.placement_after,
-        placementChange: result.placement_change || 0,
       });
       toast.success(
         result.already_finalized
@@ -431,12 +404,6 @@ export default function MatchClient({
             <section className="rounded-3xl bg-white p-6 shadow-lg">
               <h2 className="text-2xl font-black">Report the result</h2>
               <p className="mt-1 text-sm text-accent-gray-600">{match.verification_mode === 'dual' ? 'Both reports must match.' : 'First valid report is final.'}</p>
-              {baselineWin != null && baselineLoss != null && (
-                <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-blue-50 p-4 text-center">
-                  <div><p className="text-xs font-bold uppercase text-blue-600">If you win</p><p className="text-2xl font-black text-green-600">+{baselineWin}</p></div>
-                  <div><p className="text-xs font-bold uppercase text-blue-600">If you lose</p><p className="text-2xl font-black text-red-600">{baselineLoss}</p></div>
-                </div>
-              )}
               <div className="mt-5 grid grid-cols-2 gap-3">
                 {[
                   { id: currentUserId, label: 'I won' },
@@ -451,11 +418,6 @@ export default function MatchClient({
                 <ScoreStepper label="You" value={myScore} onChange={setMyScore} />
                 <ScoreStepper label={opponent?.display_name || 'Opponent'} value={theirScore} onChange={setTheirScore} />
               </div>
-              {projectedChange != null && (
-                <p className="mt-4 rounded-xl bg-primary-purple/5 p-3 text-center font-bold text-primary-purple">
-                  Selected score estimate: {projectedChange >= 0 ? '+' : ''}{projectedChange} ELO
-                </p>
-              )}
               <button onClick={prepareReport} disabled={loading !== null || Boolean(mySubmission)} className="mt-5 min-h-14 w-full rounded-2xl gradient-purple text-lg font-black text-white disabled:opacity-50">
                 {mySubmission ? 'Report submitted — awaiting opponent' : 'Review Final Result'}
               </button>
@@ -486,7 +448,6 @@ export default function MatchClient({
               <p className="mt-2 text-sm text-accent-gray-600">{match.verification_mode === 'dual' ? 'Your opponent must match this report.' : 'This updates both ratings.'}</p>
               <div className="mt-5"><Score one={isPlayerOne ? myScore : theirScore} two={isPlayerOne ? theirScore : myScore} /></div>
               <p className="mt-4 text-center text-lg font-black">Winner: {winnerId === currentUserId ? 'You' : opponent?.display_name}</p>
-              {projectedChange != null && <p className={`mt-2 text-center font-black ${projectedChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>Estimated change: {projectedChange >= 0 ? '+' : ''}{projectedChange} ELO</p>}
               <div className="mt-6 grid grid-cols-2 gap-3">
                 <button disabled={loading !== null} onClick={() => setShowReportConfirmation(false)} className="min-h-12 rounded-xl border-2 border-accent-gray-200 font-bold">Go back</button>
                 <button disabled={loading !== null} onClick={submitReport} className="min-h-12 rounded-xl bg-green-600 font-black text-white disabled:opacity-50">{loading === 'report' ? 'Finalizing…' : 'Confirm result'}</button>
@@ -501,7 +462,7 @@ export default function MatchClient({
               <p className="text-6xl">{resultSummary.won ? '🏆' : '🏓'}</p>
               <p className="mt-4 text-sm font-black uppercase tracking-widest text-white/75">{resultSummary.won ? 'Victory' : 'Defeat'}</p>
               <h2 className="mt-1 text-4xl font-black">{resultSummary.change >= 0 ? '+' : ''}{resultSummary.change} ELO</h2>
-              {resultSummary.placementAfter != null && <div className="mt-5 rounded-2xl bg-white/10 p-4"><p className="text-sm font-bold text-white/75">All-time placement</p><p className="text-3xl font-black">#{resultSummary.placementAfter}</p>{resultSummary.placementChange !== 0 && <p className="mt-1 text-sm font-black">{resultSummary.placementChange > 0 ? `↑ ${resultSummary.placementChange}` : `↓ ${Math.abs(resultSummary.placementChange)}`} place{Math.abs(resultSummary.placementChange) === 1 ? '' : 's'}</p>}</div>}
+              {resultSummary.placementAfter != null && <div className="mt-5 rounded-2xl bg-white/10 p-4"><p className="text-sm font-bold text-white/75">All-time placement</p><p className="text-3xl font-black">#{resultSummary.placementAfter}</p></div>}
               <div className="mt-6 grid grid-cols-2 gap-3"><button onClick={() => setResultSummary(null)} className="min-h-12 rounded-xl border-2 border-white/30 font-bold">View result</button><button onClick={() => router.push('/dashboard')} className="min-h-12 rounded-xl bg-white font-black text-accent-gray-900">Dashboard</button></div>
             </section>
           </div>

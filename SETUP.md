@@ -1,4 +1,4 @@
-# Beaver Smash Setup Guide
+# Pongo Setup Guide
 
 ## Prerequisites
 
@@ -23,7 +23,7 @@ npm install
 
 ## Step 3: Database Setup and Rollout
 
-For an existing Beaver Smash project:
+For an existing Pongo project:
 
 1. Export `profiles`, `matches`, and `challenges` before changing the schema.
 2. Run `supabase/migrations/20261001_01_expand_mobile_ranking.sql` in the Supabase SQL Editor.
@@ -40,6 +40,10 @@ For an existing Beaver Smash project:
 13. Run `supabase/migrations/20261031_04_phase6_disputes_corrections.sql` before deploying the Phase 6 application. It installs the 48-hour mutual dispute workflow and serialized downstream rating replay. Take a fresh backup of profiles, matches, rating events, and statistics before applying it.
 14. Run `supabase/migrations/20261031_05_phase7_mobile_experience.sql` before deploying the Phase 7 application. Phase 7 is application-only, so this migration intentionally records the rollout boundary without changing the database.
 15. Run `supabase/migrations/20261031_06_phase8_security_reliability.sql` immediately before deploying the Phase 8 application. It hardens write privileges and audit immutability, activates administrator-controlled independent reporting, adds integrity signals, and expands the Realtime publication. Back up matches, rating events, submissions, integrity records, and domain events first.
+16. Run `supabase/migrations/20261101_01_live_queue.sql` immediately before exposing `/queue`. It creates an isolated one-table live queue, server-authoritative 60-second calls, queue-only game history, least-privilege RPCs, and Realtime publication entries. It does not alter ranked matches, ratings, challenges, disputes, or leaderboards.
+17. Run `supabase/migrations/20261101_02_v4_starting_elo_and_ranks.sql` to set new accounts to 500 ELO, recalibrate the Iron-to-Legend thresholds, and keep K=40. It does not reset existing profile ratings.
+18. Run `supabase/migrations/20261102_01_profile_settings_queue_alerts.sql` to enforce unique public display names and add the opt-in queue sound and device-reminder preferences.
+19. Run `supabase/migrations/20261103_01_coordinated_auth_rank_queue.sql` to remove placement ranks, add queue liveness cleanup, preserve K=40/500 starting ELO, and install challenge/match query indexes.
 
 The expand migration is retry-safe, keeps the legacy columns/statuses during rollout, creates audited opening-balance events, and bootstraps `almasurantor` using profile UUID `494357c8-607e-4605-980b-19260c8a2cfc` as the first administrator. The old `migration_single_reporter_match_flow.sql` is superseded and must not be applied.
 
@@ -49,14 +53,15 @@ For a brand-new project, provision the legacy base schema from `supabase/schema.
 
 1. In Supabase Dashboard, go to Authentication > Providers
 2. Enable Email provider
-3. Enable Google OAuth (optional but recommended):
-   - Add your Google OAuth credentials
-   - Add authorized redirect URL: `http://localhost:3000/auth/callback` (for dev)
-   - Add production URL when deploying
+3. Under Authentication > Providers > Email, turn **Confirm email** off. This makes signup return a session immediately, matching `supabase/config.toml` for local projects.
+4. Under Authentication > URL Configuration, set the Site URL and add `http://localhost:3000/auth/callback` plus `https://YOUR_DOMAIN/auth/callback` to Redirect URLs.
+5. Enable Google OAuth and add your Google client ID and secret. In Google Cloud, set the authorized redirect URI to the Supabase callback shown by the provider panel (normally `https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback`), not the app callback URL.
 
 ## Step 5: Schedule Expiration
 
 Call `expire_mobile_ranking_items_v2()` from a trusted scheduled worker or Supabase Edge Function every five minutes. It expires stale challenges, accepted matches, and their pending cancellation requests, and escalates unanswered result disputes to administrators without changing ratings or trust. The live project does not currently have `pg_cron`, so scheduling is intentionally external.
+
+Call `beaver_queue_advance_expired_v1()` from a service-role worker every 5–15 seconds. This is the browser-independent path that removes a called player after 60 seconds and immediately calls the next player. `supabase/functions/queue-tick.sql` contains the worker query. Never expose the service-role key to the browser. The `/queue` client also performs authenticated ticks while open, but that is only a responsive fallback and not a replacement for the trusted worker.
 
 Weekly records do not need a reset job. `weekly_player_stats` stores one row per player and New York club week.
 
@@ -71,9 +76,11 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/phase5_unified_leaderb
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/phase6_disputes_corrections.test.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/phase7_mobile_experience.test.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/phase8_security_reliability.test.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/live_queue.test.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/profile_settings_queue_alerts.test.sql
 ```
 
-The script creates fixed test users inside a transaction and always rolls back. Use `supabase/tests/phase1_concurrency.md` for the two-session race checks.
+The scripts create fixed test users inside transactions and always roll back. Use `supabase/tests/phase1_concurrency.md` for ranked races and `supabase/tests/live_queue_concurrency.md` for queue races.
 
 ## Step 6: Run Development Server
 
@@ -99,23 +106,24 @@ Visit http://localhost:3000
 - ✅ Acceptance-time reservations with 10 ranked games per player per day
 - ✅ Three ranked games per opponent per New York calendar day
 - ✅ K=40 weighted, zero-sum ELO with a 10% maximum score adjustment
-- ✅ Pre-match predictions and stored post-match calculation breakdowns
-- ✅ Iron-to-Legend competitive ranks with badges, progress, provisional placement, and tier-change feedback
+- ✅ Server-authoritative post-match calculation breakdowns without pre-match ELO disclosure
+- ✅ Unranked first-time players and Iron-to-Legend competitive ranks after the first completed match
 - ✅ Unified weekly, monthly, and all-time leaderboards with previous-winner archives
 - ✅ Mutual post-result corrections and voids with admin escalation and downstream rating replay
 - ✅ Mobile score confirmation, result feedback, live countdowns, and casual scorekeeping
 - ✅ Immutable rating audit, least-privilege writes, match-farming signals, and optional independent reporting
 - ✅ Real-time updates via Supabase Realtime
+- ✅ Experimental one-table live queue with FIFO rotation, server-timed check-in, and winner-stays play
 - ✅ Match history tracking
 
 ## Notes
 
-- Default ELO: 1000
+- Default ELO: 500
 - K-factor: 40
 - Score margin scales the base winner gain by 0–10%; a two-point win has no bonus and an 11-point margin reaches the cap
 - The final winner gain is rounded once and applied as the loser’s exact inverse
-- Competitive tiers: Iron below 850, Bronze 850, Silver 950, Gold 1050, Platinum 1150, Diamond 1250, and Legend 1400+
-- The first five confirmed games are shown as provisional; ELO still updates normally during placement
+- Competitive tiers: Iron below 650, Bronze 650, Silver 800, Gold 950, Platinum 1100, Diamond 1250, and Legend 1400+
+- A new player is Unranked at 500 ELO; their threshold-based rank appears after the first confirmed ranked match
 - Challenges and accepted matches expire after 24 hours
 - Ranked matches cannot be recorded without an accepted challenge
 - Daily limits use the New York date when the challenge is accepted; crossing midnight does not move the match to a new day
@@ -126,3 +134,5 @@ Visit http://localhost:3000
 - `domain_events` and internal recipient rows remain server-side audit/delivery infrastructure used by match and dispute workflows; there is no user-facing notification center
 - Accounts placed in `dual_verification` by an administrator submit privately; only matching independent reports finalize, while conflicts expire without rating changes and enter the integrity queue
 - Two administrator-confirmed reporting violations automatically place a normal account in monitored status; administrators still decide whether to require dual verification or restrict ranked play
+- Queue results are stored only in `beaver_queue_games`; they never affect ranked ELO, limits, records, disputes, or leaderboards
+- Queue games deliberately have no duration timeout. If both participants abandon an active game without reporting it, a trusted operator must inspect the physical table and repair that queue state in the database; automatic abandonment rules can be added later without coupling the queue to ranked matches

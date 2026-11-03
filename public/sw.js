@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pongo-static-v2';
+const CACHE_NAME = 'pongo-static-v3';
 const OFFLINE_ASSETS = [
   '/offline.html',
   '/icons/icon-192.png',

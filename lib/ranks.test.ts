@@ -27,16 +27,12 @@ describe('competitive ranks', () => {
       nextTierElo: 1100,
       pointsToNext: 75,
       progressPercent: 50,
-      isProvisional: false,
     });
   });
 
-  it('marks the first five completed games as provisional', () => {
-    expect(getRankDetails(1000, 2)).toMatchObject({
-      isProvisional: true,
-      placementGamesRemaining: 3,
-    });
-    expect(getRankDetails(1000, 5).isProvisional).toBe(false);
+  it('does not use placement games or provisional ranks', () => {
+    expect(getRankDetails(1000, 0)).not.toHaveProperty('isProvisional');
+    expect(getRankDetails(1000, 2)).not.toHaveProperty('placementGamesRemaining');
   });
 
   it('recognizes promotions, demotions, and unchanged tiers', () => {

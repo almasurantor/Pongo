@@ -4,13 +4,19 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Users table (extends Supabase auth.users)
 CREATE TABLE public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  display_name TEXT NOT NULL,
-  current_elo INTEGER NOT NULL DEFAULT 1000,
+  display_name TEXT NOT NULL CHECK (
+    display_name=BTRIM(display_name)
+    AND CHAR_LENGTH(display_name) BETWEEN 3 AND 20
+    AND display_name ~ '^[A-Za-z0-9][A-Za-z0-9 _.]*[A-Za-z0-9]$'
+  ),
+  queue_turn_sound_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  queue_turn_push_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  current_elo INTEGER NOT NULL DEFAULT 500,
   total_wins INTEGER NOT NULL DEFAULT 0,
   total_losses INTEGER NOT NULL DEFAULT 0,
   weekly_wins INTEGER NOT NULL DEFAULT 0,
   weekly_losses INTEGER NOT NULL DEFAULT 0,
-  highest_elo INTEGER NOT NULL DEFAULT 1000,
+  highest_elo INTEGER NOT NULL DEFAULT 500,
   current_streak INTEGER NOT NULL DEFAULT 0,
   longest_streak INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -94,6 +100,7 @@ CREATE INDEX idx_matches_player_two ON public.matches(player_two_id);
 CREATE INDEX idx_matches_status ON public.matches(status);
 CREATE INDEX idx_matches_confirmed_at ON public.matches(confirmed_at);
 CREATE INDEX idx_profiles_elo ON public.profiles(current_elo DESC);
+CREATE UNIQUE INDEX profiles_display_name_unique_v4 ON public.profiles(LOWER(display_name));
 
 -- Function to check daily match limit
 CREATE OR REPLACE FUNCTION check_daily_match_limit(
@@ -307,7 +314,28 @@ CREATE TRIGGER update_profiles_updated_at
 -- Function to create profile on user signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  base_name TEXT;
+  candidate TEXT;
+  suffix INTEGER:=2;
+  suffix_text TEXT;
 BEGIN
+  base_name:=COALESCE(
+    NULLIF(NEW.raw_user_meta_data->>'display_name',''),
+    NULLIF(NEW.raw_user_meta_data->>'full_name',''),
+    NULLIF(SPLIT_PART(NEW.email,'@',1),''),
+    'Player'
+  );
+  base_name:=regexp_replace(BTRIM(base_name),'[[:space:]]+',' ','g');
+  base_name:=regexp_replace(base_name,'[^A-Za-z0-9 _.]','','g');
+  base_name:=BTRIM(LEFT(base_name,20),' _.');
+  IF CHAR_LENGTH(base_name)<3 THEN
+    base_name:='Player_'||SUBSTRING(REPLACE(NEW.id::TEXT,'-','') FROM 1 FOR 8);
+  END IF;
+  candidate:=base_name;
+
+  LOOP
+    BEGIN
   INSERT INTO public.profiles (
     id,
     display_name,
@@ -322,13 +350,9 @@ BEGIN
   )
   VALUES (
     NEW.id,
-    COALESCE(
-      NEW.raw_user_meta_data->>'display_name',
-      NEW.raw_user_meta_data->>'full_name',
-      SPLIT_PART(NEW.email, '@', 1)
-    ),
-    1000,
-    1000,
+    candidate,
+    500,
+    500,
     0,
     0,
     0,
@@ -337,6 +361,14 @@ BEGIN
     0
   )
   ON CONFLICT (id) DO NOTHING;
+
+      EXIT;
+    EXCEPTION WHEN unique_violation THEN
+      suffix_text:='_'||suffix::TEXT;
+      candidate:=LEFT(base_name,20-CHAR_LENGTH(suffix_text))||suffix_text;
+      suffix:=suffix+1;
+    END;
+  END LOOP;
 
   IF to_regclass('public.player_integrity') IS NOT NULL THEN
     EXECUTE 'INSERT INTO public.player_integrity (player_id) VALUES ($1) ON CONFLICT (player_id) DO NOTHING'
@@ -352,6 +384,79 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
+
+CREATE OR REPLACE FUNCTION public.check_display_name_available_v4(p_name TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path=''
+AS $$
+DECLARE
+  normalized TEXT:=BTRIM(COALESCE(p_name,''));
+  valid BOOLEAN;
+  available BOOLEAN:=FALSE;
+BEGIN
+  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;
+  valid:=CHAR_LENGTH(normalized) BETWEEN 3 AND 20
+    AND normalized ~ '^[A-Za-z0-9][A-Za-z0-9 _.]*[A-Za-z0-9]$';
+  IF valid THEN
+    available:=NOT EXISTS(
+      SELECT 1 FROM public.profiles profile
+      WHERE LOWER(profile.display_name)=LOWER(normalized)
+        AND profile.id<>auth.uid()
+    );
+  END IF;
+  RETURN jsonb_build_object('normalized',normalized,'valid',valid,'available',available);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.update_my_profile_settings_v4(
+  p_display_name TEXT,
+  p_queue_turn_sound_enabled BOOLEAN,
+  p_queue_turn_push_enabled BOOLEAN
+)
+RETURNS public.profiles
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path=''
+AS $$
+DECLARE
+  player_id UUID:=auth.uid();
+  normalized TEXT:=BTRIM(COALESCE(p_display_name,''));
+  updated public.profiles;
+BEGIN
+  IF player_id IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;
+  IF CHAR_LENGTH(normalized) NOT BETWEEN 3 AND 20
+     OR normalized !~ '^[A-Za-z0-9][A-Za-z0-9 _.]*[A-Za-z0-9]$' THEN
+    RAISE EXCEPTION 'Name must be 3–20 characters using letters, numbers, spaces, underscores, or periods';
+  END IF;
+  IF EXISTS(
+    SELECT 1 FROM public.profiles profile
+    WHERE LOWER(profile.display_name)=LOWER(normalized) AND profile.id<>player_id
+  ) THEN RAISE EXCEPTION 'Name already taken'; END IF;
+  BEGIN
+    UPDATE public.profiles SET
+      display_name=normalized,
+      queue_turn_sound_enabled=COALESCE(p_queue_turn_sound_enabled,TRUE),
+      queue_turn_push_enabled=COALESCE(p_queue_turn_push_enabled,FALSE),
+      updated_at=NOW()
+    WHERE id=player_id RETURNING * INTO updated;
+  EXCEPTION WHEN unique_violation THEN
+    RAISE EXCEPTION 'Name already taken';
+  END;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Profile not found'; END IF;
+  UPDATE auth.users SET
+    raw_user_meta_data=jsonb_set(COALESCE(raw_user_meta_data,'{}'::JSONB),'{display_name}',to_jsonb(normalized),TRUE),
+    updated_at=NOW()
+  WHERE id=player_id;
+  IF to_regclass('public.beaver_queue_members') IS NOT NULL THEN
+    EXECUTE 'UPDATE public.beaver_queue_members SET display_name=$1,updated_at=NOW() WHERE user_id=$2'
+    USING normalized,player_id;
+  END IF;
+  RETURN updated;
+END;
+$$;
 
 -- RLS Policies
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -369,7 +474,6 @@ CREATE POLICY "Users can update own profile"
 
 -- Users may edit their display name, but ratings and records are server-owned.
 REVOKE UPDATE ON TABLE public.profiles FROM authenticated;
-GRANT UPDATE (display_name) ON TABLE public.profiles TO authenticated;
 
 -- Challenges: Users can read only their own (challenger/opponent); Realtime needs this for delivery
 DROP POLICY IF EXISTS "Challenges are viewable by everyone" ON public.challenges;
@@ -411,6 +515,10 @@ GRANT EXECUTE ON FUNCTION public.report_match_result(UUID, INTEGER, INTEGER) TO 
 GRANT EXECUTE ON FUNCTION public.dispute_match_result(UUID, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.confirm_match_result(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.expire_unconfirmed_matches() TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.check_display_name_available_v4(TEXT) FROM PUBLIC,anon;
+REVOKE EXECUTE ON FUNCTION public.update_my_profile_settings_v4(TEXT,BOOLEAN,BOOLEAN) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.check_display_name_available_v4(TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.update_my_profile_settings_v4(TEXT,BOOLEAN,BOOLEAN) TO authenticated;
 
 -- Enable Realtime for tables
 ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;

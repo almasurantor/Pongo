@@ -150,17 +150,6 @@ export interface RatingCalculation {
   loser_rating_before: number;
 }
 
-export interface RatingPreview {
-  player_one_rating: number;
-  player_two_rating: number;
-  player_one_win_change: number;
-  player_one_loss_change: number;
-  player_two_win_change: number;
-  player_two_loss_change: number;
-  player_one_expected: number;
-  score_margin_cap: number;
-}
-
 export type VerificationLevel = 'normal' | 'monitored' | 'dual_verification' | 'ranked_restricted';
 
 export interface RatingEvent {

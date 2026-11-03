@@ -91,9 +91,130 @@ export default function AdminClient({ disputes, integrity, flags }: { disputes: 
     }
     void resolve(violationResolution, payload);
   };
-  const resultText=(d:AdminDispute,proposed=false)=>{const m=d.match;const one=proposed?d.proposed_player_one_score:d.original_player_one_score;const two=proposed?d.proposed_player_two_score:d.original_player_two_score;return `${m.player_one.display_name} ${one}–${two} ${m.player_two.display_name}`;};
-  return <main className="min-h-screen bg-accent-gray-50 px-4 py-7"><div className="mx-auto max-w-5xl"><h1 className="text-4xl font-black">Integrity</h1><div className="mt-8 grid gap-8 lg:grid-cols-[1.4fr_1fr]"><section><h2 className="text-xl font-black">Disputes</h2><div className="mt-3 space-y-3">{disputes.map(d=><button key={d.id} onClick={()=>openDispute(d)} className="w-full rounded-2xl border-2 border-accent-gray-200 bg-white p-5 text-left"><div className="flex justify-between"><span className="font-black">{d.match.player_one.display_name} vs {d.match.player_two.display_name}</span><span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">{d.status.replace('_',' ')}</span></div><p className="mt-2 text-sm text-accent-gray-500">Original: {resultText(d)} · Proposed: {resultText(d,true)}</p></button>)}{!disputes.length&&<div className="rounded-2xl bg-white p-8 text-center text-accent-gray-500">No unresolved disputes.</div>}</div></section><section><h2 className="text-xl font-black">Player integrity</h2><div className="mt-3 space-y-3">{integrity.map(row=><div key={row.player_id} className="rounded-2xl bg-white p-4"><p className="font-black">{row.player?.display_name}</p><p className="text-sm text-accent-gray-500">{row.confirmed_violations} confirmed violations</p><select aria-label={`Integrity level for ${row.player?.display_name}`} value={row.verification_level} onChange={e=>setLevel(row.player_id,e.target.value as IntegrityLevel)} className="mt-3 h-11 w-full rounded-xl border-2 border-accent-gray-200 px-3 font-bold"><option value="normal">Normal</option><option value="monitored">Monitored</option><option value="dual_verification">Dual verification</option><option value="ranked_restricted">Ranked restricted</option></select></div>)}</div></section></div>
-      <section className="mt-8"><h2 className="text-xl font-black">Signals</h2><div className="mt-3 grid gap-3 sm:grid-cols-2">{flags.map(flag=><div key={flag.id} className="rounded-2xl border-2 border-accent-gray-200 bg-white p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-black">{flag.flag_type.replaceAll('_',' ')}</p><p className="mt-1 text-sm text-accent-gray-500">{flag.player?.display_name || (flag.match ? `${flag.match.player_one.display_name} vs ${flag.match.player_two.display_name}` : 'System signal')}</p></div><button onClick={()=>reviewFlag(flag.id)} className="rounded-xl border-2 border-accent-gray-200 px-3 py-2 text-sm font-black">Reviewed</button></div><p className="mt-3 break-words text-xs text-accent-gray-400">{JSON.stringify(flag.details)}</p></div>)}{!flags.length&&<div className="rounded-2xl bg-white p-8 text-center text-accent-gray-500">No unreviewed integrity signals.</div>}</div></section>
-      {selected&&<div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] flex items-end bg-black/50 p-4 sm:items-center sm:justify-center"><div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6"><h2 className="text-2xl font-black">Review dispute</h2><div className="mt-4 rounded-2xl bg-accent-gray-50 p-4"><p className="text-sm font-bold text-accent-gray-500">Original report</p><p className="text-lg font-black">{resultText(selected)}</p><p className="mt-4 text-sm font-bold text-accent-gray-500">Requested resolution</p><p className="text-lg font-black">{selected.requested_resolution==='void'?'Void this match':resultText(selected,true)}</p><p className="mt-3 text-sm text-accent-gray-500">Reason: {selected.reason.replaceAll('_',' ')}</p></div><div className="mt-5 space-y-2"><button disabled={loading} onClick={()=>resolve('original')} className="min-h-12 w-full rounded-xl bg-primary-purple font-bold text-white">Keep original result</button><button disabled={loading} onClick={()=>resolve('proposed')} className="min-h-12 w-full rounded-xl bg-green-600 font-bold text-white">Approve requested {selected.requested_resolution}</button><button disabled={loading} onClick={()=>resolve('no_violation')} className="min-h-12 w-full rounded-xl border-2 border-accent-gray-300 font-bold">Resolve original — no violation</button><div className="rounded-2xl border-2 border-accent-gray-200 p-3"><p className="font-black">Enter another valid result</p><select aria-label="Resolved winner" value={customWinner} onChange={e=>setCustomWinner(e.target.value)} className="mt-2 h-11 w-full rounded-xl border px-3"><option value={selected.match.player_one_id}>{selected.match.player_one.display_name}</option><option value={selected.match.player_two_id}>{selected.match.player_two.display_name}</option></select><div className="mt-2 grid grid-cols-2 gap-2"><input aria-label="Winner score" type="number" min="0" max="99" value={customWinnerScore} onChange={e=>setCustomWinnerScore(Number(e.target.value))} className="h-11 rounded-xl border px-3"/><input aria-label="Loser score" type="number" min="0" max="99" value={customLoserScore} onChange={e=>setCustomLoserScore(Number(e.target.value))} className="h-11 rounded-xl border px-3"/></div><button disabled={loading} onClick={()=>resolve('custom',{winner_id:customWinner,winner_score:customWinnerScore,loser_score:customLoserScore})} className="mt-2 min-h-12 w-full rounded-xl bg-accent-gray-900 font-bold text-white">Approve custom result</button></div><textarea aria-label="Private admin notes" placeholder="Private admin notes (optional)" value={notes} onChange={e=>setNotes(e.target.value)} className="min-h-24 w-full rounded-xl border-2 border-accent-gray-200 p-3"/><div className="rounded-2xl border-2 border-red-200 bg-red-50 p-3"><p className="font-black text-red-800">Record a confirmed violation</p><div className="mt-2 grid gap-2 sm:grid-cols-2"><select aria-label="Player responsible for violation" value={violationUser} onChange={e=>setViolationUser(e.target.value)} className="h-11 rounded-xl border px-3"><option value={selected.match.player_one_id}>{selected.match.player_one.display_name}</option><option value={selected.match.player_two_id}>{selected.match.player_two.display_name}</option></select><select aria-label="Resolution applied with violation" value={violationResolution} onChange={e=>setViolationResolution(e.target.value as 'original'|'proposed'|'custom'|'voided')} className="h-11 rounded-xl border px-3"><option value="original">Keep original</option><option value="proposed">Approve request</option><option value="custom">Use custom result</option><option value="voided">Void match</option></select></div><button disabled={loading||!violationUser} onClick={resolveWithViolation} className="mt-2 min-h-12 w-full rounded-xl border-2 border-red-300 text-sm font-bold text-red-700">Resolve and record violation</button></div><button disabled={loading} onClick={()=>resolve('voided')} className="min-h-12 w-full font-bold text-red-600">Void duplicate/nonexistent match</button><button onClick={()=>setSelected(null)} className="min-h-12 w-full font-bold text-accent-gray-500">Close</button></div></div></div>}
-    </div></main>;
+  const resultText = (dispute: AdminDispute, proposed = false) => {
+    const match = dispute.match;
+    const playerOneScore = proposed ? dispute.proposed_player_one_score : dispute.original_player_one_score;
+    const playerTwoScore = proposed ? dispute.proposed_player_two_score : dispute.original_player_two_score;
+    return `${match.player_one.display_name} ${playerOneScore}–${playerTwoScore} ${match.player_two.display_name}`;
+  };
+  const modalFieldClass = 'h-11 w-full rounded-xl border-2 border-slate-200 bg-white px-3 text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-blue-500/15 dark:border-slate-600 dark:bg-[#0B1120] dark:text-slate-100';
+
+  return (
+    <main className="min-h-screen bg-accent-gray-50 px-4 py-7">
+      <div className="mx-auto max-w-5xl">
+        <h1 className="text-4xl font-black">Integrity</h1>
+        <div className="mt-8 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+          <section>
+            <h2 className="text-xl font-black">Disputes</h2>
+            <div className="mt-3 space-y-3">
+              {disputes.map((dispute) => (
+                <button key={dispute.id} onClick={() => openDispute(dispute)} className="w-full rounded-2xl border-2 border-accent-gray-200 bg-white p-5 text-left">
+                  <div className="flex justify-between gap-3">
+                    <span className="font-black">{dispute.match.player_one.display_name} vs {dispute.match.player_two.display_name}</span>
+                    <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">{dispute.status.replace('_', ' ')}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-accent-gray-500">Original: {resultText(dispute)} · Proposed: {resultText(dispute, true)}</p>
+                </button>
+              ))}
+              {!disputes.length && <div className="rounded-2xl bg-white p-8 text-center text-accent-gray-500">No unresolved disputes.</div>}
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-black">Player integrity</h2>
+            <div className="mt-3 space-y-3">
+              {integrity.map((row) => (
+                <div key={row.player_id} className="rounded-2xl bg-white p-4">
+                  <p className="font-black">{row.player?.display_name}</p>
+                  <p className="text-sm text-accent-gray-500">{row.confirmed_violations} confirmed violations</p>
+                  <select aria-label={`Integrity level for ${row.player?.display_name}`} value={row.verification_level} onChange={(event) => setLevel(row.player_id, event.target.value as IntegrityLevel)} className="mt-3 h-11 w-full rounded-xl border-2 border-accent-gray-200 bg-white px-3 font-bold dark:bg-[#0B1120]">
+                    <option value="normal">Normal</option>
+                    <option value="monitored">Monitored</option>
+                    <option value="dual_verification">Dual verification</option>
+                    <option value="ranked_restricted">Ranked restricted</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <section className="mt-8">
+          <h2 className="text-xl font-black">Signals</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {flags.map((flag) => (
+              <div key={flag.id} className="rounded-2xl border-2 border-accent-gray-200 bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-black">{flag.flag_type.replaceAll('_', ' ')}</p>
+                    <p className="mt-1 text-sm text-accent-gray-500">{flag.player?.display_name || (flag.match ? `${flag.match.player_one.display_name} vs ${flag.match.player_two.display_name}` : 'System signal')}</p>
+                  </div>
+                  <button onClick={() => reviewFlag(flag.id)} className="rounded-xl border-2 border-accent-gray-200 px-3 py-2 text-sm font-black">Reviewed</button>
+                </div>
+                <p className="mt-3 break-words text-xs text-accent-gray-400">{JSON.stringify(flag.details)}</p>
+              </div>
+            ))}
+            {!flags.length && <div className="rounded-2xl bg-white p-8 text-center text-accent-gray-500">No unreviewed integrity signals.</div>}
+          </div>
+        </section>
+
+        {selected && (
+          <div role="dialog" aria-modal="true" aria-labelledby="review-dispute-title" className="fixed inset-0 z-[70] flex items-end bg-slate-950/60 p-4 backdrop-blur-sm sm:items-center sm:justify-center">
+            <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-slate-200 bg-white p-5 text-slate-900 shadow-2xl dark:border-slate-700 dark:bg-[#111827] dark:text-slate-100 sm:p-6">
+              <h2 id="review-dispute-title" className="text-2xl font-black">Review dispute</h2>
+              <div className="mt-4 rounded-2xl bg-slate-50 p-4 dark:bg-[#0B1120]">
+                <p className="text-sm font-bold text-slate-500 dark:text-slate-400">Original report</p>
+                <p className="text-lg font-black">{resultText(selected)}</p>
+                <p className="mt-4 text-sm font-bold text-slate-500 dark:text-slate-400">Requested resolution</p>
+                <p className="text-lg font-black">{selected.requested_resolution === 'void' ? 'Void this match' : resultText(selected, true)}</p>
+                <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Reason: {selected.reason.replaceAll('_', ' ')}</p>
+              </div>
+
+              <div className="mt-5 space-y-3">
+                <button disabled={loading} onClick={() => resolve('original')} className="min-h-12 w-full rounded-xl bg-[#2563EB] px-4 font-bold text-white transition hover:bg-[#1D4ED8] disabled:opacity-50">Keep original result</button>
+                <button disabled={loading} onClick={() => resolve('proposed')} className="min-h-12 w-full rounded-xl bg-green-600 px-4 font-bold text-white transition hover:bg-green-700 disabled:opacity-50">Approve requested {selected.requested_resolution}</button>
+                <button disabled={loading} onClick={() => resolve('no_violation')} className="min-h-12 w-full rounded-xl border-2 border-slate-300 bg-white px-4 font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-[#111827] dark:text-slate-100 dark:hover:bg-slate-800">Resolve original — no violation</button>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-[#0B1120]">
+                  <p className="font-black">Enter another valid result</p>
+                  <select aria-label="Resolved winner" value={customWinner} onChange={(event) => setCustomWinner(event.target.value)} className={`${modalFieldClass} mt-3`}>
+                    <option value={selected.match.player_one_id}>{selected.match.player_one.display_name}</option>
+                    <option value={selected.match.player_two_id}>{selected.match.player_two.display_name}</option>
+                  </select>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <input aria-label="Winner score" type="number" min="0" max="99" value={customWinnerScore} onChange={(event) => setCustomWinnerScore(Number(event.target.value))} className={modalFieldClass} />
+                    <input aria-label="Loser score" type="number" min="0" max="99" value={customLoserScore} onChange={(event) => setCustomLoserScore(Number(event.target.value))} className={modalFieldClass} />
+                  </div>
+                  <button disabled={loading} onClick={() => resolve('custom', { winner_id: customWinner, winner_score: customWinnerScore, loser_score: customLoserScore })} className="mt-3 min-h-12 w-full rounded-xl bg-[#2563EB] px-4 font-bold text-white transition hover:bg-[#1D4ED8] disabled:opacity-50">Approve custom result</button>
+                </div>
+
+                <textarea aria-label="Private admin notes" placeholder="Private admin notes (optional)" value={notes} onChange={(event) => setNotes(event.target.value)} className="min-h-24 w-full rounded-xl border-2 border-slate-200 bg-white p-3 text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-blue-500/15 dark:border-slate-600 dark:bg-[#0B1120] dark:text-slate-100" />
+
+                <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4 dark:border-red-900/60 dark:bg-red-950/20">
+                  <p className="font-black text-red-800 dark:text-red-300">Record a confirmed violation</p>
+                  <p className="mt-1 text-xs text-red-700/80 dark:text-red-300/75">Use only when a player intentionally submitted a false report.</p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <select aria-label="Player responsible for violation" value={violationUser} onChange={(event) => setViolationUser(event.target.value)} className={modalFieldClass}>
+                      <option value={selected.match.player_one_id}>{selected.match.player_one.display_name}</option>
+                      <option value={selected.match.player_two_id}>{selected.match.player_two.display_name}</option>
+                    </select>
+                    <select aria-label="Resolution applied with violation" value={violationResolution} onChange={(event) => setViolationResolution(event.target.value as 'original' | 'proposed' | 'custom' | 'voided')} className={modalFieldClass}>
+                      <option value="original">Keep original</option>
+                      <option value="proposed">Approve request</option>
+                      <option value="custom">Use custom result</option>
+                      <option value="voided">Void match</option>
+                    </select>
+                  </div>
+                  <button disabled={loading || !violationUser} onClick={resolveWithViolation} className="mt-3 min-h-12 w-full rounded-xl border-2 border-red-300 bg-white px-4 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:bg-transparent dark:text-red-300 dark:hover:bg-red-950/30">Resolve and record violation</button>
+                </div>
+
+                <button disabled={loading} onClick={() => resolve('voided')} className="min-h-12 w-full rounded-xl border-2 border-red-200 px-4 font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/20">Void duplicate/nonexistent match</button>
+                <button onClick={() => setSelected(null)} className="min-h-12 w-full rounded-xl font-bold text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">Close</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
+  );
 }

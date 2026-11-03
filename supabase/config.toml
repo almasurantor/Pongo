@@ -1,0 +1,5 @@
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+double_confirm_changes = false
+

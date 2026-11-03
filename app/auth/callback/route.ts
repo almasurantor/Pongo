@@ -4,13 +4,26 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  const providerError = requestUrl.searchParams.get('error_description')
+  const requestedNext = requestUrl.searchParams.get('next')
+  const next = requestedNext?.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : '/dashboard'
   const origin = requestUrl.origin
+
+  if (providerError) {
+    const login = new URL('/login', origin)
+    login.searchParams.set('error', providerError)
+    return NextResponse.redirect(login)
+  }
 
   if (code) {
     const supabase = await createClient()
-    await supabase.auth.exchangeCodeForSession(code)
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    if (error) {
+      const login = new URL('/login', origin)
+      login.searchParams.set('error', 'The sign-in link is invalid or expired. Please try again.')
+      return NextResponse.redirect(login)
+    }
   }
 
-  // URL to redirect to after sign in process completes
-  return NextResponse.redirect(`${origin}/dashboard`)
+  return NextResponse.redirect(new URL(next, origin))
 }

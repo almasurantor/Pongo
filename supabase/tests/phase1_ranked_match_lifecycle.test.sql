@@ -76,7 +76,7 @@ SELECT pg_temp.assert_true(
   'mutually approved cancellation should cancel the match'
 );
 SELECT pg_temp.assert_true(
-  (SELECT current_elo=1000 AND total_wins=0 AND total_losses=0 FROM public.profiles WHERE id='f1000000-0000-0000-0000-000000000001'),
+  (SELECT current_elo=500 AND total_wins=0 AND total_losses=0 FROM public.profiles WHERE id='f1000000-0000-0000-0000-000000000001'),
   'cancellation must not change ratings or records'
 );
 

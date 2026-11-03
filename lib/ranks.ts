@@ -1,4 +1,3 @@
-export const PLACEMENT_GAME_COUNT = 5;
 export const STARTING_ELO = 500;
 
 export type RankTierName =
@@ -24,8 +23,6 @@ export interface RankDetails {
   progressPercent: number;
   isTopTier: boolean;
   gamesPlayed: number;
-  placementGamesRemaining: number;
-  isProvisional: boolean;
 }
 
 // Keep this in sync with competitive_rank_tiers in the Phase 4 migration.
@@ -53,7 +50,6 @@ export function getRankDetails(elo: number, totalGames = 0): RankDetails {
   const tierIndex = RANK_TIERS.findIndex((candidate) => candidate.name === tier.name);
   const nextTier = RANK_TIERS[tierIndex + 1] ?? null;
   const gamesPlayed = Math.max(0, Math.trunc(totalGames));
-  const placementGamesRemaining = Math.max(PLACEMENT_GAME_COUNT - gamesPlayed, 0);
 
   if (!nextTier || nextTier.minElo == null) {
     return {
@@ -65,8 +61,6 @@ export function getRankDetails(elo: number, totalGames = 0): RankDetails {
       progressPercent: 100,
       isTopTier: true,
       gamesPlayed,
-      placementGamesRemaining,
-      isProvisional: placementGamesRemaining > 0,
     };
   }
 
@@ -85,8 +79,6 @@ export function getRankDetails(elo: number, totalGames = 0): RankDetails {
     progressPercent,
     isTopTier: false,
     gamesPlayed,
-    placementGamesRemaining,
-    isProvisional: placementGamesRemaining > 0,
   };
 }
 

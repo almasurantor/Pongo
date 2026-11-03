@@ -67,7 +67,7 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
     if (reading.current) return;
     reading.current = true;
     try {
-      const tick = await supabase.rpc('beaver_queue_tick_v1');
+      const tick = await supabase.rpc('beaver_queue_heartbeat_v1');
       if (tick.error) throw tick.error;
       const [stateResponse, memberResponse, gameResponse] = await Promise.all([
         supabase.from('beaver_queue_table').select('*').eq('id', 1).single(),

@@ -40,7 +40,7 @@ function StandingCard({ entry, scope, currentUserId }: { entry: LeaderboardEntry
         <span className={`text-xl font-black ${entry.placement <= 3 ? 'text-primary-purple' : 'text-accent-gray-500'}`}>#{entry.placement}</span>
         <span className="min-w-0">
           <span className="block truncate font-black">{entry.display_name}{mine && <span className="ml-2 text-xs text-primary-purple">YOU</span>}</span>
-          <span className="mt-1 block"><RankBadge elo={entry.current_elo} totalGames={entry.is_provisional ? 0 : 5} compact /></span>
+          <span className="mt-1 block"><RankBadge elo={entry.current_elo} totalGames={entry.current_rank === 'Unranked' ? 0 : 1} compact /></span>
         </span>
         <span className="text-right">
           {scope === 'all_time' ? (
@@ -130,7 +130,7 @@ export default function LeaderboardClient({ entries, archives, scope, selectedPe
                 <Link key={archive.period_start} href={`/leaderboard?tab=${scope}&period=${archive.period_start}`} className="app-surface-card p-4 transition active:scale-[.99]">
                   <p className="text-xs font-black uppercase text-accent-gray-400">{periodLabel(archive.period_start, archive.period_end, scope)}</p>
                   <div className="mt-3 flex items-center justify-between gap-3">
-                    <div className="min-w-0"><p className="truncate font-black">{archive.winner_name}</p><div className="mt-1"><RankBadge elo={archive.winner_current_elo} totalGames={archive.winner_is_provisional ? 0 : 5} compact /></div><p className="mt-1 text-sm text-accent-gray-500">{archive.total_players} players</p></div>
+                    <div className="min-w-0"><p className="truncate font-black">{archive.winner_name}</p><div className="mt-1"><RankBadge elo={archive.winner_current_elo} totalGames={archive.winner_rank === 'Unranked' ? 0 : 1} compact /></div><p className="mt-1 text-sm text-accent-gray-500">{archive.total_players} players</p></div>
                     <div className="text-right"><p className={`text-xl font-black ${Number(archive.winner_net_elo_change) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{Number(archive.winner_net_elo_change) >= 0 ? '+' : ''}{archive.winner_net_elo_change}</p><p className="text-[11px] font-bold text-accent-gray-400">NET ELO</p></div>
                   </div>
                 </Link>

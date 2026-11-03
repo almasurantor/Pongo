@@ -51,7 +51,7 @@ RESET ROLE;
 SELECT pg_temp.assert_true(
   (SELECT status='ready' AND winner_id IS NULL FROM public.matches WHERE id='f8100000-0000-0000-0000-000000000001')
   AND (SELECT COUNT(*)=1 FROM public.match_submissions WHERE match_id='f8100000-0000-0000-0000-000000000001')
-  AND (SELECT current_elo=1000 FROM public.profiles WHERE id='f8000000-0000-0000-0000-000000000001'),
+  AND (SELECT current_elo=500 FROM public.profiles WHERE id='f8000000-0000-0000-0000-000000000001'),
   'one private report must expose no result and apply no rating change'
 );
 

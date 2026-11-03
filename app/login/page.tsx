@@ -1,23 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import PongoLogo from '@/components/PongoLogo';
 import PongoWordmark from '@/components/PongoWordmark';
+import PasswordField from '@/components/PasswordField';
+import { authErrorMessage } from '@/lib/auth-errors';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState('');
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+
+  useEffect(() => {
+    const message = new URLSearchParams(window.location.search).get('error');
+    if (message) setFormError(message);
+  }, []);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setFormError('');
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -31,7 +41,9 @@ export default function LoginPage() {
       router.replace('/dashboard');
       router.refresh();
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Failed to log in');
+      const message = authErrorMessage(error, 'Failed to log in.');
+      setFormError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -39,17 +51,20 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     setLoading(true);
+    setFormError('');
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
         },
       });
 
       if (error) throw error;
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Failed to sign in with Google');
+      const message = authErrorMessage(error, 'Failed to sign in with Google.');
+      setFormError(message);
+      toast.error(message);
       setLoading(false);
     }
   };
@@ -83,6 +98,7 @@ export default function LoginPage() {
           </motion.div>
 
           <form onSubmit={handleEmailLogin} className="space-y-5 mb-6">
+            {formError && <div role="alert" className="rounded-xl border border-red-500/50 bg-red-950/40 p-3 text-sm font-semibold text-red-200">{formError}</div>}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -97,6 +113,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                autoComplete="email"
                 className="w-full rounded-lg border-2 border-slate-600 bg-[#0B1120] px-4 py-3 text-white placeholder:text-slate-500 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
                 placeholder="you@example.com"
               />
@@ -107,18 +124,16 @@ export default function LoginPage() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 }}
             >
-              <label htmlFor="password" className="mb-2 block text-sm font-semibold text-slate-200">
-                Password
-              </label>
-              <input
+              <PasswordField
                 id="password"
-                type="password"
+                label="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full rounded-lg border-2 border-slate-600 bg-[#0B1120] px-4 py-3 text-white placeholder:text-slate-500 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+                autoComplete="current-password"
                 placeholder="••••••••"
               />
+              <div className="mt-2 text-right"><Link href="/forgot-password" className="text-sm font-semibold text-[#60A5FA] hover:underline">Forgot password?</Link></div>
             </motion.div>
 
             <motion.button
@@ -170,12 +185,12 @@ export default function LoginPage() {
           <div className="text-center mt-6">
             <p className="text-sm text-slate-400">
               Don&apos;t have an account?{' '}
-              <a
+              <Link
                 href="/signup"
                 className="font-semibold text-[#60A5FA] hover:underline"
               >
                 Create Account
-              </a>
+              </Link>
             </p>
           </div>
         </motion.div>

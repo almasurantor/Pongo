@@ -198,11 +198,28 @@ export default function DashboardClient({
                 if (!match) return null;
                 return <article key={request.id} className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4"><p className="text-xs font-black uppercase text-amber-700">Cancellation requested</p><p className="mt-1 font-black">{opponentFor(match)?.display_name} wants to cancel</p><div className="mt-3 grid grid-cols-2 gap-2"><button disabled={loading !== null} onClick={() => respondCancellation(match.id, 'decline')} className="min-h-11 rounded-xl border-2 border-amber-400 bg-white font-bold text-amber-800 disabled:opacity-50">Decline</button><button disabled={loading !== null} onClick={() => respondCancellation(match.id, 'approve')} className="min-h-11 rounded-xl bg-amber-600 font-bold text-white disabled:opacity-50">Approve</button></div></article>;
               })}
+              {incoming.map((challenge) => (
+                <article key={challenge.id} className="rounded-2xl border-2 border-primary-purple/25 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-black uppercase text-primary-purple">Incoming challenge</p>
+                  <p className="mt-1 text-lg font-black">{challenge.challenger?.display_name}</p>
+                  {challenge.challenger && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <RankBadge elo={challenge.challenger.current_elo} totalGames={challenge.challenger.total_wins + challenge.challenger.total_losses} compact />
+                      <span className="text-sm font-bold text-accent-gray-500">{challenge.challenger.current_elo} ELO</span>
+                    </div>
+                  )}
+                  <DeadlineCountdown deadline={challenge.expires_at} className="mt-2 block text-sm font-bold text-accent-gray-500" />
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button disabled={loading !== null} onClick={() => respondChallenge(challenge.id, 'decline')} className="min-h-11 rounded-xl border-2 border-accent-gray-300 font-bold disabled:opacity-50">Deny</button>
+                    <button disabled={loading !== null} onClick={() => respondChallenge(challenge.id, 'accept')} className="min-h-11 rounded-xl gradient-purple font-bold text-white disabled:opacity-50">Accept</button>
+                  </div>
+                </article>
+              ))}
               {activeMatches.map((match) => {
                 const request = requestFor(match.id);
                 return <Link key={match.id} href={`/match/${match.id}`} className="block rounded-2xl border-2 border-primary-purple/15 bg-white p-4 shadow-sm transition active:scale-[.99]"><p className="text-xs font-black uppercase text-primary-purple">vs {opponentFor(match)?.display_name}</p>{opponentFor(match) && <div className="mt-2"><RankBadge elo={opponentFor(match)!.current_elo} totalGames={opponentFor(match)!.total_wins + opponentFor(match)!.total_losses} compact /></div>}<p className="mt-2 font-bold">{match.verification_mode === 'dual' ? 'Dual report' : 'Ready to score'}</p>{match.expires_at && <DeadlineCountdown deadline={match.expires_at} className="mt-1 block text-sm font-bold text-accent-gray-500" />}{request && <p className="mt-2 rounded-xl bg-amber-50 p-2 text-sm font-bold text-amber-700">{request.requested_by === user.id ? 'Cancellation pending' : 'Response needed'}</p>}</Link>;
               })}
-              {!activeMatches.length && !disputesNeedResponse.length && !cancellationNeedsResponse.length && <div className="rounded-2xl bg-accent-gray-50 p-6 text-center text-accent-gray-500">No active matches.</div>}
+              {!activeMatches.length && !incoming.length && !disputesNeedResponse.length && !cancellationNeedsResponse.length && <div className="rounded-2xl bg-accent-gray-50 p-6 text-center text-accent-gray-500">No active matches or incoming challenges.</div>}
             </div>
           </section>
 
@@ -220,11 +237,10 @@ export default function DashboardClient({
           </section>
 
           <section className="app-surface-card mobile-widget scroll-widget h-full min-w-0 snap-start p-4">
-            <div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-black">Challenges</h2><span className="text-sm font-bold text-accent-gray-500">{incoming.length + outgoing.length}</span></div>
-            <div className="widget-scroll space-y-3 pr-1" tabIndex={0} aria-label="Incoming and outgoing challenges">
-              {incoming.map((challenge) => <article key={challenge.id} className="rounded-2xl border-2 border-primary-purple/25 bg-white p-4 shadow-sm"><p className="text-xs font-black uppercase text-primary-purple">Incoming</p><p className="mt-1 text-lg font-black">{challenge.challenger?.display_name}</p>{challenge.challenger && <div className="mt-2"><RankBadge elo={challenge.challenger.current_elo} totalGames={challenge.challenger.total_wins + challenge.challenger.total_losses} compact /></div>}<DeadlineCountdown deadline={challenge.expires_at} className="mt-2 block text-sm font-bold text-accent-gray-500" /><div className="mt-3 grid grid-cols-2 gap-2"><button disabled={loading !== null} onClick={() => respondChallenge(challenge.id, 'decline')} className="min-h-11 rounded-xl border-2 border-accent-gray-300 font-bold disabled:opacity-50">Decline</button><button disabled={loading !== null} onClick={() => respondChallenge(challenge.id, 'accept')} className="min-h-11 rounded-xl gradient-purple font-bold text-white disabled:opacity-50">Accept</button></div></article>)}
-              {outgoing.map((challenge) => <article key={challenge.id} className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm"><div><p className="text-xs font-black uppercase text-accent-gray-400">Sent</p><p className="font-bold">{challenge.opponent?.display_name}</p>{challenge.opponent && <div className="mt-1"><RankBadge elo={challenge.opponent.current_elo} totalGames={challenge.opponent.total_wins + challenge.opponent.total_losses} compact /></div>}<DeadlineCountdown deadline={challenge.expires_at} className="mt-1 block text-sm font-bold text-accent-gray-500" /></div><button disabled={loading !== null} onClick={() => cancelChallenge(challenge.id)} className="min-h-10 rounded-xl px-3 font-bold text-red-600 disabled:opacity-50">Cancel</button></article>)}
-              {!incoming.length && !outgoing.length && <div className="rounded-2xl bg-accent-gray-50 p-6 text-center text-accent-gray-500">No pending challenges.</div>}
+            <div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-black">Challenges</h2><span className="text-sm font-bold text-accent-gray-500">{outgoing.length}</span></div>
+            <div className="widget-scroll space-y-3 pr-1" tabIndex={0} aria-label="Outgoing challenges">
+              {outgoing.map((challenge) => <article key={challenge.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm"><div className="min-w-0"><p className="text-xs font-black uppercase text-amber-600">Pending Acceptance</p><p className="truncate font-bold">{challenge.opponent?.display_name}</p>{challenge.opponent && <div className="mt-1 flex flex-wrap items-center gap-2"><RankBadge elo={challenge.opponent.current_elo} totalGames={challenge.opponent.total_wins + challenge.opponent.total_losses} compact /><span className="text-xs font-bold text-accent-gray-500">{challenge.opponent.current_elo} ELO</span></div>}<DeadlineCountdown deadline={challenge.expires_at} className="mt-1 block text-sm font-bold text-accent-gray-500" /></div><button disabled={loading !== null} onClick={() => cancelChallenge(challenge.id)} className="min-h-10 shrink-0 rounded-xl px-3 font-bold text-red-600 disabled:opacity-50">Cancel</button></article>)}
+              {!outgoing.length && <div className="rounded-2xl bg-accent-gray-50 p-6 text-center text-accent-gray-500">No sent challenges awaiting acceptance.</div>}
             </div>
           </section>
         </div>

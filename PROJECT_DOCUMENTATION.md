@@ -1,8 +1,8 @@
-# Beaver Smash — Full Project Documentation
+# Pongo — Full Project Documentation
 
 ## 1. Project Purpose
 
-Beaver Smash is a competitive table tennis club app built for the CCNY Table Tennis Club. Its purpose is to give members a structured, game-based ladder system where players can:
+Pongo is a competitive table tennis club app built for the CCNY Table Tennis Club. Its purpose is to give members a structured, game-based ladder system where players can:
 
 - create accounts and sign in
 - challenge each other directly
@@ -39,14 +39,13 @@ The project is designed around a club competition loop:
 - Tailwind CSS
 - Framer Motion
 - Supabase Auth + Postgres + Realtime
-- Zustand for lightweight app state
 - React Hot Toast for feedback
 
 The project combines server-rendered Next.js pages with realtime client-side updates for a modern leaderboard feel.
 
 ### Installable web app
 
-The App Router publishes `/manifest.webmanifest` with standalone display mode and Beaver Smash icons. Apple web-app metadata, `viewport-fit=cover`, Dynamic Island/home-indicator safe areas, and a fixed safe-area-aware mobile navigation make the Vercel-hosted site installable from iPhone Safari. A network-first service worker never caches authenticated match or ranking responses; when navigation is unavailable it shows a static reconnect screen.
+The App Router publishes `/manifest.webmanifest` with `/` as its standalone launch URL and Pongo icons. Server middleware resolves that launch before rendering: an authenticated session opens `/dashboard`, while a signed-out session receives the landing page. Apple web-app metadata, `viewport-fit=cover`, Dynamic Island/home-indicator safe areas, and a fixed safe-area-aware mobile navigation make the Vercel-hosted site installable from iPhone Safari. A network-first service worker never caches authenticated match or ranking responses; when navigation is unavailable it shows a static reconnect screen.
 
 ---
 
@@ -78,12 +77,6 @@ The app uses Next.js App Router under the [app](app) folder:
 - [app/api/matches/[id]/cancellation/route.ts](app/api/matches/[id]/cancellation/route.ts) handles mutual cancellation
 - [supabase/schema.sql](supabase/schema.sql) defines the database schema and SQL functions
 
-### State management
-
-- [store/useStore.ts](store/useStore.ts) stores the current user profile in Zustand
-
----
-
 ## 5. Data Model
 
 The primary persistent entities are defined in [supabase/schema.sql](supabase/schema.sql) and represented in [lib/types.ts](lib/types.ts).
@@ -96,7 +89,7 @@ Key fields:
 
 - id — UUID, linked to auth.users
 - display_name — user-facing name
-- current_elo — total rating, initial value 1000
+- current_elo — total rating, initial value 500
 - total_wins / total_losses — lifetime record
 - weekly_wins / weekly_losses — this week’s record
 - created_at / updated_at
@@ -242,7 +235,7 @@ Each new confirmed match and its two immutable rating events store the formula v
 
 ### Competitive rank tiers
 
-[lib/ranks.ts](lib/ranks.ts) derives a player's competitive tier directly from permanent `current_elo`; no administrator assigns ranks and no stale rank value is stored on a profile. The ladder is Iron below 850, Bronze at 850, Silver at 950, Gold at 1050, Platinum at 1150, Diamond at 1250, and Legend at 1400. The first five confirmed games are provisional placement games, but they use the same normal ELO calculation.
+[lib/ranks.ts](lib/ranks.ts) derives a player's competitive tier directly from permanent `current_elo`; no administrator assigns ranks and no stale rank value is stored on a profile. The ladder is Iron below 650, Bronze at 650, Silver at 800, Gold at 950, Platinum at 1100, Diamond at 1250, and Legend at 1400. New players start at 500 ELO, and the first five confirmed games are provisional placement games using the same normal ELO calculation.
 
 The Phase 4 migration stores these boundaries in `competitive_rank_tiers`, exposes database-side tier/progress functions, and snapshots `rank_before` and `rank_after` on every rating event. That snapshot preserves promotion and demotion history if thresholds are adjusted later. Code-native badges and progress indicators appear on profiles, challenges, matches, player discovery, the dashboard, and the all-time leaderboard. There are no divisions or inactivity decay.
 
@@ -278,14 +271,14 @@ Finalization emits automated integrity signals when a pair reaches the three-gam
 
 Realtime is a key UX property of the app.
 
-The dashboard and leaderboard subscribe to Supabase `postgres_changes` events and refresh their local data when records change. This is what makes the app feel live:
+Interactive screens subscribe only to the Supabase `postgres_changes` tables they consume. Event bursts are debounced into one server-data refresh, and returning to a sleeping phone tab performs one freshness check without a permanent polling loop. This makes the app feel live while avoiding unrelated full-page refreshes:
 
 - new challenge appears immediately
 - accepted challenge updates the active match list
 - confirmed matches trigger ELO refresh
 - leaderboard standings update without a manual reload
 
-This is implemented in [app/dashboard/DashboardClient.tsx](app/dashboard/DashboardClient.tsx) and [app/leaderboard/LeaderboardClient.tsx](app/leaderboard/LeaderboardClient.tsx).
+This is implemented through [lib/use-database-refresh.ts](lib/use-database-refresh.ts) and the individual screen clients.
 
 ---
 
@@ -320,7 +313,6 @@ There are also indexes and unique constraints to prevent duplicate pending chall
 - [app](app) — pages and route-driven UI
 - [components](components) — shared UI pieces like navbar and animation
 - [lib](lib) — shared logic and typed models
-- [store](store) — Zustand state
 - [public](public) — static files and club branding assets
 - [supabase](supabase) — schema, migrations, SQL helpers
 
@@ -344,7 +336,7 @@ This is a member-facing experience designed for quick competition and clear stat
 
 The core problem this project addresses is the lack of a clean, club-specific ranked system for table tennis matches. Without something like this, results are hard to track, disputes are messy, and there is no simple ladder or leaderboard to motivate continuous play.
 
-Beaver Smash solves this by building a structured flow around:
+Pongo solves this by building a structured flow around:
 
 - trustable match confirmation
 - transparent ELO changes
@@ -370,7 +362,7 @@ A few important observations from reading the codebase:
 
 As a codebase summary, a few product/engineering caveats are worth noting:
 
-- Vitest covers score validation, weighted ELO, rank tiers, leaderboard periods, deadlines, and lifecycle helpers. Rollback-only SQL suites cover Phases 1–8, including limits, replay, RLS, role privileges, audit immutability, and independent reporting; the multi-session checklist covers lock races.
+- Vitest covers auth startup routing, score validation, weighted ELO, rank tiers, leaderboard periods, deadlines, and lifecycle helpers. Rollback-only SQL suites cover the ranked phases and V4 defaults, including limits, replay, RLS, role privileges, audit immutability, and independent reporting; the multi-session checklist covers lock races.
 - Some features rely on database SQL functions and cron jobs being configured correctly in Supabase.
 - The app uses environment variables and expects a real Supabase project to be configured.
 - A few flows depend on browser timing and states, so they should be tested in a real staging environment before production use.
@@ -380,7 +372,7 @@ As a codebase summary, a few product/engineering caveats are worth noting:
 
 ## 16. Final Overall Assessment
 
-Beaver Smash is a full-stack club-ranking app for table tennis match competition. It is not just a leaderboard; it is a full lifecycle management system for challenges, match submissions, validation, ELO adjustment, and profile tracking.
+Pongo is a full-stack club-ranking app for table tennis match competition. It is not just a leaderboard; it is a full lifecycle management system for challenges, match submissions, validation, ELO adjustment, and profile tracking.
 
 The project’s central concept is simple and effective:
 
@@ -406,7 +398,6 @@ It is a strong example of a lightweight sports ladder product built with modern 
 - [app/api/matches/[id]/dispute/route.ts](app/api/matches/[id]/dispute/route.ts) — post-result correction and void requests
 - [lib/elo.ts](lib/elo.ts) — rating algorithm
 - [supabase/schema.sql](supabase/schema.sql) — data model and SQL logic
-- [store/useStore.ts](store/useStore.ts) — user profile state
 - [lib/types.ts](lib/types.ts) — TypeScript interfaces
 
 If you want, the next step can be a more opinionated “engineering deep dive” that focuses on startup flow, data pipelines, and the exact match lifecycle from challenge creation to final ELO update.

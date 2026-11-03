@@ -14,26 +14,26 @@ SELECT pg_temp.assert_true(
 );
 
 SELECT pg_temp.assert_true(
-  public.rank_tier_name_v3(849) = 'Iron'
-  AND public.rank_tier_name_v3(850) = 'Bronze'
-  AND public.rank_tier_name_v3(950) = 'Silver'
-  AND public.rank_tier_name_v3(1050) = 'Gold'
-  AND public.rank_tier_name_v3(1150) = 'Platinum'
+  public.rank_tier_name_v3(649) = 'Iron'
+  AND public.rank_tier_name_v3(650) = 'Bronze'
+  AND public.rank_tier_name_v3(800) = 'Silver'
+  AND public.rank_tier_name_v3(950) = 'Gold'
+  AND public.rank_tier_name_v3(1100) = 'Platinum'
   AND public.rank_tier_name_v3(1250) = 'Diamond'
   AND public.rank_tier_name_v3(1400) = 'Legend',
   'rank boundaries must be inclusive at their configured floors'
 );
 
 SELECT pg_temp.assert_true(
-  public.get_rank_progress_v3(1000, 2) @> jsonb_build_object(
-    'tier', 'Silver',
-    'next_tier', 'Gold',
-    'points_to_next', 50,
+  public.get_rank_progress_v3(1025, 2) @> jsonb_build_object(
+    'tier', 'Gold',
+    'next_tier', 'Platinum',
+    'points_to_next', 75,
     'progress_percent', 50,
-    'is_provisional', TRUE,
-    'placement_games_remaining', 3
+    'is_provisional', FALSE,
+    'placement_games_remaining', 0
   ),
-  'rank progress and provisional placement must be automatic'
+  'rank progress must not use provisional placement games'
 );
 
 SELECT pg_temp.assert_true(
@@ -58,7 +58,7 @@ INSERT INTO public.rating_events(
   player_id, event_kind, rating_before, rating_change, rating_after
 ) VALUES (
   'f4000000-0000-0000-0000-000000000001',
-  'migration_adjustment', 1040, 20, 1060
+  'migration_adjustment', 940, 20, 960
 );
 
 SELECT pg_temp.assert_true(

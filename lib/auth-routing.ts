@@ -1,4 +1,4 @@
-const PUBLIC_PREFIXES = ['/login', '/signup', '/_next', '/api', '/auth'];
+const PUBLIC_PREFIXES = ['/login', '/signup', '/forgot-password', '/reset-password', '/_next', '/api', '/auth'];
 const PUBLIC_FILES = new Set(['/', '/manifest.webmanifest', '/sw.js', '/offline.html']);
 
 export function authRedirectForPath(pathname: string, authenticated: boolean): '/dashboard' | '/login' | null {

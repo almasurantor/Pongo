@@ -1,4 +1,4 @@
-# Beaver Smash - CCNY Table Tennis Club Ladder System
+# Pongo - CCNY Table Tennis Club Ladder System
 
 A ranked 1v1 ELO-based ladder system with weekly, monthly, and all-time leaderboards for the CCNY Table Tennis Club.
 
@@ -9,7 +9,6 @@ A ranked 1v1 ELO-based ladder system with weekly, monthly, and all-time leaderbo
 - TailwindCSS
 - Framer Motion
 - Supabase (Auth + PostgreSQL + Realtime)
-- Zustand
 
 ## Setup
 
@@ -41,8 +40,8 @@ npm run dev
 - Acceptance-time reservations enforcing 10 ranked games per day and 3 per opponent
 - New York calendar-day usage shown on dashboards and player cards
 - K=40 weighted ELO with a capped 10% score-margin adjustment and exact zero-sum transfers
-- Pre-match rating estimates and immutable post-match calculation breakdowns
-- Seven automatic competitive tiers from Iron through Legend, with rank badges, progress, five-game provisional placement, and promotion/demotion feedback
+- ELO changes hidden until server-authoritative finalization, followed by an immutable post-match calculation breakdown
+- Unranked new players at 500 ELO, then seven automatic competitive tiers from Iron through Legend after the first confirmed match
 - Unified weekly, monthly, and all-time leaderboards with New York period boundaries, net-ELO ranking, full player statistics, and historical winner archives
 - 48-hour result disputes with mutual corrections/voids, admin escalation, immutable revisions, and downstream rating replay
 - Mobile-first score confirmation, live deadlines, victory/defeat feedback, and an ELO-free casual scorekeeper
@@ -53,8 +52,8 @@ npm run dev
 
 ## Install on a phone
 
-Beaver Smash includes an App Router web manifest, branded PWA icons, standalone display metadata, safe-area layout support, and a conservative service worker. Live Supabase pages are always network-first; only the static offline explanation and app icons are cached.
+Pongo includes an App Router web manifest, branded PWA icons, standalone display metadata, safe-area layout support, and a conservative service worker. Live Supabase pages are always network-first; only the static offline explanation and app icons are cached.
 
-On iPhone, open the deployed HTTPS site in Safari, tap **Share**, choose **Add to Home Screen**, confirm the name **Beaver Smash**, and tap **Add**. Launching that icon opens the site in a standalone window. On supported Android browsers, use **Install App** or **Add to Home Screen** from the browser menu.
+On iPhone, open the deployed HTTPS site in Safari, tap **Share**, choose **Add to Home Screen**, confirm the name **Pongo**, and tap **Add**. Launching that icon opens the site in a standalone window. On supported Android browsers, use **Install App** or **Add to Home Screen** from the browser menu.
 
-For Vercel, configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and add `https://YOUR_DOMAIN/auth/callback` to the Supabase Auth redirect allowlist. Verify `/manifest.webmanifest`, `/sw.js`, `/icon.png`, and `/apple-icon.png` after deployment.
+For Vercel, configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`, disable **Confirm email**, and add `https://YOUR_DOMAIN/auth/callback` to the Supabase Auth redirect allowlist. For Google, use the Supabase `/auth/v1/callback` URL shown in its provider panel as the Google Cloud redirect URI. Verify `/manifest.webmanifest`, `/sw.js`, `/icon.png`, and `/apple-icon.png` after deployment.
