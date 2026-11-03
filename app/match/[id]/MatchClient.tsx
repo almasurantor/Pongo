@@ -80,19 +80,22 @@ export default function MatchClient({
   const disputeDeadline = match.confirmed_at ? new Date(match.confirmed_at).getTime() + 48 * 60 * 60 * 1000 : 0;
   const canOpenDispute = match.status === 'confirmed' && !dispute && disputeDeadline > Date.now();
 
-  const closeResultPopup = (navigateToDashboard = false) => {
+  const closeResultPopup = () => {
     rememberResultPopupDismissal(match.id);
     setResultPopupExiting(true);
     window.setTimeout(() => {
       setResultSummary(null);
       setResultPopupExiting(false);
-      if (navigateToDashboard) router.push('/dashboard');
+      router.push('/dashboard');
     }, RESULT_POPUP_FADE_MS);
   };
 
   useEffect(() => {
     if (!resultSummary) return;
-    const timer = window.setTimeout(() => closeResultPopup(), RESULT_POPUP_VISIBLE_MS);
+    const timer = window.setTimeout(
+      () => closeResultPopup(),
+      RESULT_POPUP_VISIBLE_MS - RESULT_POPUP_FADE_MS,
+    );
     return () => window.clearTimeout(timer);
     // The popup timer intentionally restarts only for a newly finalized result.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -480,12 +483,13 @@ export default function MatchClient({
 
         {resultSummary && (
           <div role="dialog" aria-modal="true" aria-live="polite" className={`result-popup-backdrop fixed inset-0 z-[90] flex items-center justify-center bg-accent-gray-950/80 p-4 ${resultPopupExiting ? 'result-popup-exit pointer-events-none' : ''}`}>
-            <section className={`result-popup-card w-full max-w-md rounded-3xl p-7 text-center text-white shadow-2xl ${resultSummary.won ? 'bg-gradient-to-br from-green-600 to-emerald-800' : 'bg-gradient-to-br from-slate-700 to-slate-950'}`}>
+            <section className={`result-popup-card relative w-full max-w-md rounded-3xl p-7 text-center text-white shadow-2xl ${resultSummary.won ? 'bg-gradient-to-br from-green-600 to-emerald-800' : 'bg-gradient-to-br from-slate-700 to-slate-950'}`}>
+              <button type="button" onClick={closeResultPopup} aria-label="Close result" className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-2xl font-light text-white transition hover:bg-white/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">×</button>
               <p className="text-6xl">{resultSummary.won ? '🏆' : '🏓'}</p>
               <p className="mt-4 text-sm font-black uppercase tracking-widest text-white/75">{resultSummary.won ? 'Victory' : 'Defeat'}</p>
               <h2 className="mt-1 text-4xl font-black">{resultSummary.change >= 0 ? '+' : ''}{resultSummary.change} ELO</h2>
               {resultSummary.placementAfter != null && <div className="mt-5 rounded-2xl bg-white/10 p-4"><p className="text-sm font-bold text-white/75">All-time placement</p><p className="text-3xl font-black">#{resultSummary.placementAfter}</p></div>}
-              <div className="mt-6 grid grid-cols-2 gap-3"><button onClick={() => closeResultPopup()} className="min-h-12 rounded-xl border-2 border-white/30 font-bold">View result</button><button onClick={() => closeResultPopup(true)} className="min-h-12 rounded-xl bg-white font-black text-accent-gray-900">Dashboard</button></div>
+              <p className="mt-6 text-sm font-bold text-white/70">Returning to dashboard…</p>
             </section>
           </div>
         )}
