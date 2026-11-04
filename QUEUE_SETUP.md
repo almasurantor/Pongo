@@ -13,7 +13,9 @@ matches. Its tables, RPCs, recent results, and Realtime channels all use the
    `supabase/migrations/20261103_02_queue_production_repair.sql` and
    `supabase/migrations/20261103_03_queue_outcomes_swaps.sql` and
    `supabase/migrations/20261103_04_queue_forward_swaps.sql` and
-   `supabase/migrations/20261103_05_queue_afk_timeouts.sql` through the Supabase CLI
+   `supabase/migrations/20261103_05_queue_afk_timeouts.sql` and
+   `supabase/migrations/20261104_02_queue_match_expiry_checkins.sql` and
+   `supabase/migrations/20261104_03_queue_holder_presence.sql` through the Supabase CLI
    or SQL editor. **A GitHub/Vercel deployment does not apply database migrations.**
    Test the repair against a disposable database before production.
 4. Verify `beaver_queue_table`, `beaver_queue_members`, `beaver_queue_games`, and
@@ -33,6 +35,8 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f supabase/tests/queue_outcomes_swaps.test.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f supabase/tests/queue_afk_timeouts.test.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+  -f supabase/tests/queue_match_expiry_checkins.test.sql
 ```
 
 The test runs in a transaction and rolls back its users and queue state. Follow
@@ -44,9 +48,10 @@ Run this in the Supabase SQL editor after applying the repair:
 
 ```sql
 SELECT
-  to_regprocedure('public.beaver_queue_health_v5()') IS NOT NULL AS repair_installed,
+  to_regprocedure('public.beaver_queue_health_v7()') IS NOT NULL AS repair_installed,
   has_function_privilege('authenticated','public.beaver_queue_heartbeat_v1()','EXECUTE') AS heartbeat_granted,
   has_function_privilege('authenticated','public.beaver_queue_join_v1()','EXECUTE') AS join_granted,
+  has_function_privilege('authenticated','public.beaver_queue_tick_v1()','EXECUTE') AS tick_granted,
   has_function_privilege('authenticated','public.beaver_queue_report_outcome_v2(uuid,text)','EXECUTE') AS outcome_granted,
   has_function_privilege('authenticated','public.beaver_queue_request_swap_v1(uuid)','EXECUTE') AS swap_granted,
   has_function_privilege('authenticated','public.beaver_queue_report_afk_v1()','EXECUTE') AS afk_report_granted,
@@ -59,7 +64,7 @@ SELECT
 ```
 
 All values must be `true`. From an authenticated app session,
-`beaver_queue_health_v5()` must return version `20261103_05`. A `PGRST202` response means
+`beaver_queue_health_v7()` must return version `20261104_03`. A `PGRST202` response means
 the migration was not applied or PostgREST has not reloaded its schema. A `42501`
 response for an authenticated user means the RPC grant is wrong; the same response for
 the anonymous role is expected.
@@ -72,7 +77,7 @@ Configure a trusted server-side scheduler to call:
 SELECT public.beaver_queue_advance_expired_v1();
 ```
 
-every 5–15 seconds with the Supabase `service_role`. The reference query is also stored
+every 5 seconds with the Supabase `service_role`. The reference query is also stored
 in `supabase/functions/queue-tick.sql`. Keep the service-role key exclusively on the
 server. The function uses database time and locks the singleton queue row, so it is safe
 for overlapping worker calls and for races with a player's **I'm Here** action.
@@ -80,7 +85,9 @@ for overlapping worker calls and for races with a player's **I'm Here** action.
 The page refetches the authoritative snapshot every four seconds and after Realtime
 changes. Only active queue members send a heartbeat, at a 30-second interval; Realtime
 events never trigger another heartbeat. The trusted worker is still what guarantees
-advancement when every browser is closed.
+advancement when every browser is closed. Connected clients additionally call the
+authenticated tick RPC as soon as their displayed authoritative deadline reaches zero;
+that client request is an immediate synchronization path, not a replacement for the worker.
 
 The same worker enforces the solo-player and in-game AFK 60-second deadlines, the
 10-minute game deadline, stores unfinished games as `abandoned` audit rows, expires
@@ -96,7 +103,10 @@ audit; they never appear in player Queue Activity.
 3. Join as A. A should become the table holder.
 4. Join as B, C, D, and optionally E. B should be called for 60 seconds; later players
    should remain in FIFO order and see the same state on every screen.
-5. Confirm as B. Only A and B should see **I Won** and **I Lost** controls.
+5. B, as the incoming challenger, should receive the **You're Up!** pop-up. A is already
+   present as the table holder and should not have to check in again. The original
+   60-second deadline must not reset; after B confirms, A and B should see **I Won** and
+   **I Lost** controls. A should receive a presence pop-up only if B reports A as AFK.
 6. Submit an outcome from A or B. Confirm that the winner stays, the loser can rejoin
    at the back, and C is called next.
 7. Let one call expire without its browser open. The worker should mark that player as a
@@ -112,6 +122,8 @@ audit; they never appear in player Queue Activity.
 11. Join alone and verify the holder is removed after the subtle 60-second countdown.
 12. During a game, report the opponent AFK. Verify **I'm Here** cancels the check; then
     let a second check expire and verify the reporter stays while the next player is called.
+13. Let a game timer reach `0:00`. Both players should be removed, an abandoned queue
+    audit row should contain no winner or loser, and the next waiting player should advance.
 
 ## Outcome corrections
 

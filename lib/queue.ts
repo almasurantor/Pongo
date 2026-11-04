@@ -29,8 +29,19 @@ export function queueSecondsUntil(timestamp: string | null, now: number) {
   return timestamp ? Math.max(0, Math.ceil((new Date(timestamp).getTime() - now) / 1000)) : 0;
 }
 
-export function queueGameSecondsRemaining(startedAt: string | null, now: number) {
-  return startedAt ? Math.max(0, Math.ceil((new Date(startedAt).getTime() + 600_000 - now) / 1000)) : 600;
+export function queueGameSecondsRemaining(expiresAt: string | null, now: number) {
+  return queueSecondsUntil(expiresAt, now);
+}
+
+export function needsQueueCheckIn(
+  phase: string | null | undefined,
+  userId: string,
+  challengerId: string | null,
+  challengerConfirmedAt: string | null,
+) {
+  return phase === 'called'
+    && userId === challengerId
+    && challengerConfirmedAt === null;
 }
 
 export function queueStatusLabel(status: QueueMemberStatus | null | undefined, waitingIndex: number, callSeconds: number) {

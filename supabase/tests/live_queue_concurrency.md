@@ -38,12 +38,23 @@ point for every mutation.
 
 ## Confirmation at the deadline
 
-1. Call a challenger and set `call_expires_at` a few seconds ahead.
+1. Assign a holder and challenger and set `call_expires_at` a few seconds ahead. The
+   holder must already have `king_confirmed_at`; only the challenger is pending.
 2. At the boundary, call `beaver_queue_confirm_v1()` as the challenger while a service
    session calls `beaver_queue_advance_expired_v1()`.
 3. Whichever transaction locks the singleton first decides the outcome using database
-   time: either the game is `playing`, or the challenger is `no_show` and the next
-   waiting player is called. It must never produce both outcomes.
+   time: either the game is `playing`, or the challenger is `no_show` and the holder
+   remains. It must never produce both outcomes or extend the deadline.
+
+## Match result versus expiration
+
+1. Start a game, copy its `game_id`, and set `game_expires_at` a few seconds ahead.
+2. At the deadline, race a participant's `beaver_queue_report_outcome_v2()` call against
+   two simultaneous `beaver_queue_advance_expired_v1()` calls from trusted sessions.
+3. The singleton lock and database timestamp must produce exactly one terminal state:
+   either a result committed before the deadline, or one `abandoned` audit row with no
+   winner or loser. For expiration, both participants must be `left` and waiting players
+   must advance once. Repeated workers must not affect the newly advanced match.
 
 ## Departure versus call/report
 

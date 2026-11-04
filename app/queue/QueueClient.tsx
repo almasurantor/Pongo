@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   canReportQueueOutcome,
   canRequestQueueSwap,
+  needsQueueCheckIn,
   queueGameSecondsRemaining,
   queueSecondsUntil,
   type QueueMemberStatus,
@@ -13,7 +14,7 @@ import { isActiveQueueStatus, isQueueBackendHealthy, isRetryableQueueError, queu
 import styles from './QueueClient.module.css';
 
 interface QueueMember { user_id: string; display_name: string; status: QueueMemberStatus; queue_position: number; joined_at: string; }
-interface TableState { id: number; phase: 'idle' | 'called' | 'playing'; king_id: string | null; challenger_id: string | null; call_expires_at: string | null; game_id: string | null; game_started_at: string | null; solo_expires_at: string | null; afk_reporter_id: string | null; afk_target_id: string | null; afk_expires_at: string | null; }
+interface TableState { id: number; phase: 'idle' | 'called' | 'playing'; king_id: string | null; challenger_id: string | null; call_expires_at: string | null; game_id: string | null; game_started_at: string | null; game_expires_at: string | null; king_confirmed_at: string | null; challenger_confirmed_at: string | null; solo_expires_at: string | null; afk_reporter_id: string | null; afk_target_id: string | null; afk_expires_at: string | null; }
 interface QueueGame { id: string; king_id: string; challenger_id: string; king_name: string; challenger_name: string; winner_id: string; loser_id: string; completed_at: string; }
 interface SwapRequest { id: string; requester_id: string; target_id: string; requester_position: number; target_position: number; status: 'pending' | 'accepted' | 'declined' | 'expired' | 'canceled'; expires_at: string; }
 
@@ -35,14 +36,15 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
   const [heartbeatError, setHeartbeatError] = useState('');
   const reading = useRef(false);
   const heartbeatFailures = useRef(0);
+  const syncedExpiration = useRef('');
   const me = members.find((member) => member.user_id === currentUserId);
 
   useEffect(() => {
     let cancelled = false;
-    void supabase.rpc('beaver_queue_health_v5').then(({ data, error }) => {
+    void supabase.rpc('beaver_queue_health_v7').then(({ data, error }) => {
       if (cancelled) return;
       if (error) setBackendError(queueErrorMessage(error, 'Unable to verify the queue database version.'));
-      else if (!isQueueBackendHealthy(data)) setBackendError('The queue database is out of date. Apply migration 20261103_05, then reload this page.');
+      else if (!isQueueBackendHealthy(data)) setBackendError('The queue database is out of date. Apply migration 20261104_03, then reload this page.');
       else setBackendError('');
     });
     return () => { cancelled = true; };
@@ -127,22 +129,47 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
   const active = isActiveQueueStatus(me?.status);
   const king = table?.king_id ?? null;
   const challenger = table?.challenger_id ?? null;
-  const isCalled = me?.status === 'called' && challenger === currentUserId;
   const amPlaying = canReportQueueOutcome(table?.phase, currentUserId, king, challenger);
   const callSeconds = queueSecondsUntil(table?.call_expires_at ?? null, now);
-  const gameSeconds = queueGameSecondsRemaining(table?.game_started_at ?? null, now);
+  const gameSeconds = queueGameSecondsRemaining(table?.game_expires_at ?? null, now);
   const soloSeconds = queueSecondsUntil(table?.solo_expires_at ?? null, now);
   const afkSeconds = queueSecondsUntil(table?.afk_expires_at ?? null, now);
   const afkPending = Boolean(table?.afk_target_id && table?.afk_expires_at);
   const isAfkTarget = table?.afk_target_id === currentUserId;
-  const isAfkReporter = table?.afk_reporter_id === currentUserId;
   const incomingSwap = swaps.find((swap) => swap.target_id === currentUserId);
   const outgoingSwap = swaps.find((swap) => swap.requester_id === currentUserId);
+  const checkInPending = needsQueueCheckIn(
+    table?.phase,
+    currentUserId,
+    challenger,
+    table?.challenger_confirmed_at ?? null,
+  );
+  const matchActionsAvailable = amPlaying && gameSeconds > 0;
   const nameOf = (id: string | null) => members.find((member) => member.user_id === id)?.display_name ?? 'Player';
   const snapshotName = (game: QueueGame, id: string) => id === game.king_id ? game.king_name : game.challenger_name;
 
+  useEffect(() => {
+    const expirationKey = table?.phase === 'playing' && table.game_id && gameSeconds === 0
+      ? `game:${table.game_id}`
+      : table?.phase === 'playing' && table.afk_expires_at && afkSeconds === 0
+        ? `afk:${table.afk_expires_at}`
+      : table?.phase === 'called' && table.call_expires_at && callSeconds === 0
+        ? `call:${table.call_expires_at}`
+        : '';
+    if (!expirationKey || syncedExpiration.current === expirationKey) return;
+    syncedExpiration.current = expirationKey;
+    let cancelled = false;
+    void (async () => {
+      const result = await supabase.rpc('beaver_queue_tick_v1');
+      if (cancelled) return;
+      if (result.error) setActionError(queueErrorMessage(result.error, 'Unable to synchronize the expired queue timer.'));
+      await refresh();
+    })();
+    return () => { cancelled = true; };
+  }, [afkSeconds, callSeconds, gameSeconds, refresh, supabase, table?.afk_expires_at, table?.call_expires_at, table?.game_id, table?.phase]);
+
   const confirmOutcome = async () => {
-    if (!table?.game_id || !outcomeChoice) return;
+    if (!table?.game_id || !outcomeChoice || gameSeconds === 0) return;
     const outcome = outcomeChoice;
     await action(`outcome-${outcome}`, 'beaver_queue_report_outcome_v2', { p_game_id: table.game_id, p_outcome: outcome });
     setOutcomeChoice(null);
@@ -150,6 +177,25 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
 
   return (
     <main className={styles.page}>
+      {checkInPending && callSeconds > 0 && <div className={styles.checkInBackdrop}>
+        <section className={styles.checkInModal} role="dialog" aria-modal="true" aria-labelledby="queue-check-in-title" aria-describedby="queue-check-in-description">
+          <p className={styles.checkInEyebrow}>Match ready</p>
+          <h2 id="queue-check-in-title">You&apos;re Up!</h2>
+          <p id="queue-check-in-description">Your match is ready. Confirm you&apos;re here to play.</p>
+          <strong className={`${styles.checkInCountdown} ${callSeconds <= 15 ? styles.urgent : ''}`} aria-label={`${callSeconds} seconds remaining`}>{formatTimer(callSeconds)}</strong>
+          <button autoFocus className={styles.checkInConfirm} disabled={Boolean(busy) || callSeconds === 0} onClick={() => void action('confirm', 'beaver_queue_confirm_v1')}>{busy === 'confirm' ? 'Confirming…' : "I'm Here"}</button>
+          <button className={styles.checkInLeave} disabled={Boolean(busy)} onClick={() => void action('modal-leave', 'beaver_queue_leave_v1')}>{busy === 'modal-leave' ? 'Leaving…' : 'Leave Queue'}</button>
+        </section>
+      </div>}
+      {isAfkTarget && afkSeconds > 0 && gameSeconds > 0 && <div className={styles.checkInBackdrop}>
+        <section className={styles.checkInModal} role="dialog" aria-modal="true" aria-labelledby="afk-check-in-title" aria-describedby="afk-check-in-description">
+          <p className={styles.checkInEyebrow}>Presence check</p>
+          <h2 id="afk-check-in-title">Are You Here?</h2>
+          <p id="afk-check-in-description">Your opponent reported you as AFK. Confirm you&apos;re still at the table.</p>
+          <strong className={`${styles.checkInCountdown} ${afkSeconds <= 15 ? styles.urgent : ''}`} aria-label={`${afkSeconds} seconds remaining`}>{formatTimer(afkSeconds)}</strong>
+          <button autoFocus className={styles.checkInConfirm} disabled={Boolean(busy) || afkSeconds === 0 || !matchActionsAvailable} onClick={() => void action('afk-present', 'beaver_queue_confirm_presence_v1')}>{busy === 'afk-present' ? 'Confirming…' : "I'm Here"}</button>
+        </section>
+      </div>}
       <div className={styles.shell}>
         <section data-queue-card="live-table" className={`${styles.hero} ${styles.queueHeaderCard}`}>
           <div className={styles.heroMain}>
@@ -174,13 +220,13 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
               <div className={styles.matchPlayer}><div aria-hidden="true" className={styles.avatarAlt}><span>★★★</span></div><div className={styles.playerName}><strong>{challenger ? nameOf(challenger) : 'Waiting…'}</strong>{challenger === currentUserId && <span className={styles.youTag}>You</span>}</div><div className={styles.seatLabel}>{challenger ? 'Opponent' : 'Next player'}</div></div>
             </div>
             {table?.phase === 'idle' && !challenger && table.solo_expires_at && <div className={styles.soloTimer}><span>Waiting for an opponent</span><strong>{formatTimer(soloSeconds)}</strong></div>}
-            {table?.phase === 'called' && <div className={styles.callBanner}><span>{isCalled ? "You're up — check in now" : `Waiting for ${nameOf(challenger)}`}</span><strong className={callSeconds <= 15 ? styles.urgent : ''}>{formatTimer(callSeconds)}</strong></div>}
-            {isCalled && <button className={styles.primaryButton} disabled={Boolean(busy) || callSeconds === 0} onClick={() => void action('confirm', 'beaver_queue_confirm_v1')}>{busy === 'confirm' ? 'Checking in…' : 'I’m Here'}</button>}
+            {table?.phase === 'called' && <div className={styles.callBanner}><span>{checkInPending ? "You're up — check in now" : 'Waiting for the other player'}</span><strong className={callSeconds <= 15 ? styles.urgent : ''}>{formatTimer(callSeconds)}</strong></div>}
+            {checkInPending && <button className={styles.primaryButton} disabled={Boolean(busy) || callSeconds === 0} onClick={() => void action('confirm', 'beaver_queue_confirm_v1')}>{busy === 'confirm' ? 'Checking in…' : 'I’m Here'}</button>}
             {table?.phase === 'playing' && <div className={styles.gamePanel}>
               <div className={styles.gameTimer}><span>Time remaining</span><strong className={gameSeconds <= 60 ? styles.urgent : ''}>{formatTimer(gameSeconds)}</strong></div>
-              {isAfkTarget && <div className={styles.afkPrompt}><div><strong>Are you here?</strong><span>Your opponent reported you as AFK.</span></div><strong className={afkSeconds <= 15 ? styles.urgent : ''}>{formatTimer(afkSeconds)}</strong><button disabled={Boolean(busy) || afkSeconds === 0} onClick={() => void action('afk-present', 'beaver_queue_confirm_presence_v1')}>{busy === 'afk-present' ? 'Responding…' : 'I’m Here'}</button></div>}
-              {isAfkReporter && <div className={styles.afkStatus}><span>Waiting for {nameOf(table?.afk_target_id ?? null)} to respond</span><strong>{formatTimer(afkSeconds)}</strong></div>}
-              {amPlaying && !isAfkTarget && (outcomeChoice ? <div className={styles.outcomeConfirm}><p>Confirm you {outcomeChoice}?</p><div><button className={outcomeChoice === 'won' ? styles.winButton : styles.lossButton} disabled={Boolean(busy)} onClick={() => void confirmOutcome()}>{busy ? 'Submitting…' : outcomeChoice === 'won' ? 'Confirm Win' : 'Confirm Loss'}</button><button className={styles.cancelButton} disabled={Boolean(busy)} onClick={() => setOutcomeChoice(null)}>Cancel</button></div></div> : <><div className={styles.outcomeActions}><button className={styles.winButton} disabled={Boolean(busy)} onClick={() => setOutcomeChoice('won')}>I Won</button><button className={styles.lossButton} disabled={Boolean(busy)} onClick={() => setOutcomeChoice('lost')}>I Lost</button></div>{!afkPending && <button className={styles.afkReportButton} disabled={Boolean(busy)} onClick={() => void action('afk-report', 'beaver_queue_report_afk_v1')}>{busy === 'afk-report' ? 'Reporting…' : 'Report AFK'}</button>}</>)}
+              {isAfkTarget && <div className={styles.afkPrompt}><div><strong>Are you here?</strong><span>Your opponent reported you as AFK.</span></div><strong className={afkSeconds <= 15 ? styles.urgent : ''}>{formatTimer(afkSeconds)}</strong><button disabled={Boolean(busy) || afkSeconds === 0 || !matchActionsAvailable} onClick={() => void action('afk-present', 'beaver_queue_confirm_presence_v1')}>{busy === 'afk-present' ? 'Responding…' : 'I’m Here'}</button></div>}
+              {afkPending && !isAfkTarget && <div className={styles.afkStatus}><span>Waiting for {nameOf(table?.afk_target_id ?? null)} to respond to an AFK check</span><strong className={afkSeconds <= 15 ? styles.urgent : ''}>{formatTimer(afkSeconds)}</strong></div>}
+              {amPlaying && !isAfkTarget && (outcomeChoice ? <div className={styles.outcomeConfirm}><p>Confirm you {outcomeChoice}?</p><div><button className={outcomeChoice === 'won' ? styles.winButton : styles.lossButton} disabled={Boolean(busy) || !matchActionsAvailable} onClick={() => void confirmOutcome()}>{busy ? 'Submitting…' : outcomeChoice === 'won' ? 'Confirm Win' : 'Confirm Loss'}</button><button className={styles.cancelButton} disabled={Boolean(busy)} onClick={() => setOutcomeChoice(null)}>Cancel</button></div></div> : <><div className={styles.outcomeActions}><button className={styles.winButton} disabled={Boolean(busy) || !matchActionsAvailable} onClick={() => setOutcomeChoice('won')}>I Won</button><button className={styles.lossButton} disabled={Boolean(busy) || !matchActionsAvailable} onClick={() => setOutcomeChoice('lost')}>I Lost</button></div>{!afkPending && <button className={styles.afkReportButton} disabled={Boolean(busy) || !matchActionsAvailable} onClick={() => void action('afk-report', 'beaver_queue_report_afk_v1')}>{busy === 'afk-report' ? 'Reporting…' : 'Report AFK'}</button>}</>)}
             </div>}
           </> : <p className={styles.muted}>Table open. Join the queue to become the first holder.</p>}
         </section>

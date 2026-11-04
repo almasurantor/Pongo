@@ -31,7 +31,7 @@ describe('queue page structure', () => {
     expect(source).toContain('activePosition(player.user_id)');
   });
 
-  it('uses outcome actions without numerical score inputs or a check-in overlay', () => {
+  it('uses outcome actions without numerical score inputs or the legacy turn overlay', () => {
     expect(source).toContain('I Won');
     expect(source).toContain('I Lost');
     expect(source).not.toContain('type="number"');
@@ -43,6 +43,27 @@ describe('queue page structure', () => {
     expect(source).toContain('Are you here?');
     expect(source).not.toContain('Only match participants can report the result.');
     expect(source).not.toContain('Result submitted.');
+  });
+
+  it('shows the assigned player a server-deadline check-in dialog and synchronizes zero', () => {
+    expect(source).toContain('checkInPending && callSeconds > 0');
+    expect(source).toContain("You&apos;re Up!");
+    expect(source).toContain("I'm Here");
+    expect(source).toContain("'beaver_queue_tick_v1'");
+    expect(source).toContain('table?.game_expires_at');
+    expect(source).toContain('matchActionsAvailable');
+    expect(styles).toContain('.checkInBackdrop');
+    expect(styles).toContain('.checkInModal');
+    expect(styles).not.toMatch(/\.checkInModal[^}]*gradient/s);
+  });
+
+  it('shows AFK presence as a modal to the target and a table status to everyone else', () => {
+    expect(source).toContain('isAfkTarget && afkSeconds > 0 && gameSeconds > 0');
+    expect(source).toContain('Are You Here?');
+    expect(source).toContain("'beaver_queue_confirm_presence_v1'");
+    expect(source).toContain('afkPending && !isAfkTarget');
+    expect(source).toContain('to respond to an AFK check');
+    expect(source).toContain('`afk:${table.afk_expires_at}`');
   });
 
   it('keeps the flat Pongo queue color hierarchy in both themes', () => {

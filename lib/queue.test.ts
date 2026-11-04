@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canReportQueueOutcome,
   canRequestQueueSwap,
+  needsQueueCheckIn,
   orderedQueueLine,
   queueGameSecondsRemaining,
   queuePlaceFor,
@@ -43,7 +44,15 @@ describe('live queue presentation rules', () => {
     const now = Date.parse('2026-11-03T12:00:00Z');
     expect(queueSecondsUntil('2026-11-03T12:00:45Z', now)).toBe(45);
     expect(queueSecondsUntil('2026-11-03T11:59:00Z', now)).toBe(0);
-    expect(queueGameSecondsRemaining('2026-11-03T11:56:30Z', now)).toBe(390);
+    expect(queueGameSecondsRemaining('2026-11-03T12:06:30Z', now)).toBe(390);
+  });
+
+  it('shows match-ready check-in only to the unconfirmed challenger', () => {
+    expect(needsQueueCheckIn('called', 'holder', 'next', null)).toBe(false);
+    expect(needsQueueCheckIn('called', 'next', 'next', null)).toBe(true);
+    expect(needsQueueCheckIn('called', 'next', 'next', '2026-11-03T12:00:00Z')).toBe(false);
+    expect(needsQueueCheckIn('playing', 'next', 'next', null)).toBe(false);
+    expect(needsQueueCheckIn('called', 'spectator', 'next', null)).toBe(false);
   });
 
   it('maps every queue state to the compact header status', () => {
