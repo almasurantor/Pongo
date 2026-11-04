@@ -165,18 +165,6 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
 
         {(backendError || actionError || heartbeatError || loadError) && <div role="alert" className={styles.error}>{backendError || actionError || heartbeatError || loadError}</div>}
 
-        <section data-queue-card="waiting-list" className={`${styles.card} ${styles.waitingListCard}`}>
-          <div className={styles.sectionHeading}><h2>Waiting List</h2><span className={styles.count}>{waiting.length} waiting · Live</span></div>
-          <div className={styles.waitingListBody}>
-            {incomingSwap && <div className={styles.swapNotice}><strong>Incoming swap request</strong><p>{nameOf(incomingSwap.requester_id)} wants to exchange #{incomingSwap.requester_position} with your #{incomingSwap.target_position} spot.</p><small>Expires in {formatTimer(Math.max(0, Math.ceil((new Date(incomingSwap.expires_at).getTime() - now) / 1000)))}</small><div className={styles.swapActions}><button disabled={Boolean(busy)} onClick={() => void action('swap-accept', 'beaver_queue_respond_swap_v1', { p_request: incomingSwap.id, p_action: 'accept' })}>Accept</button><button disabled={Boolean(busy)} onClick={() => void action('swap-decline', 'beaver_queue_respond_swap_v1', { p_request: incomingSwap.id, p_action: 'decline' })}>Decline</button></div></div>}
-            {outgoingSwap && <div className={styles.outgoingSwap}><strong>Swap requested from {nameOf(outgoingSwap.target_id)}</strong><span>{formatTimer(Math.max(0, Math.ceil((new Date(outgoingSwap.expires_at).getTime() - now) / 1000)))} remaining</span></div>}
-            {waiting.length ? <ol className={styles.waitList}>{waiting.map((player, index) => {
-              const canRequest = canRequestQueueSwap(me, player, Boolean(incomingSwap || outgoingSwap));
-              return <li key={player.user_id}><span className={styles.queueIndex}>{index + 1}</span><span className={styles.waitingName}><strong>{player.display_name}{player.user_id === currentUserId ? ' (You)' : ''}</strong><small>{player.user_id === currentUserId ? 'Your position' : player.queue_position < (me?.queue_position ?? 0) && me?.status === 'waiting' ? 'Ahead of you' : 'Waiting'}</small></span>{canRequest && <button className={styles.swapRequestButton} disabled={Boolean(busy)} onClick={() => void action(`swap-${player.user_id}`, 'beaver_queue_request_swap_v1', { p_target: player.user_id })}>Request Swap</button>}</li>;
-            })}</ol> : <p className={styles.compactEmpty}>No players waiting.</p>}
-          </div>
-        </section>
-
         <section data-queue-card="current-match" className={`${styles.card} ${styles.currentMatchCard}`}>
           <div className={styles.sectionHeading}><h2>Current Match</h2><span className={styles.pill}>{table?.phase === 'playing' ? 'GAME IN PROGRESS' : table?.phase === 'called' ? 'CHECK-IN' : 'READY'}</span></div>
           {loading && !table ? <p className={styles.muted}>Loading current table…</p> : king ? <>
@@ -195,6 +183,18 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
               {amPlaying && !isAfkTarget && (outcomeChoice ? <div className={styles.outcomeConfirm}><p>Confirm you {outcomeChoice}?</p><div><button className={outcomeChoice === 'won' ? styles.winButton : styles.lossButton} disabled={Boolean(busy)} onClick={() => void confirmOutcome()}>{busy ? 'Submitting…' : outcomeChoice === 'won' ? 'Confirm Win' : 'Confirm Loss'}</button><button className={styles.cancelButton} disabled={Boolean(busy)} onClick={() => setOutcomeChoice(null)}>Cancel</button></div></div> : <><div className={styles.outcomeActions}><button className={styles.winButton} disabled={Boolean(busy)} onClick={() => setOutcomeChoice('won')}>I Won</button><button className={styles.lossButton} disabled={Boolean(busy)} onClick={() => setOutcomeChoice('lost')}>I Lost</button></div>{!afkPending && <button className={styles.afkReportButton} disabled={Boolean(busy)} onClick={() => void action('afk-report', 'beaver_queue_report_afk_v1')}>{busy === 'afk-report' ? 'Reporting…' : 'Report AFK'}</button>}</>)}
             </div>}
           </> : <p className={styles.muted}>Table open. Join the queue to become the first holder.</p>}
+        </section>
+
+        <section data-queue-card="waiting-list" className={`${styles.card} ${styles.waitingListCard}`}>
+          <div className={styles.sectionHeading}><h2>Waiting List</h2><span className={styles.count}>{waiting.length} waiting · Live</span></div>
+          <div className={styles.waitingListBody}>
+            {incomingSwap && <div className={styles.swapNotice}><strong>Incoming swap request</strong><p>{nameOf(incomingSwap.requester_id)} wants to exchange #{incomingSwap.requester_position} with your #{incomingSwap.target_position} spot.</p><small>Expires in {formatTimer(Math.max(0, Math.ceil((new Date(incomingSwap.expires_at).getTime() - now) / 1000)))}</small><div className={styles.swapActions}><button disabled={Boolean(busy)} onClick={() => void action('swap-accept', 'beaver_queue_respond_swap_v1', { p_request: incomingSwap.id, p_action: 'accept' })}>Accept</button><button disabled={Boolean(busy)} onClick={() => void action('swap-decline', 'beaver_queue_respond_swap_v1', { p_request: incomingSwap.id, p_action: 'decline' })}>Decline</button></div></div>}
+            {outgoingSwap && <div className={styles.outgoingSwap}><strong>Swap requested from {nameOf(outgoingSwap.target_id)}</strong><span>{formatTimer(Math.max(0, Math.ceil((new Date(outgoingSwap.expires_at).getTime() - now) / 1000)))} remaining</span></div>}
+            {waiting.length ? <ol className={styles.waitList}>{waiting.map((player, index) => {
+              const canRequest = canRequestQueueSwap(me, player, Boolean(incomingSwap || outgoingSwap));
+              return <li key={player.user_id}><span className={styles.queueIndex}>{index + 1}</span><span className={styles.waitingName}><strong>{player.display_name}{player.user_id === currentUserId ? ' (You)' : ''}</strong><small>{player.user_id === currentUserId ? 'Your position' : player.queue_position < (me?.queue_position ?? 0) && me?.status === 'waiting' ? 'Ahead of you' : 'Waiting'}</small></span>{canRequest && <button className={styles.swapRequestButton} disabled={Boolean(busy)} onClick={() => void action(`swap-${player.user_id}`, 'beaver_queue_request_swap_v1', { p_target: player.user_id })}>Request Swap</button>}</li>;
+            })}</ol> : <p className={styles.compactEmpty}>No players waiting.</p>}
+          </div>
         </section>
 
         <section data-queue-card="recent-results" className={`${styles.card} ${styles.recentResultsCard}`}>

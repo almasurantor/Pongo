@@ -11,7 +11,13 @@ describe('queue page structure', () => {
     expect(source).toContain('data-queue-card="current-match"');
     expect(source).toContain('data-queue-card="waiting-list"');
     expect(source).toContain('data-queue-card="recent-results"');
-    expect(source.indexOf('data-queue-card="waiting-list"')).toBeLessThan(source.indexOf('data-queue-card="current-match"'));
+    const cardOrder = [
+      'data-queue-card="live-table"',
+      'data-queue-card="current-match"',
+      'data-queue-card="waiting-list"',
+      'data-queue-card="recent-results"',
+    ].map((card) => source.indexOf(card));
+    expect(cardOrder).toEqual([...cardOrder].sort((a, b) => a - b));
     expect(source).toContain('.limit(10)');
     expect(source).not.toContain('You joined the queue.');
     expect(source).not.toContain('You left the queue.');
