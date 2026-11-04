@@ -59,9 +59,10 @@ describe('live queue presentation rules', () => {
     expect(canReportQueueOutcome('playing', 'spectator', 'holder', 'challenger')).toBe(false);
     expect(canReportQueueOutcome('called', 'holder', 'holder', 'challenger')).toBe(false);
     const me = member('me', 'waiting', 3);
-    expect(canRequestQueueSwap(me, member('ahead', 'waiting', 2), false)).toBe(true);
-    expect(canRequestQueueSwap(me, member('behind', 'waiting', 4), false)).toBe(false);
-    expect(canRequestQueueSwap(me, member('ahead', 'waiting', 2), true)).toBe(false);
+    expect(canRequestQueueSwap(me, member('behind', 'waiting', 4), false)).toBe(true);
+    expect(canRequestQueueSwap(me, member('ahead', 'waiting', 2), false)).toBe(false);
+    expect(canRequestQueueSwap(me, member('me', 'waiting', 3), false)).toBe(false);
+    expect(canRequestQueueSwap(me, member('behind', 'waiting', 4), true)).toBe(false);
   });
 
   it('limits player activity to ten completed, score-free outcomes', () => {

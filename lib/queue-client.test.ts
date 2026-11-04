@@ -21,17 +21,18 @@ describe('queue client safety', () => {
     expect(shouldSendQueueHeartbeat('playing', 'interval', 3)).toBe(false);
   });
 
-  it('requires the repaired backend version and both RPC grants', () => {
-    const healthy = { version: '20261103_03', initialized: true, heartbeat_granted: true, join_granted: true, outcome_granted: true, swap_granted: true };
+  it('requires the repaired backend version and every RPC grant', () => {
+    const healthy = { version: '20261103_05', initialized: true, heartbeat_granted: true, join_granted: true, outcome_granted: true, swap_granted: true, afk_granted: true };
     expect(isQueueBackendHealthy(healthy)).toBe(true);
     expect(isQueueBackendHealthy({ ...healthy, version: '20261103_02' })).toBe(false);
     expect(isQueueBackendHealthy({ ...healthy, heartbeat_granted: false })).toBe(false);
     expect(isQueueBackendHealthy({ ...healthy, outcome_granted: false })).toBe(false);
     expect(isQueueBackendHealthy({ ...healthy, swap_granted: false })).toBe(false);
+    expect(isQueueBackendHealthy({ ...healthy, afk_granted: false })).toBe(false);
   });
 
   it('maps database failures to actionable messages without hiding the cause', () => {
-    expect(queueErrorMessage({ code: 'PGRST202', message: 'schema cache' })).toContain('20261103_03_queue_outcomes_swaps.sql');
+    expect(queueErrorMessage({ code: 'PGRST202', message: 'schema cache' })).toContain('20261103_05_queue_afk_timeouts.sql');
     expect(queueErrorMessage({ code: '42501', message: 'permission denied' })).toContain('RPC grants and RLS');
     expect(queueErrorMessage({ code: '23503', message: 'foreign key violation' })).toContain('profile');
     expect(queueErrorMessage({ code: '40P01', message: 'deadlock detected' })).toContain('try again');

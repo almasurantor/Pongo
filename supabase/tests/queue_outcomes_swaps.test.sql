@@ -1,4 +1,4 @@
--- Queue v3 lifecycle, outcome, deadline, swap, audit, and security coverage.
+-- Queue lifecycle, outcome, deadline, v4 forward-swap, audit, and security coverage.
 -- Run only against a disposable database after all migrations. Everything rolls back.
 BEGIN;
 
@@ -178,35 +178,46 @@ UPDATE public.beaver_queue_table SET phase='called',king_id='fc000000-0000-4000-
   updated_at=NOW() WHERE id=1;
 
 SET LOCAL ROLE authenticated;
--- E can ask C (ahead), but cannot ask itself or a player behind.
+-- A player behind cannot initiate a swap with someone ahead.
 SELECT set_config('request.jwt.claim.sub','fc000000-0000-4000-8000-000000000005',TRUE);
-SELECT public.beaver_queue_request_swap_v1('fc000000-0000-4000-8000-000000000003');
+DO $$
+BEGIN
+  PERFORM public.beaver_queue_request_swap_v1('fc000000-0000-4000-8000-000000000003');
+  RAISE EXCEPTION 'Expected reverse swap rejection';
+EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Expected reverse swap rejection' THEN RAISE; END IF;
+  IF SQLERRM NOT ILIKE '%behind you%' THEN RAISE; END IF;
+END;
+$$;
 DO $$
 BEGIN
   PERFORM public.beaver_queue_request_swap_v1('fc000000-0000-4000-8000-000000000005');
   RAISE EXCEPTION 'Expected self-swap rejection';
 EXCEPTION WHEN OTHERS THEN IF SQLERRM='Expected self-swap rejection' THEN RAISE; END IF; END;
 $$;
--- A conflicting request involving C is rejected.
+
+-- C is ahead and can offer E a swap; conflicting requests are rejected.
+SELECT set_config('request.jwt.claim.sub','fc000000-0000-4000-8000-000000000003',TRUE);
+SELECT public.beaver_queue_request_swap_v1('fc000000-0000-4000-8000-000000000005');
 SELECT set_config('request.jwt.claim.sub','fc000000-0000-4000-8000-000000000004',TRUE);
 DO $$
 BEGIN
-  PERFORM public.beaver_queue_request_swap_v1('fc000000-0000-4000-8000-000000000003');
+  PERFORM public.beaver_queue_request_swap_v1('fc000000-0000-4000-8000-000000000005');
   RAISE EXCEPTION 'Expected conflicting swap rejection';
 EXCEPTION WHEN OTHERS THEN
   IF SQLERRM='Expected conflicting swap rejection' THEN RAISE; END IF;
   IF SQLERRM NOT ILIKE '%pending swap%' THEN RAISE; END IF;
 END;
 $$;
--- Only target C accepts, atomically exchanging 103 and 105.
-SELECT set_config('request.jwt.claim.sub','fc000000-0000-4000-8000-000000000003',TRUE);
+-- Only target E accepts, atomically exchanging 103 and 105.
+SELECT set_config('request.jwt.claim.sub','fc000000-0000-4000-8000-000000000005',TRUE);
 SELECT public.beaver_queue_respond_swap_v1(
   (SELECT id FROM public.beaver_queue_swap_requests WHERE status='pending'),'accept'
 );
 RESET ROLE;
 SELECT pg_temp.assert_true(
-  (SELECT queue_position=103 FROM public.beaver_queue_members WHERE user_id='fc000000-0000-4000-8000-000000000005')
-  AND (SELECT queue_position=105 FROM public.beaver_queue_members WHERE user_id='fc000000-0000-4000-8000-000000000003')
+  (SELECT queue_position=105 FROM public.beaver_queue_members WHERE user_id='fc000000-0000-4000-8000-000000000003')
+  AND (SELECT queue_position=103 FROM public.beaver_queue_members WHERE user_id='fc000000-0000-4000-8000-000000000005')
   AND (SELECT COUNT(*)=COUNT(DISTINCT queue_position) FROM public.beaver_queue_members),
   'accepted swaps must exchange positions atomically without duplicates'
 );
@@ -214,13 +225,13 @@ SELECT pg_temp.assert_true(
 -- Decline and expiry preserve positions.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','fc000000-0000-4000-8000-000000000004',TRUE);
-SELECT public.beaver_queue_request_swap_v1('fc000000-0000-4000-8000-000000000005');
-SELECT set_config('request.jwt.claim.sub','fc000000-0000-4000-8000-000000000005',TRUE);
+SELECT public.beaver_queue_request_swap_v1('fc000000-0000-4000-8000-000000000003');
+SELECT set_config('request.jwt.claim.sub','fc000000-0000-4000-8000-000000000003',TRUE);
 SELECT public.beaver_queue_respond_swap_v1(
   (SELECT id FROM public.beaver_queue_swap_requests WHERE status='pending'),'decline'
 );
 SELECT set_config('request.jwt.claim.sub','fc000000-0000-4000-8000-000000000004',TRUE);
-SELECT public.beaver_queue_request_swap_v1('fc000000-0000-4000-8000-000000000005');
+SELECT public.beaver_queue_request_swap_v1('fc000000-0000-4000-8000-000000000003');
 RESET ROLE;
 UPDATE public.beaver_queue_swap_requests SET expires_at=NOW()-INTERVAL '1 second' WHERE status='pending';
 SET LOCAL ROLE service_role;
@@ -235,13 +246,13 @@ SELECT pg_temp.assert_true(
 
 -- Leaving cancels related pending requests.
 SET LOCAL ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub','fc000000-0000-4000-8000-000000000003',TRUE);
+SELECT set_config('request.jwt.claim.sub','fc000000-0000-4000-8000-000000000005',TRUE);
 SELECT public.beaver_queue_request_swap_v1('fc000000-0000-4000-8000-000000000004');
 SELECT public.beaver_queue_leave_v1();
 RESET ROLE;
 SELECT pg_temp.assert_true(
   NOT EXISTS(SELECT 1 FROM public.beaver_queue_swap_requests WHERE status='pending'
-    AND 'fc000000-0000-4000-8000-000000000003' IN(requester_id,target_id)),
+    AND 'fc000000-0000-4000-8000-000000000005' IN(requester_id,target_id)),
   'leaving the waiting list must cancel related swap requests'
 );
 
@@ -340,16 +351,16 @@ $$;
 DO $$
 BEGIN
   INSERT INTO public.beaver_queue_swap_requests(requester_id,target_id,requester_position,target_position)
-  VALUES('fc000000-0000-4000-8000-000000000004','fc000000-0000-4000-8000-000000000003',204,203);
+  VALUES('fc000000-0000-4000-8000-000000000003','fc000000-0000-4000-8000-000000000004',203,204);
   RAISE EXCEPTION 'Expected direct swap write rejection';
 EXCEPTION WHEN insufficient_privilege THEN NULL;
 END;
 $$;
 SELECT pg_temp.assert_true(
-  public.beaver_queue_health_v3() @> jsonb_build_object(
-    'version','20261103_03','initialized',TRUE,'outcome_granted',TRUE,'swap_granted',TRUE
+  public.beaver_queue_health_v4() @> jsonb_build_object(
+    'version','20261103_04','initialized',TRUE,'outcome_granted',TRUE,'swap_granted',TRUE
   ),
-  'health v3 must report migration version and action grants'
+  'health v4 must report migration version and action grants'
 );
 RESET ROLE;
 

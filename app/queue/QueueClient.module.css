@@ -394,6 +394,28 @@
 
 .callBanner strong.urgent { color: #dc2626; }
 
+.soloTimer,
+.afkStatus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  border-radius: .85rem;
+  padding: .65rem .8rem;
+  color: #64748b;
+  background: #f8fafc;
+  font-size: .76rem;
+  font-weight: 750;
+}
+
+.soloTimer strong,
+.afkStatus strong {
+  flex-shrink: 0;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+  font-size: .9rem;
+}
+
 .gamePanel {
   display: grid;
   gap: .75rem;
@@ -428,6 +450,72 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: .7rem;
 }
+
+.outcomeConfirm {
+  display: grid;
+  gap: .7rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 1rem;
+  padding: .85rem;
+  background: #eff6ff;
+}
+
+.outcomeConfirm p {
+  margin: 0;
+  color: #1e3a8a;
+  font-size: .92rem;
+  font-weight: 900;
+}
+
+.outcomeConfirm > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, .7fr);
+  gap: .65rem;
+}
+
+.cancelButton,
+.afkReportButton,
+.afkPrompt button {
+  border: 1px solid #cbd5e1;
+  border-radius: .8rem;
+  padding: .65rem .85rem;
+  color: #475569;
+  background: #fff;
+  font-size: .78rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.afkReportButton {
+  justify-self: end;
+  padding: .45rem .65rem;
+  color: #b45309;
+  border-color: #fcd34d;
+  background: #fffbeb;
+  font-size: .68rem;
+}
+
+.cancelButton:disabled,
+.afkReportButton:disabled,
+.afkPrompt button:disabled { cursor: not-allowed; opacity: .5; }
+
+.afkPrompt {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .65rem .8rem;
+  border: 2px solid #fdba74;
+  border-radius: 1rem;
+  padding: .85rem;
+  color: #7c2d12;
+  background: #fff7ed;
+}
+
+.afkPrompt > div { display: grid; gap: .2rem; }
+.afkPrompt > div > span { font-size: .75rem; }
+.afkPrompt > strong { font-variant-numeric: tabular-nums; }
+.afkPrompt > strong.urgent { color: #dc2626; }
+.afkPrompt button { grid-column: 1 / -1; color: #fff; border-color: #ea580c; background: #ea580c; }
 
 .winButton,
 .lossButton {
@@ -580,7 +668,8 @@
 
 .waitList {
   display: grid;
-  max-height: min(20rem, 42dvh);
+  min-height: 8rem;
+  max-height: min(30rem, 55dvh);
   gap: .6rem;
   margin: 0;
   overflow-y: auto;
@@ -619,7 +708,33 @@
   font-weight: 900;
 }
 
-.activityCard { min-height: 0; }
+.waitingListCard {
+  min-height: 18rem;
+  border-color: #93c5fd;
+  padding: clamp(1.25rem, 3vw, 1.75rem);
+  box-shadow: 0 18px 40px rgba(37, 99, 235, .12);
+}
+
+.waitingListCard .sectionHeading h2 { font-size: 1.45rem; }
+
+.waitingListBody {
+  display: grid;
+  min-height: 0;
+  gap: .85rem;
+}
+
+.recentResultsCard {
+  gap: .65rem;
+  border-width: 1px;
+  padding: 1rem 1.15rem;
+  background: #f8fafc;
+  box-shadow: none;
+}
+
+.recentResultsCard .sectionHeading h2 {
+  color: #475569;
+  font-size: 1rem;
+}
 
 .activityScroll {
   display: grid;
@@ -740,18 +855,31 @@
   justify-content: space-between;
   gap: .75rem;
   border-bottom: 1px solid #e5e7eb;
-  padding: .75rem 0;
+  padding: .55rem 0;
   color: #111827;
   font-size: .88rem;
 }
 .resultRow:last-child { border-bottom: 0; }
 .finalScore { flex-shrink: 0; color: #2563eb; font-size: 1.25rem; font-variant-numeric: tabular-nums; font-weight: 900; }
-.resultList { display: grid; }
+.resultList {
+  display: grid;
+  max-height: 14rem;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding-right: .25rem;
+  scrollbar-color: rgba(100, 116, 139, .3) transparent;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
 
-.error,
-.success { border-radius: 1rem; padding: .85rem 1rem; font-size: .85rem; font-weight: 700; line-height: 1.45; }
+.resultList:focus-visible {
+  border-radius: .5rem;
+  outline: 3px solid rgba(37, 99, 235, .2);
+  outline-offset: 2px;
+}
+
+.error { border-radius: 1rem; padding: .85rem 1rem; font-size: .85rem; font-weight: 700; line-height: 1.45; }
 .error { border: 2px solid #fecaca; color: #991b1b; background: #fef2f2; }
-.success { border: 2px solid #bbf7d0; color: #166534; background: #f0fdf4; }
 .disclaimer { margin: 0; color: #9ca3af; font-size: .72rem; line-height: 1.5; text-align: center; }
 
 :global(.dark) .page {
@@ -800,6 +928,10 @@
   box-shadow: 0 10px 25px rgba(0, 0, 0, .25);
 }
 
+:global(.dark) .waitingListCard { border-color: #1e40af; }
+:global(.dark) .recentResultsCard { border-color: #334155; background: #0f172a; }
+:global(.dark) .recentResultsCard .sectionHeading h2 { color: #cbd5e1; }
+
 :global(.dark) .playerCard,
 :global(.dark) .waitList li {
   border-color: #334155;
@@ -819,6 +951,14 @@
 :global(.dark) .activitySection + .activitySection { border-color: #334155; }
 :global(.dark) .gameTimer,
 :global(.dark) .outgoingSwap { color: #bfdbfe; background: #172554; }
+:global(.dark) .soloTimer,
+:global(.dark) .afkStatus { color: #cbd5e1; background: #0b1120; }
+:global(.dark) .soloTimer strong,
+:global(.dark) .afkStatus strong { color: #e2e8f0; }
+:global(.dark) .outcomeConfirm { border-color: #1e40af; background: #172554; }
+:global(.dark) .outcomeConfirm p { color: #bfdbfe; }
+:global(.dark) .cancelButton { border-color: #475569; color: #e2e8f0; background: #0b1120; }
+:global(.dark) .afkPrompt { border-color: #9a3412; color: #fed7aa; background: #431407; }
 :global(.dark) .lossButton { border-color: #7f1d1d; color: #fca5a5; background: #0b1120; }
 :global(.dark) .activityHeading h3 { color: #f8fafc; }
 :global(.dark) .activityHeading span,
@@ -917,17 +1057,9 @@
     align-content: start;
   }
 
-  .resultList {
-    max-height: min(18rem, 42dvh);
-    overflow-y: auto;
-    padding-right: .25rem;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(37, 99, 235, .35) transparent;
-    overscroll-behavior-y: contain;
-    -webkit-overflow-scrolling: touch;
-  }
+  .resultList { max-height: min(14rem, 35dvh); }
 
-  .activityScroll { max-height: min(31rem, 54dvh); }
+  .waitingListCard { min-height: 16rem; }
 
   .waitList li {
     gap: .55rem;

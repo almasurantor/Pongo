@@ -53,7 +53,7 @@ export function canRequestQueueSwap(
   return me?.status === 'waiting'
     && target.status === 'waiting'
     && target.user_id !== me.user_id
-    && target.queue_position < me.queue_position
+    && target.queue_position > me.queue_position
     && !hasPendingRequest;
 }
 

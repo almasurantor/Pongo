@@ -138,7 +138,7 @@ export default function Navbar() {
       }
     };
     const start = async () => {
-      const health = await supabase.rpc('beaver_queue_health_v3');
+      const health = await supabase.rpc('beaver_queue_health_v5');
       backendReady = !health.error && isQueueBackendHealthy(health.data);
       await syncQueue('initial');
     };

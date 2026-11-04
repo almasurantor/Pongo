@@ -46,6 +46,8 @@ For an existing Pongo project:
 19. Run `supabase/migrations/20261103_01_coordinated_auth_rank_queue.sql` to remove placement ranks, add queue liveness cleanup, preserve K=40/500 starting ELO, and install challenge/match query indexes.
 20. Run `supabase/migrations/20261103_02_queue_production_repair.sql` to repair the production queue RPCs, re-assert grants/RLS/Realtime publication entries, and install the queue backend health check. Deploying application code does not run this SQL automatically.
 21. Manually run `supabase/migrations/20261103_03_queue_outcomes_swaps.sql` to install outcome-only queue games, the 10-minute abandoned-game deadline, mutual position swaps, v3 health checks, and audited admin history corrections. Deploying or pushing application code does not run this migration.
+22. Manually run `supabase/migrations/20261103_04_queue_forward_swaps.sql` to enforce forward-only swap offers: only a waiting player ahead in line can request a swap with someone behind them. It cancels still-pending requests created under the previous direction and installs the v4 health check.
+23. Manually run `supabase/migrations/20261103_05_queue_afk_timeouts.sql` to install server-authoritative 60-second solo and in-game AFK deadlines, participant presence confirmation, abandoned-game auditing, and the v5 health check.
 
 The expand migration is retry-safe, keeps the legacy columns/statuses during rollout, creates audited opening-balance events, and bootstraps `almasurantor` using profile UUID `494357c8-607e-4605-980b-19260c8a2cfc` as the first administrator. The old `migration_single_reporter_match_flow.sql` is superseded and must not be applied.
 
@@ -63,7 +65,7 @@ For a brand-new project, provision the legacy base schema from `supabase/schema.
 
 Call `expire_mobile_ranking_items_v2()` from a trusted scheduled worker or Supabase Edge Function every five minutes. It expires stale challenges, accepted matches, and their pending cancellation requests, and escalates unanswered result disputes to administrators without changing ratings or trust. The live project does not currently have `pg_cron`, so scheduling is intentionally external.
 
-Call `beaver_queue_advance_expired_v1()` from a service-role worker every 5–15 seconds. This browser-independent path removes a called player after 60 seconds, abandons unfinished games after 10 minutes, expires invalid swap requests, and immediately advances the queue. `supabase/functions/queue-tick.sql` contains the worker query. Never expose the service-role key to the browser. Active queue members heartbeat every 30 seconds; Realtime changes only refetch state and never trigger a heartbeat.
+Call `beaver_queue_advance_expired_v1()` from a service-role worker every 5–15 seconds. This browser-independent path removes a called or solo player after 60 seconds, resolves expired in-game AFK checks without recording a win or loss, abandons unfinished games after 10 minutes, expires invalid swap requests, and immediately advances the queue. `supabase/functions/queue-tick.sql` contains the worker query. Never expose the service-role key to the browser. Active queue members heartbeat every 30 seconds; Realtime changes only refetch state and never trigger a heartbeat.
 
 Weekly records do not need a reset job. `weekly_player_stats` stores one row per player and New York club week.
 
@@ -81,6 +83,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/phase8_security_reliab
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/live_queue.test.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/queue_production_repair.test.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/queue_outcomes_swaps.test.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/queue_afk_timeouts.test.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/profile_settings_queue_alerts.test.sql
 ```
 
