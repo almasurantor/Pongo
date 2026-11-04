@@ -289,7 +289,24 @@
   box-shadow: 0 10px 25px rgba(17, 24, 39, .06);
 }
 
-.currentMatchCard { gap: .8rem; }
+.currentMatchCard {
+  gap: .8rem;
+  border-color: #fdba74;
+  background: linear-gradient(145deg, #fff7ed 0%, #fff 58%, #eff6ff 100%);
+  box-shadow: 0 16px 36px rgba(234, 88, 12, .11);
+}
+
+.currentMatchCard .sectionHeading {
+  border-bottom: 1px solid #fed7aa;
+  padding-bottom: .75rem;
+}
+
+.currentMatchCard .sectionHeading h2 { color: #9a3412; }
+
+.currentMatchCard .pill {
+  color: #9a3412;
+  background: #ffedd5;
+}
 
 .sectionHeading {
   display: flex;
@@ -927,6 +944,16 @@
   background: #111827;
   box-shadow: 0 10px 25px rgba(0, 0, 0, .25);
 }
+
+:global(.dark) .currentMatchCard {
+  border-color: #9a3412;
+  background: linear-gradient(145deg, #2b160d 0%, #111827 58%, #172554 100%);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, .32);
+}
+
+:global(.dark) .currentMatchCard .sectionHeading { border-color: #7c2d12; }
+:global(.dark) .currentMatchCard .sectionHeading h2 { color: #fed7aa; }
+:global(.dark) .currentMatchCard .pill { color: #fed7aa; background: #7c2d12; }
 
 :global(.dark) .waitingListCard { border-color: #1e40af; }
 :global(.dark) .recentResultsCard { border-color: #334155; background: #0f172a; }
