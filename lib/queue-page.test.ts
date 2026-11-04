@@ -25,7 +25,10 @@ describe('queue page structure', () => {
     expect(source).not.toContain('styles.statusLabel');
     expect(source).toContain('styles.queuedState');
     expect(source).toContain('styles.playingState');
-    expect(source).toContain('In queue · #');
+    expect(source).toContain('in queue`');
+    expect(source).not.toContain('60s');
+    expect(source).not.toContain('waiting · Live');
+    expect(source).toContain('activePosition(player.user_id)');
   });
 
   it('uses outcome actions without numerical score inputs or a check-in overlay', () => {

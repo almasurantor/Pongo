@@ -274,34 +274,32 @@
 }
 
 .queueState {
-  display: flex;
-  width: 100%;
-  min-height: 3rem;
+  display: inline-flex;
+  width: fit-content;
+  min-height: 0;
   align-items: center;
   justify-content: center;
-  border: 2px solid transparent;
-  border-radius: .85rem;
-  padding: .75rem 1rem;
-  font-size: .86rem;
+  border: 0;
+  border-radius: 999px;
+  padding: .45rem .7rem;
+  font-size: .75rem;
   font-weight: 900;
   letter-spacing: .025em;
 }
 
 .queuedState {
-  border-color: #b8c9e5;
   color: var(--queue-blue);
   background: var(--queue-support-surface);
 }
 
 .playingState {
-  border-color: rgba(37, 99, 235, .28);
   color: #fff;
   background: var(--queue-blue);
 }
 
 .statRow {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: .75rem;
   margin-top: .8rem;
   padding-top: .75rem;
@@ -329,8 +327,9 @@
 }
 
 .currentMatchCard {
-  gap: 1rem;
+  gap: .75rem;
   border-color: rgba(20, 43, 83, .08);
+  padding: 1rem;
   color: #fff;
   background: var(--queue-match);
   box-shadow: none;
@@ -385,7 +384,7 @@
   grid-template-columns: minmax(0, 1fr) 2rem minmax(0, 1fr);
   align-items: center;
   gap: .65rem;
-  padding: .25rem .35rem;
+  padding: 0 .35rem;
 }
 
 .matchPlayer {
@@ -394,13 +393,14 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: .45rem;
+  gap: .3rem;
   overflow-wrap: anywhere;
-  padding: .25rem;
+  padding: .1rem;
   text-align: center;
 }
 
-.matchPlayer strong {
+.matchPlayer strong,
+.playerName strong {
   max-width: 100%;
   overflow: hidden;
   color: #fff;
@@ -410,13 +410,37 @@
   white-space: nowrap;
 }
 
+.playerName,
+.waitingName {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+}
+
+.playerName { max-width: 100%; }
+
+.youTag {
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: .18rem .35rem;
+  color: var(--queue-blue);
+  background: var(--queue-live);
+  font-size: .52rem;
+  font-weight: 900;
+  letter-spacing: .04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
 .seatLabel { color: var(--queue-match-secondary); font-size: .6rem; font-weight: 900; letter-spacing: .08em; }
 
 .avatar,
 .avatarAlt {
   display: grid;
-  width: 4.25rem;
-  height: 4.25rem;
+  width: 3.6rem;
+  height: 3.6rem;
   place-items: center;
   border: 0;
   border-radius: 999px;
@@ -487,9 +511,9 @@
 
 .gamePanel {
   display: grid;
-  gap: .75rem;
+  gap: .6rem;
   border-top: 1px solid var(--queue-match-divider);
-  padding-top: .9rem;
+  padding-top: .7rem;
 }
 
 .gameTimer {
@@ -498,7 +522,7 @@
   justify-content: space-between;
   gap: .75rem;
   border-radius: .9rem;
-  padding: .7rem .85rem;
+  padding: .55rem .75rem;
   color: var(--queue-match-secondary);
   background: var(--queue-match-inner);
   font-size: .8rem;
@@ -730,7 +754,7 @@
 .leaveButton {
   width: auto;
   min-height: 2.5rem;
-  border-color: rgba(20, 43, 83, .22);
+  border: 0;
   justify-self: start;
   padding: .55rem .8rem;
   color: var(--queue-navy);
@@ -769,7 +793,7 @@
 .waitList small { color: var(--queue-blue); font-size: .58rem; font-weight: 900; letter-spacing: .06em; }
 .queueIndex {
   display: grid;
-  width: 2rem;
+  min-width: 2.25rem;
   height: 2rem;
   flex-shrink: 0;
   place-items: center;
@@ -791,12 +815,23 @@
 .waitingListCard .sectionHeading h2 { font-size: 1.45rem; }
 .waitingListCard .sectionHeading h2 { color: var(--queue-navy); }
 .waitingListCard .count { color: var(--queue-secondary-text); }
+.waitingListCard .sectionHeading {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+}
+
+.waitingListCard .sectionHeading h2 { width: 100%; }
 
 .waitingListBody {
   display: grid;
   align-content: start;
+  justify-items: center;
   gap: .85rem;
 }
+
+.waitingListBody .waitList,
+.waitingListBody .compactEmpty { width: min(100%, 34rem); }
 
 .recentResultsCard {
   gap: .65rem;
@@ -862,11 +897,7 @@
   font-weight: 750;
 }
 
-.waitingName {
-  display: grid;
-  min-width: 0;
-  gap: .15rem;
-}
+.waitingName { justify-content: flex-start; }
 
 .waitingName strong {
   overflow: hidden;
@@ -1006,8 +1037,8 @@
 :global(.dark) .heroTagline { color: var(--queue-live-muted); }
 :global(.dark) .queueControls,
 :global(.dark) .statRow { border-color: var(--queue-live-border); }
-:global(.dark) .queuedState { border-color: #29469d; color: #dbe7ff; background: #1b2b52; }
-:global(.dark) .playingState { border-color: #456dd4; color: #fff; background: #29469d; }
+:global(.dark) .queuedState { color: #dbe7ff; background: #1b2b52; }
+:global(.dark) .playingState { color: #fff; background: #29469d; }
 :global(.dark) .statRow span { color: var(--queue-live-muted); }
 :global(.dark) .muted,
 :global(.dark) .mutedSmall,
@@ -1055,7 +1086,6 @@
 :global(.dark) .positionCard strong { color: #60a5fa; }
 :global(.dark) .secondaryButton { border-color: #475569; color: #e2e8f0; background: #0b1120; }
 :global(.dark) .leaveButton {
-  border-color: #29469d;
   color: #dbe7ff;
   background: #1b2b52;
 }
@@ -1104,7 +1134,7 @@
   .matchPlayer strong { font-size: .78rem; }
   .seatLabel { font-size: .52rem; }
   .avatar,
-  .avatarAlt { width: 3.75rem; height: 3.75rem; font-size: .65rem; }
+  .avatarAlt { width: 3.25rem; height: 3.25rem; font-size: .6rem; }
   .statRow { gap: .35rem; }
   .statRow span { font-size: .62rem; }
 }
@@ -1142,9 +1172,9 @@
     padding-left: 0;
   }
 
-  .queueControls .primaryButton { grid-column: 1 / -1; }
-  .queueControls .playingState { grid-column: 1 / -1; }
+  .queueState { justify-self: start; }
 
+  .queueControls .primaryButton { grid-column: 1 / -1; }
   .queueControls .leaveButton {
     justify-self: end;
   }

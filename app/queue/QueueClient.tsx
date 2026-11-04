@@ -123,6 +123,7 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
     .filter((member) => isActiveQueueStatus(member.status))
     .sort((a, b) => a.queue_position - b.queue_position || a.user_id.localeCompare(b.user_id));
   const myActiveIndex = activeMembers.findIndex((member) => member.user_id === currentUserId);
+  const activePosition = (userId: string) => activeMembers.findIndex((member) => member.user_id === userId) + 1;
   const active = isActiveQueueStatus(me?.status);
   const king = table?.king_id ?? null;
   const challenger = table?.challenger_id ?? null;
@@ -153,11 +154,11 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
         <section data-queue-card="live-table" className={`${styles.hero} ${styles.queueHeaderCard}`}>
           <div className={styles.heroMain}>
             <div><h1>Live table <span>queue.</span></h1><p className={styles.heroTagline}>Winner stays. Next plays.</p></div>
-            <div className={styles.statRow}><div><strong>{activeMembers.length}</strong><span>Active</span></div><div><strong>{waiting.length}</strong><span>Waiting</span></div><div><strong>{table?.phase === 'called' ? formatTimer(callSeconds) : '60s'}</strong><span>Check-in</span></div></div>
+            <div className={styles.statRow}><div><strong>{activeMembers.length}</strong><span>At table / active</span></div><div><strong>{waiting.length}</strong><span>Waiting</span></div></div>
           </div>
           <div className={styles.queueControls}>
             {!active && <button className={styles.primaryButton} disabled={Boolean(busy)} onClick={() => void action('join', 'beaver_queue_join_v1')}>{busy === 'join' ? 'Joining…' : 'Join Queue'}</button>}
-            {active && <span role="status" className={`${styles.queueState} ${amPlaying ? styles.playingState : styles.queuedState}`}>{amPlaying ? 'Playing' : `In queue · #${Math.max(1, myActiveIndex + 1)}`}</span>}
+            {active && <span role="status" className={`${styles.queueState} ${amPlaying ? styles.playingState : styles.queuedState}`}>{amPlaying ? 'Playing' : `#${Math.max(1, myActiveIndex + 1)} in queue`}</span>}
             {active && !amPlaying && <button className={`${styles.secondaryButton} ${styles.leaveButton}`} disabled={Boolean(busy)} onClick={() => void action('leave', 'beaver_queue_leave_v1')}>{busy === 'leave' ? 'Leaving…' : 'Leave Queue'}</button>}
           </div>
         </section>
@@ -165,18 +166,18 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
         {(backendError || actionError || heartbeatError || loadError) && <div role="alert" className={styles.error}>{backendError || actionError || heartbeatError || loadError}</div>}
 
         <section data-queue-card="current-match" className={`${styles.card} ${styles.currentMatchCard}`}>
-          <div className={styles.sectionHeading}><h2>Current Match</h2><span className={styles.pill}>{table?.phase === 'playing' ? 'GAME IN PROGRESS' : table?.phase === 'called' ? 'CHECK-IN' : 'READY'}</span></div>
+          <div className={styles.sectionHeading}><h2>Current Match</h2><span className={styles.pill}>{table?.phase === 'playing' ? 'PLAYING' : table?.phase === 'called' ? 'CHECK-IN' : 'READY'}</span></div>
           {loading && !table ? <p className={styles.muted}>Loading current table…</p> : king ? <>
             <div className={styles.tableMatch}>
-              <div className={styles.matchPlayer}><div aria-hidden="true" className={styles.avatar}><span>★★★</span></div><strong>{nameOf(king)}</strong><div className={styles.seatLabel}>{king === currentUserId ? 'You · Holder' : 'Holder'}</div></div>
+              <div className={styles.matchPlayer}><div aria-hidden="true" className={styles.avatar}><span>★★★</span></div><div className={styles.playerName}><strong>{nameOf(king)}</strong>{king === currentUserId && <span className={styles.youTag}>You</span>}</div><div className={styles.seatLabel}>Holder</div></div>
               <div className={styles.vs}>VS</div>
-              <div className={styles.matchPlayer}><div aria-hidden="true" className={styles.avatarAlt}><span>★★★</span></div><strong>{challenger ? nameOf(challenger) : 'Waiting…'}</strong><div className={styles.seatLabel}>{challenger ? (challenger === currentUserId ? 'You · Opponent' : 'Opponent') : 'Next player'}</div></div>
+              <div className={styles.matchPlayer}><div aria-hidden="true" className={styles.avatarAlt}><span>★★★</span></div><div className={styles.playerName}><strong>{challenger ? nameOf(challenger) : 'Waiting…'}</strong>{challenger === currentUserId && <span className={styles.youTag}>You</span>}</div><div className={styles.seatLabel}>{challenger ? 'Opponent' : 'Next player'}</div></div>
             </div>
             {table?.phase === 'idle' && !challenger && table.solo_expires_at && <div className={styles.soloTimer}><span>Waiting for an opponent</span><strong>{formatTimer(soloSeconds)}</strong></div>}
             {table?.phase === 'called' && <div className={styles.callBanner}><span>{isCalled ? "You're up — check in now" : `Waiting for ${nameOf(challenger)}`}</span><strong className={callSeconds <= 15 ? styles.urgent : ''}>{formatTimer(callSeconds)}</strong></div>}
             {isCalled && <button className={styles.primaryButton} disabled={Boolean(busy) || callSeconds === 0} onClick={() => void action('confirm', 'beaver_queue_confirm_v1')}>{busy === 'confirm' ? 'Checking in…' : 'I’m Here'}</button>}
             {table?.phase === 'playing' && <div className={styles.gamePanel}>
-              <div className={styles.gameTimer}><span>Game time remaining</span><strong className={gameSeconds <= 60 ? styles.urgent : ''}>{formatTimer(gameSeconds)}</strong></div>
+              <div className={styles.gameTimer}><span>Time remaining</span><strong className={gameSeconds <= 60 ? styles.urgent : ''}>{formatTimer(gameSeconds)}</strong></div>
               {isAfkTarget && <div className={styles.afkPrompt}><div><strong>Are you here?</strong><span>Your opponent reported you as AFK.</span></div><strong className={afkSeconds <= 15 ? styles.urgent : ''}>{formatTimer(afkSeconds)}</strong><button disabled={Boolean(busy) || afkSeconds === 0} onClick={() => void action('afk-present', 'beaver_queue_confirm_presence_v1')}>{busy === 'afk-present' ? 'Responding…' : 'I’m Here'}</button></div>}
               {isAfkReporter && <div className={styles.afkStatus}><span>Waiting for {nameOf(table?.afk_target_id ?? null)} to respond</span><strong>{formatTimer(afkSeconds)}</strong></div>}
               {amPlaying && !isAfkTarget && (outcomeChoice ? <div className={styles.outcomeConfirm}><p>Confirm you {outcomeChoice}?</p><div><button className={outcomeChoice === 'won' ? styles.winButton : styles.lossButton} disabled={Boolean(busy)} onClick={() => void confirmOutcome()}>{busy ? 'Submitting…' : outcomeChoice === 'won' ? 'Confirm Win' : 'Confirm Loss'}</button><button className={styles.cancelButton} disabled={Boolean(busy)} onClick={() => setOutcomeChoice(null)}>Cancel</button></div></div> : <><div className={styles.outcomeActions}><button className={styles.winButton} disabled={Boolean(busy)} onClick={() => setOutcomeChoice('won')}>I Won</button><button className={styles.lossButton} disabled={Boolean(busy)} onClick={() => setOutcomeChoice('lost')}>I Lost</button></div>{!afkPending && <button className={styles.afkReportButton} disabled={Boolean(busy)} onClick={() => void action('afk-report', 'beaver_queue_report_afk_v1')}>{busy === 'afk-report' ? 'Reporting…' : 'Report AFK'}</button>}</>)}
@@ -185,13 +186,13 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
         </section>
 
         <section data-queue-card="waiting-list" className={`${styles.card} ${styles.waitingListCard}`}>
-          <div className={styles.sectionHeading}><h2>Waiting List</h2><span className={styles.count}>{waiting.length} waiting · Live</span></div>
+          <div className={styles.sectionHeading}><h2>Waiting List</h2></div>
           <div className={styles.waitingListBody}>
-            {incomingSwap && <div className={styles.swapNotice}><strong>Incoming swap request</strong><p>{nameOf(incomingSwap.requester_id)} wants to exchange #{incomingSwap.requester_position} with your #{incomingSwap.target_position} spot.</p><small>Expires in {formatTimer(Math.max(0, Math.ceil((new Date(incomingSwap.expires_at).getTime() - now) / 1000)))}</small><div className={styles.swapActions}><button disabled={Boolean(busy)} onClick={() => void action('swap-accept', 'beaver_queue_respond_swap_v1', { p_request: incomingSwap.id, p_action: 'accept' })}>Accept</button><button disabled={Boolean(busy)} onClick={() => void action('swap-decline', 'beaver_queue_respond_swap_v1', { p_request: incomingSwap.id, p_action: 'decline' })}>Decline</button></div></div>}
+            {incomingSwap && <div className={styles.swapNotice}><strong>Incoming swap request</strong><p>{nameOf(incomingSwap.requester_id)} wants to exchange #{activePosition(incomingSwap.requester_id)} with your #{activePosition(incomingSwap.target_id)} spot.</p><small>Expires in {formatTimer(Math.max(0, Math.ceil((new Date(incomingSwap.expires_at).getTime() - now) / 1000)))}</small><div className={styles.swapActions}><button disabled={Boolean(busy)} onClick={() => void action('swap-accept', 'beaver_queue_respond_swap_v1', { p_request: incomingSwap.id, p_action: 'accept' })}>Accept</button><button disabled={Boolean(busy)} onClick={() => void action('swap-decline', 'beaver_queue_respond_swap_v1', { p_request: incomingSwap.id, p_action: 'decline' })}>Decline</button></div></div>}
             {outgoingSwap && <div className={styles.outgoingSwap}><strong>Swap requested from {nameOf(outgoingSwap.target_id)}</strong><span>{formatTimer(Math.max(0, Math.ceil((new Date(outgoingSwap.expires_at).getTime() - now) / 1000)))} remaining</span></div>}
-            {waiting.length ? <ol className={styles.waitList}>{waiting.map((player, index) => {
+            {waiting.length ? <ol className={styles.waitList}>{waiting.map((player) => {
               const canRequest = canRequestQueueSwap(me, player, Boolean(incomingSwap || outgoingSwap));
-              return <li key={player.user_id}><span className={styles.queueIndex}>{index + 1}</span><span className={styles.waitingName}><strong>{player.display_name}{player.user_id === currentUserId ? ' (You)' : ''}</strong><small>{player.user_id === currentUserId ? 'Your position' : player.queue_position < (me?.queue_position ?? 0) && me?.status === 'waiting' ? 'Ahead of you' : 'Waiting'}</small></span>{canRequest && <button className={styles.swapRequestButton} disabled={Boolean(busy)} onClick={() => void action(`swap-${player.user_id}`, 'beaver_queue_request_swap_v1', { p_target: player.user_id })}>Request Swap</button>}</li>;
+              return <li key={player.user_id}><span className={styles.queueIndex}>#{activePosition(player.user_id)}</span><span className={styles.waitingName}><strong>{player.display_name}</strong>{player.user_id === currentUserId && <span className={styles.youTag}>You</span>}</span>{canRequest && <button className={styles.swapRequestButton} disabled={Boolean(busy)} onClick={() => void action(`swap-${player.user_id}`, 'beaver_queue_request_swap_v1', { p_target: player.user_id })}>Request Swap</button>}</li>;
             })}</ol> : <p className={styles.compactEmpty}>No players waiting.</p>}
           </div>
         </section>
