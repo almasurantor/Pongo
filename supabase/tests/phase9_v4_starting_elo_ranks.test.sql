@@ -9,24 +9,25 @@ END;
 $$;
 
 SELECT pg_temp.assert_true(
-  (SELECT starting_elo = 500 AND k_factor = 40 FROM public.ranking_config WHERE id),
-  'new players must use 500 starting ELO while weighted ELO keeps K=40'
+  (SELECT starting_elo=50 AND k_factor=70 AND win_k_factor=70 AND loss_k_factor=40
+   FROM public.ranking_config WHERE id),
+  'new players must use 50 starting ELO with asymmetric K factors'
 );
 
 SELECT pg_temp.assert_true(
-  public.rank_tier_name_v3(500) = 'Iron'
-  AND public.rank_tier_name_v3(649) = 'Iron'
-  AND public.rank_tier_name_v3(650) = 'Bronze'
-  AND public.rank_tier_name_v3(800) = 'Silver'
-  AND public.rank_tier_name_v3(950) = 'Gold'
-  AND public.rank_tier_name_v3(1100) = 'Platinum'
-  AND public.rank_tier_name_v3(1250) = 'Diamond'
-  AND public.rank_tier_name_v3(1400) = 'Legend',
+  public.rank_tier_name_v3(0) = 'Iron'
+  AND public.rank_tier_name_v3(99) = 'Iron'
+  AND public.rank_tier_name_v3(100) = 'Bronze'
+  AND public.rank_tier_name_v3(200) = 'Silver'
+  AND public.rank_tier_name_v3(325) = 'Gold'
+  AND public.rank_tier_name_v3(475) = 'Platinum'
+  AND public.rank_tier_name_v3(650) = 'Diamond'
+  AND public.rank_tier_name_v3(850) = 'Legend',
   'V4 competitive tier floors must be inclusive'
 );
 
 SELECT pg_temp.assert_true(
-  public.get_rank_progress_v3(500, 0) @> jsonb_build_object(
+  public.get_rank_progress_v3(50, 0) @> jsonb_build_object(
     'tier', 'Unranked', 'next_tier', NULL, 'progress_percent', 0,
     'is_provisional', FALSE, 'placement_games_remaining', 0
   ),
@@ -42,9 +43,9 @@ VALUES(
 );
 
 SELECT pg_temp.assert_true(
-  (SELECT current_elo = 500 AND highest_elo = 500
+  (SELECT current_elo = 50 AND highest_elo = 50
    FROM public.profiles WHERE id = 'f9000000-0000-0000-0000-000000000001'),
-  'the auth signup trigger must create a 500-ELO profile'
+  'the auth signup trigger must create a 50-ELO profile'
 );
 
 ROLLBACK;

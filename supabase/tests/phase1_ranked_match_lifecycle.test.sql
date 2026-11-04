@@ -76,7 +76,7 @@ SELECT pg_temp.assert_true(
   'mutually approved cancellation should cancel the match'
 );
 SELECT pg_temp.assert_true(
-  (SELECT current_elo=500 AND total_wins=0 AND total_losses=0 FROM public.profiles WHERE id='f1000000-0000-0000-0000-000000000001'),
+  (SELECT current_elo=50 AND total_wins=0 AND total_losses=0 FROM public.profiles WHERE id='f1000000-0000-0000-0000-000000000001'),
   'cancellation must not change ratings or records'
 );
 
@@ -105,9 +105,10 @@ SELECT pg_temp.assert_true(
   'finalization must create exactly two rating events'
 );
 SELECT pg_temp.assert_true(
-  (SELECT player_one_elo_change + player_two_elo_change = 0 FROM public.matches
+  (SELECT player_one_elo_change=35 AND player_two_elo_change=-20
+    AND player_one_elo_change+player_two_elo_change=15 FROM public.matches
    WHERE status='confirmed' AND player_two_id='f1000000-0000-0000-0000-000000000003'),
-  'rating changes must remain zero-sum'
+  'equal-rating finalization must apply asymmetric +35/-20 changes'
 );
 
 -- Exact-deadline reporting expires A/D without applying a result.

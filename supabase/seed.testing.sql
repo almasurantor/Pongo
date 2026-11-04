@@ -52,9 +52,11 @@ BEGIN
     missing := array_append(missing, '20261031_06_phase8_security_reliability.sql');
   END IF;
   IF to_regclass('public.ranking_config') IS NOT NULL AND NOT EXISTS (
-    SELECT 1 FROM public.ranking_config WHERE id AND starting_elo = 500 AND k_factor = 40
+    SELECT 1 FROM public.ranking_config
+    WHERE id AND starting_elo=50 AND k_factor=70
+      AND win_k_factor=70 AND loss_k_factor=40
   ) THEN
-    missing := array_append(missing, '20261101_02_v4_starting_elo_and_ranks.sql');
+    missing := array_append(missing, '20261104_01_asymmetric_ranked_elo.sql');
   END IF;
   IF to_regclass('public.beaver_queue_members') IS NULL
      OR to_regprocedure('public.beaver_queue_tick_v1()') IS NULL THEN
@@ -162,20 +164,20 @@ WITH fixture_profiles(
   weekly_wins, weekly_losses, streak, longest_streak
 ) AS (
   VALUES
-    ('d0000000-0000-4000-8000-000000000001'::UUID, 'Iron Iris',        500,  590,  3, 16, 0, 2, -4,  2),
-    ('d0000000-0000-4000-8000-000000000002'::UUID, 'Bronze Ben',       700,  760,  8, 13, 1, 2, -1,  4),
-    ('d0000000-0000-4000-8000-000000000003'::UUID, 'Silver Sam',       850,  920, 14, 12, 2, 1,  2,  5),
-    ('d0000000-0000-4000-8000-000000000004'::UUID, 'Gold Gia',        1079, 1120, 20, 14, 1, 1,  1,  6),
-    ('d0000000-0000-4000-8000-000000000005'::UUID, 'Platinum Priya',  1179, 1210, 27, 12, 1, 1,  1,  8),
-    ('d0000000-0000-4000-8000-000000000006'::UUID, 'Diamond Diego',   1292, 1330, 35, 11, 1, 2, -1, 11),
-    ('d0000000-0000-4000-8000-000000000007'::UUID, 'Legend Luna',     1432, 1465, 44,  8, 2, 1,  1, 14),
-    ('d0000000-0000-4000-8000-000000000008'::UUID, 'Provisional Pixel',1008, 1029,  1,  1, 0, 1, -1,  1),
-    ('d0000000-0000-4000-8000-000000000009'::UUID, 'Monitored Morgan',1101, 1140, 17, 17, 0, 1, -1,  5),
-    ('d0000000-0000-4000-8000-000000000010'::UUID, 'Dual Dana',       1239, 1239, 26, 10, 2, 0,  3,  7),
-    ('d0000000-0000-4000-8000-000000000011'::UUID, 'Restricted Riley', 980, 1060, 10, 19, 0, 1, -3,  3),
-    ('d0000000-0000-4000-8000-000000000012'::UUID, 'Queue Quinn',     1053, 1090, 15, 15, 1, 1, -1,  4),
-    ('d0000000-0000-4000-8000-000000000013'::UUID, 'Admin Avery',     1200, 1200,  0,  0, 0, 0,  0,  0),
-    ('d0000000-0000-4000-8000-000000000014'::UUID, 'Newcomer Nico',   1000, 1000,  0,  0, 0, 0,  0,  0)
+    ('d0000000-0000-4000-8000-000000000001'::UUID, 'Iron Iris',         50,  90,  3, 16, 0, 2, -4,  2),
+    ('d0000000-0000-4000-8000-000000000002'::UUID, 'Bronze Ben',       150, 190,  8, 13, 1, 2, -1,  4),
+    ('d0000000-0000-4000-8000-000000000003'::UUID, 'Silver Sam',       250, 300, 14, 12, 2, 1,  2,  5),
+    ('d0000000-0000-4000-8000-000000000004'::UUID, 'Gold Gia',         400, 450, 20, 14, 1, 1,  1,  6),
+    ('d0000000-0000-4000-8000-000000000005'::UUID, 'Platinum Priya',   550, 600, 27, 12, 1, 1,  1,  8),
+    ('d0000000-0000-4000-8000-000000000006'::UUID, 'Diamond Diego',    750, 800, 35, 11, 1, 2, -1, 11),
+    ('d0000000-0000-4000-8000-000000000007'::UUID, 'Legend Luna',      900, 950, 44,  8, 2, 1,  1, 14),
+    ('d0000000-0000-4000-8000-000000000008'::UUID, 'Provisional Pixel', 50,  70,  1,  1, 0, 1, -1,  1),
+    ('d0000000-0000-4000-8000-000000000009'::UUID, 'Monitored Morgan', 425, 460, 17, 17, 0, 1, -1,  5),
+    ('d0000000-0000-4000-8000-000000000010'::UUID, 'Dual Dana',        700, 740, 26, 10, 2, 0,  3,  7),
+    ('d0000000-0000-4000-8000-000000000011'::UUID, 'Restricted Riley', 350, 410, 10, 19, 0, 1, -3,  3),
+    ('d0000000-0000-4000-8000-000000000012'::UUID, 'Queue Quinn',      420, 470, 15, 15, 1, 1, -1,  4),
+    ('d0000000-0000-4000-8000-000000000013'::UUID, 'Admin Avery',       50,  50,  0,  0, 0, 0,  0,  0),
+    ('d0000000-0000-4000-8000-000000000014'::UUID, 'Newcomer Nico',     50,  50,  0,  0, 0, 0,  0,  0)
 )
 INSERT INTO public.profiles(
   id, display_name, current_elo, highest_elo, total_wins, total_losses,

@@ -1,21 +1,22 @@
-/** Beaver Smash weighted, exactly zero-sum ELO. */
+/** Pongo asymmetric ranked ELO: wins use K=70 and losses use K=40. */
 
-const K_FACTOR = 40;
-const BASE_ELO = 500;
-const SCORE_MARGIN_CAP = 0.1;
-const MIN_WIN_MARGIN = 2;
-const FULL_BONUS_MARGIN = 11;
+const WIN_K_FACTOR = 70;
+const LOSS_K_FACTOR = 40;
+const K_FACTOR = WIN_K_FACTOR;
+const BASE_ELO = 50;
 
 export interface EloBreakdown {
-  formulaVersion: 'weighted_elo_v1';
-  kFactor: number;
+  formulaVersion: 'asymmetric_elo_v2';
+  winKFactor: number;
+  lossKFactor: number;
   winnerExpected: number;
-  baseDeltaRaw: number;
-  baseDelta: number;
-  scoreMargin: number;
-  marginMultiplier: number;
-  marginBonus: number;
-  finalDelta: number;
+  loserExpected: number;
+  winnerGainRaw: number;
+  loserLossRaw: number;
+  winnerGain: number;
+  loserLossUnclamped: number;
+  loserLoss: number;
+  floorApplied: boolean;
 }
 
 export interface EloResult {
@@ -36,48 +37,45 @@ export function expectedScore(ratingA: number, ratingB: number): number {
   return 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400));
 }
 
-export function marginMultiplier(winnerScore: number, loserScore: number): number {
-  const margin = winnerScore - loserScore;
-  const progress = Math.min(1, Math.max(0, (margin - MIN_WIN_MARGIN) / (FULL_BONUS_MARGIN - MIN_WIN_MARGIN)));
-  return 1 + SCORE_MARGIN_CAP * progress;
-}
-
 export function calculateElo(
   ratingA: number,
   ratingB: number,
   scoreA: number,
   scoreB: number,
 ): EloResult {
+  if (ratingA < 0 || ratingB < 0) throw new Error('ELO ratings cannot be negative');
   if (scoreA === scoreB) throw new Error('Ranked matches cannot end in a draw');
 
   const playerAWon = scoreA > scoreB;
   const winnerRating = playerAWon ? ratingA : ratingB;
   const loserRating = playerAWon ? ratingB : ratingA;
-  const winnerScore = Math.max(scoreA, scoreB);
-  const loserScore = Math.min(scoreA, scoreB);
   const winnerExpected = expectedScore(winnerRating, loserRating);
-  const baseDeltaRaw = K_FACTOR * (1 - winnerExpected);
-  const baseDelta = Math.round(baseDeltaRaw);
-  const multiplier = marginMultiplier(winnerScore, loserScore);
-  const finalDelta = Math.round(baseDeltaRaw * multiplier);
-  const eloChangeA = playerAWon ? finalDelta : -finalDelta;
-  const eloChangeB = -eloChangeA;
+  const loserExpected = 1 - winnerExpected;
+  const winnerGainRaw = WIN_K_FACTOR * loserExpected;
+  const loserLossRaw = LOSS_K_FACTOR * loserExpected;
+  const winnerGain = Math.round(winnerGainRaw);
+  const loserLossUnclamped = Math.round(loserLossRaw);
+  const loserLoss = Math.min(loserRating, loserLossUnclamped);
+  const eloChangeA = playerAWon ? winnerGain : -loserLoss;
+  const eloChangeB = playerAWon ? -loserLoss : winnerGain;
 
   return {
-    newRatingA: ratingA + eloChangeA,
-    newRatingB: ratingB + eloChangeB,
+    newRatingA: Math.max(0, ratingA + eloChangeA),
+    newRatingB: Math.max(0, ratingB + eloChangeB),
     eloChangeA,
     eloChangeB,
     breakdown: {
-      formulaVersion: 'weighted_elo_v1',
-      kFactor: K_FACTOR,
+      formulaVersion: 'asymmetric_elo_v2',
+      winKFactor: WIN_K_FACTOR,
+      lossKFactor: LOSS_K_FACTOR,
       winnerExpected,
-      baseDeltaRaw,
-      baseDelta,
-      scoreMargin: winnerScore - loserScore,
-      marginMultiplier: multiplier,
-      marginBonus: finalDelta - baseDelta,
-      finalDelta,
+      loserExpected,
+      winnerGainRaw,
+      loserLossRaw,
+      winnerGain,
+      loserLossUnclamped,
+      loserLoss,
+      floorApplied: loserLoss < loserLossUnclamped,
     },
   };
 }
@@ -92,4 +90,4 @@ export function predictElo(rating: number, opponentRating: number): EloPredictio
   };
 }
 
-export { K_FACTOR, BASE_ELO, SCORE_MARGIN_CAP };
+export { BASE_ELO, K_FACTOR, LOSS_K_FACTOR, WIN_K_FACTOR };

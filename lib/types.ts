@@ -134,16 +134,25 @@ export interface LeaderboardArchiveEntry {
 }
 
 export interface RatingCalculation {
-  formula_version: 'weighted_elo_v1';
-  k_factor: number;
-  score_margin_cap: number;
+  formula_version: 'weighted_elo_v1' | 'asymmetric_elo_v2';
+  k_factor?: number;
+  win_k_factor?: number;
+  loss_k_factor?: number;
   winner_expected: number;
-  base_delta_raw: number;
-  base_delta: number;
-  score_margin: number;
-  margin_multiplier: number;
-  margin_bonus: number;
-  final_delta: number;
+  loser_expected?: number;
+  winner_gain_raw?: number;
+  loser_loss_raw?: number;
+  winner_gain?: number;
+  loser_loss_unclamped?: number;
+  loser_loss?: number;
+  floor_applied?: boolean;
+  score_margin_cap?: number;
+  base_delta_raw?: number;
+  base_delta?: number;
+  score_margin?: number;
+  margin_multiplier?: number;
+  margin_bonus?: number;
+  final_delta?: number;
   winner_id: string;
   loser_id: string;
   winner_rating_before: number;

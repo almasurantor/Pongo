@@ -51,7 +51,7 @@ RESET ROLE;
 SELECT pg_temp.assert_true(
   (SELECT status='ready' AND winner_id IS NULL FROM public.matches WHERE id='f8100000-0000-0000-0000-000000000001')
   AND (SELECT COUNT(*)=1 FROM public.match_submissions WHERE match_id='f8100000-0000-0000-0000-000000000001')
-  AND (SELECT current_elo=500 FROM public.profiles WHERE id='f8000000-0000-0000-0000-000000000001'),
+  AND (SELECT current_elo=50 FROM public.profiles WHERE id='f8000000-0000-0000-0000-000000000001'),
   'one private report must expose no result and apply no rating change'
 );
 
@@ -66,11 +66,11 @@ SELECT pg_temp.assert_true(
 );
 RESET ROLE;
 SELECT pg_temp.assert_true(
-  (SELECT status='confirmed' AND player_one_elo_change=-player_two_elo_change
+  (SELECT status='confirmed' AND player_one_elo_change=35 AND player_two_elo_change=-20
    FROM public.matches WHERE id='f8100000-0000-0000-0000-000000000001')
   AND (SELECT COUNT(*)=2 FROM public.match_submissions WHERE match_id='f8100000-0000-0000-0000-000000000001')
   AND (SELECT COUNT(*)=2 FROM public.rating_events WHERE match_id='f8100000-0000-0000-0000-000000000001' AND is_active),
-  'dual finalization must retain two reports and one zero-sum active event pair'
+  'dual finalization must retain two reports and one asymmetric active event pair'
 );
 
 -- Conflicting independent reports close without ELO and expire cancellation.

@@ -11,13 +11,13 @@ import { useTheme } from '@/components/ThemeProvider';
 import { RankTierName } from '@/lib/ranks';
 
 const ranks: { name: RankTierName; range: string }[] = [
-  { name: 'Iron', range: '500–649 ELO' },
-  { name: 'Bronze', range: '650–799 ELO' },
-  { name: 'Silver', range: '800–949 ELO' },
-  { name: 'Gold', range: '950–1099 ELO' },
-  { name: 'Platinum', range: '1100–1249 ELO' },
-  { name: 'Diamond', range: '1250–1399 ELO' },
-  { name: 'Legend', range: '1400+ ELO' },
+  { name: 'Iron', range: '0–99 ELO' },
+  { name: 'Bronze', range: '100–199 ELO' },
+  { name: 'Silver', range: '200–324 ELO' },
+  { name: 'Gold', range: '325–474 ELO' },
+  { name: 'Platinum', range: '475–649 ELO' },
+  { name: 'Diamond', range: '650–849 ELO' },
+  { name: 'Legend', range: '850+ ELO' },
 ];
 
 export default function HomePageClient({ authenticated = false }: { authenticated?: boolean }) {

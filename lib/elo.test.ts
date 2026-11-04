@@ -1,43 +1,65 @@
 import { describe, expect, it } from 'vitest';
-import { calculateElo, K_FACTOR, marginMultiplier, predictElo, SCORE_MARGIN_CAP } from './elo';
+import { BASE_ELO, calculateElo, LOSS_K_FACTOR, predictElo, WIN_K_FACTOR } from './elo';
 
-describe('weighted zero-sum ELO', () => {
-  it('uses K=40 and applies no bonus to the minimum valid margin', () => {
-    const result = calculateElo(1000, 1000, 11, 9);
-    expect(K_FACTOR).toBe(40);
-    expect(result.eloChangeA).toBe(20);
-    expect(result.breakdown.marginBonus).toBe(0);
-    expect(result.breakdown.marginMultiplier).toBe(1);
+describe('asymmetric ranked ELO', () => {
+  it('uses the 50 ELO baseline and separate win/loss K-factors', () => {
+    expect(BASE_ELO).toBe(50);
+    expect(WIN_K_FACTOR).toBe(70);
+    expect(LOSS_K_FACTOR).toBe(40);
   });
 
-  it('caps score influence at ten percent', () => {
-    expect(SCORE_MARGIN_CAP).toBe(0.1);
-    expect(marginMultiplier(11, 0)).toBeCloseTo(1.1);
-    expect(marginMultiplier(21, 0)).toBeCloseTo(1.1);
-    expect(calculateElo(1000, 1000, 11, 0).eloChangeA).toBe(22);
-  });
-
-  it('keeps opponent strength as the primary factor', () => {
-    const upset = calculateElo(800, 1200, 11, 9).eloChangeA;
-    const expectedWin = calculateElo(1200, 800, 11, 0).eloChangeA;
-    expect(upset).toBeGreaterThan(expectedWin * 5);
-  });
-
-  it('makes losing to a much stronger opponent inexpensive', () => {
-    const prediction = predictElo(800, 1400);
-    expect(prediction.lossChange).toBeGreaterThanOrEqual(-2);
-    expect(prediction.winChange).toBeGreaterThan(35);
-  });
-
-  it('always applies exact inverse changes', () => {
-    for (const [a, b, scoreA, scoreB] of [[1000, 1000, 11, 7], [1450, 900, 11, 0], [800, 1700, 12, 10]]) {
-      const result = calculateElo(a, b, scoreA, scoreB);
-      expect(result.eloChangeA + result.eloChangeB).toBe(0);
-      expect(result.newRatingA + result.newRatingB).toBe(a + b);
+  it('awards +35 and -20 at equal ratings regardless of rank', () => {
+    for (const rating of [50, 150, 400, 700, 900]) {
+      const result = calculateElo(rating, rating, 11, 9);
+      expect(result.eloChangeA).toBe(35);
+      expect(result.eloChangeB).toBe(-20);
     }
   });
 
-  it('rejects tied results', () => {
-    expect(() => calculateElo(1000, 1000, 11, 11)).toThrow();
+  it('scales expected wins and upsets from the rating difference', () => {
+    const expectedGoldWin = calculateElo(400, 250, 11, 9);
+    const silverUpset = calculateElo(400, 250, 9, 11);
+    expect(expectedGoldWin.eloChangeA).toBe(21);
+    expect(expectedGoldWin.eloChangeB).toBe(-12);
+    expect(silverUpset.eloChangeA).toBe(-28);
+    expect(silverUpset.eloChangeB).toBe(49);
+  });
+
+  it('makes a large upset much more meaningful than an expected win', () => {
+    const expectedWin = calculateElo(700, 150, 11, 9);
+    const upset = calculateElo(700, 150, 9, 11);
+    expect(expectedWin.eloChangeA).toBe(3);
+    expect(expectedWin.eloChangeB).toBe(-2);
+    expect(upset.eloChangeA).toBe(-38);
+    expect(upset.eloChangeB).toBe(67);
+
+    const ironBeatsLegend = calculateElo(50, 900, 11, 9);
+    expect(ironBeatsLegend.eloChangeA).toBe(69);
+    expect(ironBeatsLegend.eloChangeB).toBe(-40);
+  });
+
+  it('is intentionally not zero-sum', () => {
+    const result = calculateElo(400, 400, 11, 9);
+    expect(result.eloChangeA + result.eloChangeB).toBe(15);
+    expect(result.newRatingA + result.newRatingB).toBe(815);
+  });
+
+  it('never reduces the loser below zero', () => {
+    const result = calculateElo(50, 10, 11, 9);
+    expect(result.eloChangeB).toBe(-10);
+    expect(result.newRatingB).toBe(0);
+    expect(result.breakdown.floorApplied).toBe(true);
+  });
+
+  it('exposes asymmetric predictions', () => {
+    const prediction = predictElo(400, 400);
+    expect(prediction.winChange).toBe(35);
+    expect(prediction.lossChange).toBe(-20);
+    expect(prediction.expectedScore).toBe(.5);
+  });
+
+  it('rejects tied results and negative ratings', () => {
+    expect(() => calculateElo(400, 400, 11, 11)).toThrow();
+    expect(() => calculateElo(-1, 400, 11, 9)).toThrow();
   });
 });

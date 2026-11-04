@@ -204,7 +204,7 @@ This is the point where the ladder actually updates.
 
 The ranking logic is implemented in [lib/elo.ts](lib/elo.ts).
 
-### Weighted zero-sum ELO formula
+### Asymmetric ranked ELO formula
 
 The expected score for player A is:
 
@@ -217,25 +217,23 @@ Where:
 - $R_A$ is player A’s current ELO
 - $R_B$ is player B’s current ELO
 
-The winner’s base transfer is:
+The winner gain and loser loss are calculated independently:
 
 $$
-\Delta R = K \times (S - E)
+\Delta R_{win} = 70 \times (1 - E_{winner})
 $$
 
-where:
+$$
+\Delta R_{loss} = 40 \times E_{loser}
+$$
 
-- $K = 40$
-- $S = 1$ for the winner
-- $E$ = expected score
+Both values are rounded to the nearest integer. Equal ratings therefore produce exactly +35 for the winner and −20 for the loser. The system is intentionally not zero-sum, score margin does not change ELO, and the loser’s result is clamped so a rating can never fall below zero.
 
-The base transfer is multiplied by a score factor from 1.00 to 1.10. A normal two-point win receives no score bonus; the adjustment grows linearly and reaches its 10% cap at an 11-point winning margin. The final winner delta is rounded once and its exact inverse is applied to the loser, keeping every match zero-sum.
-
-Each new confirmed match and its two immutable rating events store the formula version, K-factor, expected win probability, base delta, winning margin, multiplier, score bonus, and final transfer. Older matches retain their original deltas and have no fabricated Phase 3 breakdown.
+Each new confirmed match and its two immutable rating events store the formula version, both K-factors, expected probabilities, raw and rounded changes, and whether the zero floor was applied. Older matches retain their original deltas and calculation snapshots.
 
 ### Competitive rank tiers
 
-[lib/ranks.ts](lib/ranks.ts) derives a player's competitive tier directly from permanent `current_elo`; no administrator assigns ranks and no stale rank value is stored on a profile. The ladder is Iron below 650, Bronze at 650, Silver at 800, Gold at 950, Platinum at 1100, Diamond at 1250, and Legend at 1400. New players start at 500 ELO, and the first five confirmed games are provisional placement games using the same normal ELO calculation.
+[lib/ranks.ts](lib/ranks.ts) derives a player's competitive tier directly from permanent `current_elo`; no administrator assigns ranks and no stale rank value is stored on a profile. The ladder is Iron 0–99, Bronze 100–199, Silver 200–324, Gold 325–474, Platinum 475–649, Diamond 650–849, and Legend at 850+. New players remain Unranked until their first confirmed ranked match, which uses a 50-ELO starting baseline.
 
 The Phase 4 migration stores these boundaries in `competitive_rank_tiers`, exposes database-side tier/progress functions, and snapshots `rank_before` and `rank_after` on every rating event. That snapshot preserves promotion and demotion history if thresholds are adjusted later. Code-native badges and progress indicators appear on profiles, challenges, matches, player discovery, the dashboard, and the all-time leaderboard. There are no divisions or inactivity decay.
 
@@ -251,7 +249,7 @@ The leaderboard has Weekly, Monthly, and All Time tabs. Weekly periods run Monda
 
 Either participant can open a dispute during the 48 hours after finalization for an incorrect score, incorrect winner, nonexistent match, or another issue. A dispute requests either a corrected score or a void. Opening the request leaves the confirmed result, ratings, statistics, and leaderboard unchanged. Only the opponent can approve the request automatically; declining it or allowing the response deadline to pass escalates it to administrators without changing ELO.
 
-Mutually or administratively approved revisions are serialized by a global transaction lock. The original match revision and rating events remain stored, are marked inactive, and point to replacement events. PostgreSQL replays every subsequent ranked match chronologically with the weighted ELO formula, then rebuilds current and peak ratings, records, current/longest streaks, weekly rows, season rows, ranks, and leaderboard inputs. Approved voids remove the disputed match from the replay. `match_revisions`, `rating_events`, and `domain_events` retain the complete audit and decision history.
+Mutually or administratively approved revisions are serialized by a global transaction lock. The original match revision and rating events remain stored, are marked inactive, and point to replacement events. PostgreSQL replays every subsequent ranked match chronologically with the asymmetric ELO formula and zero floor, then rebuilds current and peak ratings, records, current/longest streaks, weekly rows, season rows, ranks, and leaderboard inputs. Approved voids remove the disputed match from the replay. `match_revisions`, `rating_events`, and `domain_events` retain the complete audit and decision history.
 
 ### Mobile match experience
 
@@ -362,7 +360,7 @@ A few important observations from reading the codebase:
 
 As a codebase summary, a few product/engineering caveats are worth noting:
 
-- Vitest covers auth startup routing, score validation, weighted ELO, rank tiers, leaderboard periods, deadlines, and lifecycle helpers. Rollback-only SQL suites cover the ranked phases and V4 defaults, including limits, replay, RLS, role privileges, audit immutability, and independent reporting; the multi-session checklist covers lock races.
+- Vitest covers auth startup routing, score validation, asymmetric ELO, rank tiers, leaderboard periods, deadlines, and lifecycle helpers. Rollback-only SQL suites cover ranked finalization and defaults, including limits, replay, the zero floor, RLS, role privileges, audit immutability, and independent reporting; the multi-session checklist covers lock races.
 - Some features rely on database SQL functions and cron jobs being configured correctly in Supabase.
 - The app uses environment variables and expects a real Supabase project to be configured.
 - A few flows depend on browser timing and states, so they should be tested in a real staging environment before production use.

@@ -39,9 +39,9 @@ npm run dev
 - Mutual cancellation and 24-hour match expiration without rating penalties
 - Acceptance-time reservations enforcing 10 ranked games per day and 3 per opponent
 - New York calendar-day usage shown on dashboards and player cards
-- K=40 weighted ELO with a capped 10% score-margin adjustment and exact zero-sum transfers
+- Asymmetric ranked ELO with K=70 wins, K=40 losses, and a hard zero floor
 - ELO changes hidden until server-authoritative finalization, followed by an immutable post-match calculation breakdown
-- Unranked new players at 500 ELO, then seven automatic competitive tiers from Iron through Legend after the first confirmed match
+- Unranked new players use a 50-ELO first-game baseline, then seven automatic tiers from Iron through Legend
 - Unified weekly, monthly, and all-time leaderboards with New York period boundaries, net-ELO ranking, full player statistics, and historical winner archives
 - 48-hour result disputes with mutual corrections/voids, admin escalation, immutable revisions, and downstream rating replay
 - Mobile-first score confirmation, live deadlines, victory/defeat feedback, and an ELO-free casual scorekeeper

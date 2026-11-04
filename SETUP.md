@@ -48,6 +48,7 @@ For an existing Pongo project:
 21. Manually run `supabase/migrations/20261103_03_queue_outcomes_swaps.sql` to install outcome-only queue games, the 10-minute abandoned-game deadline, mutual position swaps, v3 health checks, and audited admin history corrections. Deploying or pushing application code does not run this migration.
 22. Manually run `supabase/migrations/20261103_04_queue_forward_swaps.sql` to enforce forward-only swap offers: only a waiting player ahead in line can request a swap with someone behind them. It cancels still-pending requests created under the previous direction and installs the v4 health check.
 23. Manually run `supabase/migrations/20261103_05_queue_afk_timeouts.sql` to install server-authoritative 60-second solo and in-game AFK deadlines, participant presence confirmation, abandoned-game auditing, and the v5 health check.
+24. Run `supabase/migrations/20261104_01_asymmetric_ranked_elo.sql` locally to install the 50-ELO first-game baseline, asymmetric K=70/K=40 calculation, zero floor, and updated rank thresholds. Do not apply it to production until the rollout is approved.
 
 The expand migration is retry-safe, keeps the legacy columns/statuses during rollout, creates audited opening-balance events, and bootstraps `almasurantor` using profile UUID `494357c8-607e-4605-980b-19260c8a2cfc` as the first administrator. The old `migration_single_reporter_match_flow.sql` is superseded and must not be applied.
 
@@ -112,7 +113,7 @@ Visit http://localhost:3000
 - ✅ Mutual cancellation with complete request history
 - ✅ Acceptance-time reservations with 10 ranked games per player per day
 - ✅ Three ranked games per opponent per New York calendar day
-- ✅ K=40 weighted, zero-sum ELO with a 10% maximum score adjustment
+- ✅ Asymmetric ranked ELO with K=70 wins, K=40 losses, and a hard zero floor
 - ✅ Server-authoritative post-match calculation breakdowns without pre-match ELO disclosure
 - ✅ Unranked first-time players and Iron-to-Legend competitive ranks after the first completed match
 - ✅ Unified weekly, monthly, and all-time leaderboards with previous-winner archives
@@ -125,12 +126,12 @@ Visit http://localhost:3000
 
 ## Notes
 
-- Default ELO: 500
-- K-factor: 40
-- Score margin scales the base winner gain by 0–10%; a two-point win has no bonus and an 11-point margin reaches the cap
-- The final winner gain is rounded once and applied as the loser’s exact inverse
-- Competitive tiers: Iron below 650, Bronze 650, Silver 800, Gold 950, Platinum 1100, Diamond 1250, and Legend 1400+
-- A new player is Unranked at 500 ELO; their threshold-based rank appears after the first confirmed ranked match
+- First-game ELO baseline: 50
+- Win K-factor: 70; loss K-factor: 40
+- Equal ratings produce +35 for the winner and −20 for the loser; score margin does not alter ELO
+- Ranked ELO is intentionally non-zero-sum and cannot fall below 0
+- Competitive tiers: Iron 0–99, Bronze 100–199, Silver 200–324, Gold 325–474, Platinum 475–649, Diamond 650–849, and Legend 850+
+- A new player is Unranked until their first confirmed ranked match
 - Challenges and accepted matches expire after 24 hours
 - Ranked matches cannot be recorded without an accepted challenge
 - Daily limits use the New York date when the challenge is accepted; crossing midnight does not move the match to a new day

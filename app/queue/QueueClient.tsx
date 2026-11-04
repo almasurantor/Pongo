@@ -7,7 +7,6 @@ import {
   canRequestQueueSwap,
   queueGameSecondsRemaining,
   queueSecondsUntil,
-  queueStatusLabel,
   type QueueMemberStatus,
 } from '@/lib/queue';
 import { isActiveQueueStatus, isQueueBackendHealthy, isRetryableQueueError, queueErrorMessage } from '@/lib/queue-client';
@@ -120,8 +119,10 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
   useEffect(() => { setOutcomeChoice(null); }, [table?.game_id, table?.phase]);
 
   const waiting = members.filter((member) => member.status === 'waiting').sort((a, b) => a.queue_position - b.queue_position || a.user_id.localeCompare(b.user_id));
-  const activeMembers = members.filter((member) => isActiveQueueStatus(member.status));
-  const myWaitingIndex = waiting.findIndex((member) => member.user_id === currentUserId);
+  const activeMembers = members
+    .filter((member) => isActiveQueueStatus(member.status))
+    .sort((a, b) => a.queue_position - b.queue_position || a.user_id.localeCompare(b.user_id));
+  const myActiveIndex = activeMembers.findIndex((member) => member.user_id === currentUserId);
   const active = isActiveQueueStatus(me?.status);
   const king = table?.king_id ?? null;
   const challenger = table?.challenger_id ?? null;
@@ -146,8 +147,6 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
     setOutcomeChoice(null);
   };
 
-  const statusLabel = queueStatusLabel(me?.status, myWaitingIndex, callSeconds);
-
   return (
     <main className={styles.page}>
       <div className={styles.shell}>
@@ -157,8 +156,8 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
             <div className={styles.statRow}><div><strong>{activeMembers.length}</strong><span>Active</span></div><div><strong>{waiting.length}</strong><span>Waiting</span></div><div><strong>{table?.phase === 'called' ? formatTimer(callSeconds) : '60s'}</strong><span>Check-in</span></div></div>
           </div>
           <div className={styles.queueControls}>
-            <span className={styles.statusLabel}>{statusLabel}</span>
             {!active && <button className={styles.primaryButton} disabled={Boolean(busy)} onClick={() => void action('join', 'beaver_queue_join_v1')}>{busy === 'join' ? 'Joining…' : 'Join Queue'}</button>}
+            {active && <span role="status" className={`${styles.queueState} ${amPlaying ? styles.playingState : styles.queuedState}`}>{amPlaying ? 'Playing' : `In queue · #${Math.max(1, myActiveIndex + 1)}`}</span>}
             {active && !amPlaying && <button className={`${styles.secondaryButton} ${styles.leaveButton}`} disabled={Boolean(busy)} onClick={() => void action('leave', 'beaver_queue_leave_v1')}>{busy === 'leave' ? 'Leaving…' : 'Leave Queue'}</button>}
           </div>
         </section>
@@ -169,9 +168,9 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
           <div className={styles.sectionHeading}><h2>Current Match</h2><span className={styles.pill}>{table?.phase === 'playing' ? 'GAME IN PROGRESS' : table?.phase === 'called' ? 'CHECK-IN' : 'READY'}</span></div>
           {loading && !table ? <p className={styles.muted}>Loading current table…</p> : king ? <>
             <div className={styles.tableMatch}>
-              <div className={styles.playerCard}><div className={styles.seatLabel}>HOLDER</div><div className={styles.avatar}>{nameOf(king).slice(0, 1).toUpperCase()}</div><strong>{nameOf(king)}{king === currentUserId ? ' (You)' : ''}</strong></div>
+              <div className={styles.matchPlayer}><div aria-hidden="true" className={styles.avatar}><span>★★★</span></div><strong>{nameOf(king)}</strong><div className={styles.seatLabel}>{king === currentUserId ? 'You · Holder' : 'Holder'}</div></div>
               <div className={styles.vs}>VS</div>
-              <div className={styles.playerCard}><div className={styles.seatLabel}>{challenger ? 'CHALLENGER' : 'OPEN SEAT'}</div><div className={styles.avatarAlt}>{challenger ? nameOf(challenger).slice(0, 1).toUpperCase() : '?'}</div><strong>{challenger ? `${nameOf(challenger)}${challenger === currentUserId ? ' (You)' : ''}` : 'Waiting…'}</strong></div>
+              <div className={styles.matchPlayer}><div aria-hidden="true" className={styles.avatarAlt}><span>★★★</span></div><strong>{challenger ? nameOf(challenger) : 'Waiting…'}</strong><div className={styles.seatLabel}>{challenger ? (challenger === currentUserId ? 'You · Opponent' : 'Opponent') : 'Next player'}</div></div>
             </div>
             {table?.phase === 'idle' && !challenger && table.solo_expires_at && <div className={styles.soloTimer}><span>Waiting for an opponent</span><strong>{formatTimer(soloSeconds)}</strong></div>}
             {table?.phase === 'called' && <div className={styles.callBanner}><span>{isCalled ? "You're up — check in now" : `Waiting for ${nameOf(challenger)}`}</span><strong className={callSeconds <= 15 ? styles.urgent : ''}>{formatTimer(callSeconds)}</strong></div>}
