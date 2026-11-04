@@ -1,3 +1,9 @@
+export function defaultMatchScores(winnerIsCurrentUser: boolean) {
+  return winnerIsCurrentUser
+    ? { myScore: 11, theirScore: 9 }
+    : { myScore: 9, theirScore: 11 };
+}
+
 export function validateMatchScore(playerOneScore: number, playerTwoScore: number): string | null {
   if (!Number.isInteger(playerOneScore) || !Number.isInteger(playerTwoScore)) {
     return 'Scores must be whole numbers';

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const source = readFileSync(resolve(process.cwd(), 'app/queue/QueueClient.tsx'), 'utf8');
 const styles = readFileSync(resolve(process.cwd(), 'app/queue/QueueClient.module.css'), 'utf8');
+const rankedModal = readFileSync(resolve(process.cwd(), 'components/RankedDecisionModal.tsx'), 'utf8');
 
 describe('queue page structure', () => {
   it('keeps the prominent waiting list separate from compact recent results', () => {
@@ -43,6 +44,40 @@ describe('queue page structure', () => {
     expect(source).toContain('Are you here?');
     expect(source).not.toContain('Only match participants can report the result.');
     expect(source).not.toContain('Result submitted.');
+  });
+
+  it('replaces unranked outcomes with inline Ranked score controls after mutual acceptance', () => {
+    expect(source).toContain('Ranked Game');
+    expect(rankedModal).toContain('Play a Ranked match?');
+    expect(source).toContain("'beaver_queue_request_ranked_v1'");
+    expect(source).toContain("'beaver_queue_respond_ranked_v1'");
+    expect(source).toContain('Ranked request declined. Continue this match as Unranked.');
+    expect(source).toContain("'beaver_queue_submit_ranked_result_v1'");
+    expect(source).toContain('Submit Ranked Score');
+    expect(source).toContain('chooseRankedWinner(currentUserId)');
+    expect(source).toContain('chooseRankedWinner(opponentId)');
+    expect(source).toContain('defaultMatchScores(nextWinnerId === currentUserId)');
+    expect(source).toContain('showRankedRequestPopup && matchActionsAvailable && !isAfkTarget');
+    expect(source).toContain('<RankedDecisionModal');
+    expect(source).toContain('challenger={rankedRequester}');
+    expect(source).toContain("supabase.from('profiles').select('id,display_name,current_elo,total_wins,total_losses')");
+    expect(source).toContain('setDismissedRankedRequestId(rankedRequest.id)');
+    expect(source).toContain('Review Ranked Request');
+    expect(rankedModal).toContain('Incoming challenge');
+    expect(rankedModal).toContain('Play a Ranked match?');
+    expect(rankedModal).toContain("challenged you.");
+    expect(rankedModal).toContain('<RankBadge');
+    expect(rankedModal).toContain('bg-[#2e8b57]');
+    expect(source).toContain('acceptedRankedRequest && amPlaying');
+    expect(source).toContain('!acceptedRankedRequest && amPlaying');
+    expect(source).toContain('before the table timer reaches zero');
+    expect(source).not.toContain('router.push(`/match/');
+    expect(source).not.toContain('window.alert');
+    expect(source).not.toContain('toast.');
+    expect(source).not.toContain('styles.rankedPrompt');
+    expect(styles).toMatch(/\.matchSecondaryActions\s*\{[^}]*justify-content: center/s);
+    expect(styles).toContain('.rankedScorePanel');
+    expect(styles).toContain('.matchSecondaryActions');
   });
 
   it('shows the assigned player a server-deadline check-in dialog and synchronizes zero', () => {

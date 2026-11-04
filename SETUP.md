@@ -19,6 +19,7 @@ npm install
    ```
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=your_server_only_service_role_key
    ```
 
 ## Step 3: Database Setup and Rollout

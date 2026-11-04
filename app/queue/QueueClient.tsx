@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import ScoreStepper from '@/components/ScoreStepper';
+import RankedDecisionModal, { type RankedDecisionPlayer } from '@/components/RankedDecisionModal';
+import { defaultMatchScores, validateMatchScore } from '@/lib/match-result';
 import {
   canReportQueueOutcome,
   canRequestQueueSwap,
@@ -17,6 +20,8 @@ interface QueueMember { user_id: string; display_name: string; status: QueueMemb
 interface TableState { id: number; phase: 'idle' | 'called' | 'playing'; king_id: string | null; challenger_id: string | null; call_expires_at: string | null; game_id: string | null; game_started_at: string | null; game_expires_at: string | null; king_confirmed_at: string | null; challenger_confirmed_at: string | null; solo_expires_at: string | null; afk_reporter_id: string | null; afk_target_id: string | null; afk_expires_at: string | null; }
 interface QueueGame { id: string; king_id: string; challenger_id: string; king_name: string; challenger_name: string; winner_id: string; loser_id: string; completed_at: string; }
 interface SwapRequest { id: string; requester_id: string; target_id: string; requester_position: number; target_position: number; status: 'pending' | 'accepted' | 'declined' | 'expired' | 'canceled'; expires_at: string; }
+interface RankedRequest { id: string; queue_game_id: string; requester_id: string; opponent_id: string; status: 'pending' | 'accepted' | 'declined' | 'canceled'; match_id: string | null; created_at: string; responded_at: string | null; }
+interface QueueProfile extends RankedDecisionPlayer { id: string; }
 
 const formatTimer = (seconds: number) => `${Math.floor(Math.max(0, seconds) / 60)}:${String(Math.max(0, seconds) % 60).padStart(2, '0')}`;
 
@@ -26,13 +31,21 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
   const [members, setMembers] = useState<QueueMember[]>([]);
   const [games, setGames] = useState<QueueGame[]>([]);
   const [swaps, setSwaps] = useState<SwapRequest[]>([]);
+  const [rankedRequests, setRankedRequests] = useState<RankedRequest[]>([]);
+  const [queueProfiles, setQueueProfiles] = useState<QueueProfile[]>([]);
   const [now, setNow] = useState(Date.now());
   const [busy, setBusy] = useState('');
   const [loading, setLoading] = useState(true);
   const [outcomeChoice, setOutcomeChoice] = useState<'won' | 'lost' | null>(null);
+  const [rankedWinnerId, setRankedWinnerId] = useState(currentUserId);
+  const [rankedMyScore, setRankedMyScore] = useState(11);
+  const [rankedTheirScore, setRankedTheirScore] = useState(9);
+  const [rankedStatus, setRankedStatus] = useState('');
+  const [dismissedRankedRequestId, setDismissedRankedRequestId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState('');
   const [backendError, setBackendError] = useState('');
   const [actionError, setActionError] = useState('');
+  const [rankedError, setRankedError] = useState('');
   const [heartbeatError, setHeartbeatError] = useState('');
   const reading = useRef(false);
   const heartbeatFailures = useRef(0);
@@ -41,10 +54,10 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
 
   useEffect(() => {
     let cancelled = false;
-    void supabase.rpc('beaver_queue_health_v7').then(({ data, error }) => {
+    void supabase.rpc('beaver_queue_health_v9').then(({ data, error }) => {
       if (cancelled) return;
       if (error) setBackendError(queueErrorMessage(error, 'Unable to verify the queue database version.'));
-      else if (!isQueueBackendHealthy(data)) setBackendError('The queue database is out of date. Apply migration 20261104_03, then reload this page.');
+      else if (!isQueueBackendHealthy(data)) setBackendError('The queue database is out of date. Apply migration 20261104_05, then reload this page.');
       else setBackendError('');
     });
     return () => { cancelled = true; };
@@ -54,20 +67,26 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
     if (reading.current) return;
     reading.current = true;
     try {
-      const [stateResponse, memberResponse, gameResponse, swapResponse] = await Promise.all([
+      const [stateResponse, memberResponse, gameResponse, swapResponse, rankedResponse, profileResponse] = await Promise.all([
         supabase.from('beaver_queue_table').select('*').eq('id', 1).single(),
         supabase.from('beaver_queue_members').select('*').order('queue_position'),
         supabase.from('beaver_queue_games').select('*').eq('status', 'completed').order('completed_at', { ascending: false }).limit(10),
         supabase.from('beaver_queue_swap_requests').select('*').eq('status', 'pending').order('created_at'),
+        supabase.from('beaver_queue_ranked_requests').select('*').order('created_at', { ascending: false }).limit(10),
+        supabase.from('profiles').select('id,display_name,current_elo,total_wins,total_losses'),
       ]);
       if (stateResponse.error) throw stateResponse.error;
       if (memberResponse.error) throw memberResponse.error;
       if (gameResponse.error) throw gameResponse.error;
       if (swapResponse.error) throw swapResponse.error;
+      if (rankedResponse.error) throw rankedResponse.error;
+      if (profileResponse.error) throw profileResponse.error;
       setTable(stateResponse.data as TableState);
       setMembers((memberResponse.data ?? []) as QueueMember[]);
       setGames((gameResponse.data ?? []) as QueueGame[]);
       setSwaps((swapResponse.data ?? []) as SwapRequest[]);
+      setRankedRequests((rankedResponse.data ?? []) as RankedRequest[]);
+      setQueueProfiles((profileResponse.data ?? []) as QueueProfile[]);
       setLoadError('');
     } catch (caught) { setLoadError(queueErrorMessage(caught, 'Unable to load the queue.')); }
     finally { reading.current = false; setLoading(false); }
@@ -79,11 +98,13 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
     const timer = window.setInterval(() => setNow(Date.now()), 250);
     const focus = () => void refresh();
     window.addEventListener('focus', focus);
-    const channel = supabase.channel('beaver-queue-live-v3')
+    const channel = supabase.channel('beaver-queue-live-v4')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_table' }, focus)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_members' }, focus)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_games' }, focus)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_swap_requests' }, focus)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_ranked_requests' }, focus)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, focus)
       .subscribe();
     return () => { window.clearInterval(poll); window.clearInterval(timer); window.removeEventListener('focus', focus); void supabase.removeChannel(channel); };
   }, [refresh, supabase]);
@@ -118,7 +139,29 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
     finally { setBusy(''); }
   };
 
-  useEffect(() => { setOutcomeChoice(null); }, [table?.game_id, table?.phase]);
+  const rankedAction = async (key: string, name: string, args: Record<string, unknown> = {}) => {
+    if (busy) return;
+    if (backendError) { setRankedError(backendError); return; }
+    setBusy(key); setRankedError('');
+    try {
+      const result = await supabase.rpc(name, args);
+      if (result.error) throw result.error;
+      await refresh();
+    } catch (caught) {
+      setRankedError(queueErrorMessage(caught, 'Unable to update the Ranked request.'));
+      await refresh();
+    } finally { setBusy(''); }
+  };
+
+  useEffect(() => {
+    setOutcomeChoice(null);
+    setRankedError('');
+    setRankedStatus('');
+    setRankedWinnerId(currentUserId);
+    setRankedMyScore(11);
+    setRankedTheirScore(9);
+    setDismissedRankedRequestId(null);
+  }, [currentUserId, table?.game_id, table?.phase]);
 
   const waiting = members.filter((member) => member.status === 'waiting').sort((a, b) => a.queue_position - b.queue_position || a.user_id.localeCompare(b.user_id));
   const activeMembers = members
@@ -129,6 +172,7 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
   const active = isActiveQueueStatus(me?.status);
   const king = table?.king_id ?? null;
   const challenger = table?.challenger_id ?? null;
+  const opponentId = currentUserId === king ? challenger : king;
   const amPlaying = canReportQueueOutcome(table?.phase, currentUserId, king, challenger);
   const callSeconds = queueSecondsUntil(table?.call_expires_at ?? null, now);
   const gameSeconds = queueGameSecondsRemaining(table?.game_expires_at ?? null, now);
@@ -138,6 +182,12 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
   const isAfkTarget = table?.afk_target_id === currentUserId;
   const incomingSwap = swaps.find((swap) => swap.target_id === currentUserId);
   const outgoingSwap = swaps.find((swap) => swap.requester_id === currentUserId);
+  const rankedRequest = rankedRequests.find((request) => request.queue_game_id === table?.game_id);
+  const incomingRankedRequest = rankedRequest?.status === 'pending' && rankedRequest.opponent_id === currentUserId;
+  const showRankedRequestPopup = incomingRankedRequest && rankedRequest.id !== dismissedRankedRequestId;
+  const rankedRequester = queueProfiles.find((profile) => profile.id === rankedRequest?.requester_id);
+  const outgoingRankedRequest = rankedRequest?.status === 'pending' && rankedRequest.requester_id === currentUserId;
+  const acceptedRankedRequest = rankedRequest?.status === 'accepted' && Boolean(rankedRequest.match_id);
   const checkInPending = needsQueueCheckIn(
     table?.phase,
     currentUserId,
@@ -175,6 +225,43 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
     setOutcomeChoice(null);
   };
 
+  const chooseRankedWinner = (nextWinnerId: string) => {
+    const scores = defaultMatchScores(nextWinnerId === currentUserId);
+    setRankedWinnerId(nextWinnerId);
+    setRankedMyScore(scores.myScore);
+    setRankedTheirScore(scores.theirScore);
+  };
+
+  const submitRankedScore = async () => {
+    if (!rankedRequest?.match_id || !acceptedRankedRequest || !challenger || !matchActionsAvailable || busy) return;
+    const scoreError = validateMatchScore(rankedMyScore, rankedTheirScore);
+    const winnerScore = rankedWinnerId === currentUserId ? rankedMyScore : rankedTheirScore;
+    const loserScore = rankedWinnerId === currentUserId ? rankedTheirScore : rankedMyScore;
+    if (scoreError || winnerScore <= loserScore) {
+      setRankedError(scoreError || 'The selected winner must have the higher score');
+      return;
+    }
+    setBusy('ranked-score');
+    setRankedError('');
+    setRankedStatus('');
+    try {
+      const result = await supabase.rpc('beaver_queue_submit_ranked_result_v1', {
+        p_match: rankedRequest.match_id,
+        p_winner: rankedWinnerId,
+        p_winner_score: winnerScore,
+        p_loser_score: loserScore,
+      });
+      if (result.error) throw result.error;
+      if (result.data?.status === 'awaiting_independent_report') {
+        setRankedStatus(`Score submitted. Waiting for ${nameOf(opponentId)}.`);
+      }
+      await refresh();
+    } catch (caught) {
+      setRankedError(queueErrorMessage(caught, 'Unable to submit the Ranked score.'));
+      await refresh();
+    } finally { setBusy(''); }
+  };
+
   return (
     <main className={styles.page}>
       {checkInPending && callSeconds > 0 && <div className={styles.checkInBackdrop}>
@@ -196,6 +283,13 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
           <button autoFocus className={styles.checkInConfirm} disabled={Boolean(busy) || afkSeconds === 0 || !matchActionsAvailable} onClick={() => void action('afk-present', 'beaver_queue_confirm_presence_v1')}>{busy === 'afk-present' ? 'Confirming…' : "I'm Here"}</button>
         </section>
       </div>}
+      {showRankedRequestPopup && matchActionsAvailable && !isAfkTarget && <RankedDecisionModal
+        challenger={rankedRequester}
+        busy={Boolean(busy)}
+        onDismiss={() => setDismissedRankedRequestId(rankedRequest.id)}
+        onDecline={() => void rankedAction('ranked-decline', 'beaver_queue_respond_ranked_v1', { p_request: rankedRequest.id, p_action: 'decline' })}
+        onAccept={() => void rankedAction('ranked-accept', 'beaver_queue_respond_ranked_v1', { p_request: rankedRequest.id, p_action: 'accept' })}
+      />}
       <div className={styles.shell}>
         <section data-queue-card="live-table" className={`${styles.hero} ${styles.queueHeaderCard}`}>
           <div className={styles.heroMain}>
@@ -212,7 +306,7 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
         {(backendError || actionError || heartbeatError || loadError) && <div role="alert" className={styles.error}>{backendError || actionError || heartbeatError || loadError}</div>}
 
         <section data-queue-card="current-match" className={`${styles.card} ${styles.currentMatchCard}`}>
-          <div className={styles.sectionHeading}><h2>Current Match</h2><span className={styles.pill}>{table?.phase === 'playing' ? 'PLAYING' : table?.phase === 'called' ? 'CHECK-IN' : 'READY'}</span></div>
+          <div className={styles.sectionHeading}><h2>Current Match</h2><span className={styles.pill}>{acceptedRankedRequest ? 'RANKED' : table?.phase === 'playing' ? 'PLAYING' : table?.phase === 'called' ? 'CHECK-IN' : 'READY'}</span></div>
           {loading && !table ? <p className={styles.muted}>Loading current table…</p> : king ? <>
             <div className={styles.tableMatch}>
               <div className={styles.matchPlayer}><div aria-hidden="true" className={styles.avatar}><span>★★★</span></div><div className={styles.playerName}><strong>{nameOf(king)}</strong>{king === currentUserId && <span className={styles.youTag}>You</span>}</div><div className={styles.seatLabel}>Holder</div></div>
@@ -226,7 +320,14 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
               <div className={styles.gameTimer}><span>Time remaining</span><strong className={gameSeconds <= 60 ? styles.urgent : ''}>{formatTimer(gameSeconds)}</strong></div>
               {isAfkTarget && <div className={styles.afkPrompt}><div><strong>Are you here?</strong><span>Your opponent reported you as AFK.</span></div><strong className={afkSeconds <= 15 ? styles.urgent : ''}>{formatTimer(afkSeconds)}</strong><button disabled={Boolean(busy) || afkSeconds === 0 || !matchActionsAvailable} onClick={() => void action('afk-present', 'beaver_queue_confirm_presence_v1')}>{busy === 'afk-present' ? 'Responding…' : 'I’m Here'}</button></div>}
               {afkPending && !isAfkTarget && <div className={styles.afkStatus}><span>Waiting for {nameOf(table?.afk_target_id ?? null)} to respond to an AFK check</span><strong className={afkSeconds <= 15 ? styles.urgent : ''}>{formatTimer(afkSeconds)}</strong></div>}
-              {amPlaying && !isAfkTarget && (outcomeChoice ? <div className={styles.outcomeConfirm}><p>Confirm you {outcomeChoice}?</p><div><button className={outcomeChoice === 'won' ? styles.winButton : styles.lossButton} disabled={Boolean(busy) || !matchActionsAvailable} onClick={() => void confirmOutcome()}>{busy ? 'Submitting…' : outcomeChoice === 'won' ? 'Confirm Win' : 'Confirm Loss'}</button><button className={styles.cancelButton} disabled={Boolean(busy)} onClick={() => setOutcomeChoice(null)}>Cancel</button></div></div> : <><div className={styles.outcomeActions}><button className={styles.winButton} disabled={Boolean(busy) || !matchActionsAvailable} onClick={() => setOutcomeChoice('won')}>I Won</button><button className={styles.lossButton} disabled={Boolean(busy) || !matchActionsAvailable} onClick={() => setOutcomeChoice('lost')}>I Lost</button></div>{!afkPending && <button className={styles.afkReportButton} disabled={Boolean(busy) || !matchActionsAvailable} onClick={() => void action('afk-report', 'beaver_queue_report_afk_v1')}>{busy === 'afk-report' ? 'Reporting…' : 'Report AFK'}</button>}</>)}
+              {incomingRankedRequest && dismissedRankedRequestId === rankedRequest.id && <div className={`${styles.rankedStatus} ${styles.rankedReviewStatus}`}><span>{nameOf(rankedRequest.requester_id)} requested a Ranked match.</span><button type="button" disabled={Boolean(busy) || !matchActionsAvailable} onClick={() => setDismissedRankedRequestId(null)}>Review Ranked Request</button></div>}
+              {outgoingRankedRequest && <div className={styles.rankedStatus}>Ranked requested. Waiting for {nameOf(rankedRequest.opponent_id)}.</div>}
+              {rankedRequest?.status === 'declined' && <div className={styles.rankedStatus}>Ranked request declined. Continue this match as Unranked.</div>}
+              {acceptedRankedRequest && <div className={styles.rankedStatus}>Ranked accepted. Submit a valid score before the table timer reaches zero.</div>}
+              {rankedStatus && <div className={styles.rankedStatus}>{rankedStatus}</div>}
+              {rankedError && <p role="alert" className={styles.rankedError}>{rankedError}</p>}
+              {acceptedRankedRequest && amPlaying && !isAfkTarget && <div className={styles.rankedScorePanel}><div className={styles.rankedWinnerActions}><button className={rankedWinnerId === currentUserId ? styles.rankedWinnerSelected : ''} disabled={Boolean(busy)} onClick={() => chooseRankedWinner(currentUserId)}>I won</button><button className={rankedWinnerId === opponentId ? styles.rankedWinnerSelected : ''} disabled={Boolean(busy) || !opponentId} onClick={() => opponentId && chooseRankedWinner(opponentId)}>{nameOf(opponentId)} won</button></div><div className={styles.rankedScoreFields}><ScoreStepper label="You" value={rankedMyScore} onChange={setRankedMyScore} /><ScoreStepper label={nameOf(opponentId)} value={rankedTheirScore} onChange={setRankedTheirScore} /></div><button className={styles.rankedSubmitButton} disabled={Boolean(busy) || !matchActionsAvailable} onClick={() => void submitRankedScore()}>{busy === 'ranked-score' ? 'Finalizing…' : 'Submit Ranked Score'}</button><div className={styles.matchSecondaryActions}>{!afkPending && <button className={styles.afkReportButton} disabled={Boolean(busy) || !matchActionsAvailable} onClick={() => void action('afk-report', 'beaver_queue_report_afk_v1')}>{busy === 'afk-report' ? 'Reporting…' : 'Report AFK'}</button>}</div></div>}
+              {!acceptedRankedRequest && amPlaying && !isAfkTarget && (outcomeChoice ? <div className={styles.outcomeConfirm}><p>Confirm you {outcomeChoice}?</p><div><button className={outcomeChoice === 'won' ? styles.winButton : styles.lossButton} disabled={Boolean(busy) || !matchActionsAvailable} onClick={() => void confirmOutcome()}>{busy ? 'Submitting…' : outcomeChoice === 'won' ? 'Confirm Win' : 'Confirm Loss'}</button><button className={styles.cancelButton} disabled={Boolean(busy)} onClick={() => setOutcomeChoice(null)}>Cancel</button></div></div> : <><div className={styles.outcomeActions}><button className={styles.winButton} disabled={Boolean(busy) || !matchActionsAvailable} onClick={() => setOutcomeChoice('won')}>I Won</button><button className={styles.lossButton} disabled={Boolean(busy) || !matchActionsAvailable} onClick={() => setOutcomeChoice('lost')}>I Lost</button></div><div className={styles.matchSecondaryActions}>{!rankedRequest && <button className={styles.rankedGameButton} disabled={Boolean(busy) || !matchActionsAvailable} onClick={() => void rankedAction('ranked-request', 'beaver_queue_request_ranked_v1')}>{busy === 'ranked-request' ? 'Requesting…' : 'Ranked Game'}</button>}{!afkPending && <button className={styles.afkReportButton} disabled={Boolean(busy) || !matchActionsAvailable} onClick={() => void action('afk-report', 'beaver_queue_report_afk_v1')}>{busy === 'afk-report' ? 'Reporting…' : 'Report AFK'}</button>}</div></>)}
             </div>}
           </> : <p className={styles.muted}>Table open. Join the queue to become the first holder.</p>}
         </section>

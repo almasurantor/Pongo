@@ -17,6 +17,8 @@ export interface QueueHealth {
   outcome_granted?: boolean;
   swap_granted?: boolean;
   afk_granted?: boolean;
+  ranked_granted?: boolean;
+  ranked_requests_ready?: boolean;
   tick_granted?: boolean;
   holder_presence_trigger?: boolean;
 }
@@ -38,13 +40,15 @@ export function shouldSendQueueHeartbeat(
 export function isQueueBackendHealthy(data: unknown): data is QueueHealth {
   if (!data || typeof data !== 'object') return false;
   const health = data as QueueHealth;
-  return health.version === '20261104_03'
+  return health.version === '20261104_05'
     && health.initialized === true
     && health.heartbeat_granted === true
     && health.join_granted === true
     && health.outcome_granted === true
     && health.swap_granted === true
     && health.afk_granted === true
+    && health.ranked_granted === true
+    && health.ranked_requests_ready === true
     && health.tick_granted === true
     && health.holder_presence_trigger === true;
 }
@@ -56,7 +60,7 @@ export function queueErrorMessage(caught: unknown, fallback = 'Unable to update 
   const normalized = raw.toLowerCase();
 
   if (code === 'PGRST202' || code === '42883' || normalized.includes('schema cache')) {
-    return 'The queue database update is missing. Apply migrations through 20261104_03_queue_holder_presence.sql in Supabase, then reload.';
+    return 'The queue database update is missing. Apply migrations through 20261104_05_queue_ranked_inline_scoring.sql in Supabase, then reload.';
   }
   if (code === '42P01' || normalized.includes('does not exist')) {
     return 'The queue database tables are not installed. Apply the queue migrations before using this page.';

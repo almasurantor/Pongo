@@ -20,82 +20,13 @@ function NavIcon({ name, className = 'h-6 w-6' }: { name: string; className?: st
   return <svg aria-hidden="true" viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{icons[name]}</svg>;
 }
 
-let queueAudioContext: AudioContext | null = null;
-
-function getQueueAudioContext() {
-  if (!window.AudioContext) return null;
-  queueAudioContext ??= new window.AudioContext();
-  return queueAudioContext;
-}
-
-function playQueueChime(soft = false) {
-  // Never construct or resume Web Audio from a Realtime callback. Browsers
-  // require both operations to originate from a real user gesture.
-  const context = queueAudioContext;
-  if (!context || context.state !== 'running') return;
-  const sound = () => {
-    const gain = context.createGain();
-    gain.gain.setValueAtTime(0.0001, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(soft ? 0.08 : 0.18, context.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + (soft ? 0.35 : 0.8));
-    gain.connect(context.destination);
-    const notes = soft ? [659] : [523, 659, 784];
-    notes.forEach((frequency, index) => {
-      const oscillator = context.createOscillator();
-      oscillator.type = 'sine';
-      oscillator.frequency.value = frequency;
-      oscillator.connect(gain);
-      const start = context.currentTime + index * 0.16;
-      oscillator.start(start);
-      oscillator.stop(start + 0.28);
-    });
-  };
-  sound();
-}
-
-async function showQueueNotification() {
-  if (!('Notification' in window) || Notification.permission !== 'granted' || !('serviceWorker' in navigator)) return;
-  const registration = await navigator.serviceWorker.ready;
-  await registration.showNotification("Pongo — You're up!", {
-    body: 'Confirm within 60 seconds to keep your spot.',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
-    tag: 'pongo-queue-turn',
-    requireInteraction: true,
-    data: { url: '/queue' },
-  });
-}
-
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [userId, setUserId] = useState<string | null>(null);
   const [queueCalled, setQueueCalled] = useState(false);
-  const [queueSoundEnabled, setQueueSoundEnabled] = useState(true);
-  const [queuePushEnabled, setQueuePushEnabled] = useState(false);
-  const wasCalled = useRef(false);
-  const queueSoundEnabledRef = useRef(true);
-  const queuePushEnabledRef = useRef(false);
   const heartbeatFailures = useRef(0);
-
-  useEffect(() => {
-    const unlockAudio = () => {
-      const context = getQueueAudioContext();
-      if (context?.state === 'suspended') void context.resume();
-      window.removeEventListener('pointerdown', unlockAudio);
-      window.removeEventListener('keydown', unlockAudio);
-    };
-    window.addEventListener('pointerdown', unlockAudio, { passive: true });
-    window.addEventListener('keydown', unlockAudio);
-    return () => {
-      window.removeEventListener('pointerdown', unlockAudio);
-      window.removeEventListener('keydown', unlockAudio);
-    };
-  }, []);
-
-  useEffect(() => { queueSoundEnabledRef.current = queueSoundEnabled; }, [queueSoundEnabled]);
-  useEffect(() => { queuePushEnabledRef.current = queuePushEnabled; }, [queuePushEnabled]);
 
   useEffect(() => {
     let mounted = true;
@@ -115,10 +46,7 @@ export default function Navbar() {
     }
     let backendReady = false;
     const syncQueue = async (trigger: QueueSyncTrigger) => {
-      const [memberResponse, profileResponse] = await Promise.all([
-        supabase.from('beaver_queue_members').select('status').eq('user_id', userId).maybeSingle(),
-        supabase.from('profiles').select('queue_turn_sound_enabled,queue_turn_push_enabled').eq('id', userId).maybeSingle(),
-      ]);
+      const memberResponse = await supabase.from('beaver_queue_members').select('status').eq('user_id', userId).maybeSingle();
       const status = memberResponse.data?.status ?? null;
       setQueueCalled(status === 'called');
       if (!isActiveQueueStatus(status)) heartbeatFailures.current = 0;
@@ -131,10 +59,6 @@ export default function Navbar() {
         } else {
           heartbeatFailures.current = 0;
         }
-      }
-      if (profileResponse.data) {
-        setQueueSoundEnabled(profileResponse.data.queue_turn_sound_enabled ?? true);
-        setQueuePushEnabled(profileResponse.data.queue_turn_push_enabled ?? false);
       }
     };
     const start = async () => {
@@ -155,26 +79,6 @@ export default function Navbar() {
       void supabase.removeChannel(channel);
     };
   }, [pathname, supabase, userId]);
-
-  useEffect(() => {
-    if (!queueCalled) {
-      wasCalled.current = false;
-      if ('serviceWorker' in navigator) {
-        void navigator.serviceWorker.ready
-          .then((registration) => registration.getNotifications({ tag: 'pongo-queue-turn' }))
-          .then((notifications) => notifications.forEach((notification) => notification.close()));
-      }
-      return;
-    }
-    if (wasCalled.current) return;
-    wasCalled.current = true;
-    if (queueSoundEnabledRef.current && document.visibilityState === 'visible') playQueueChime();
-    if (queuePushEnabledRef.current) void showQueueNotification();
-    const reminder = window.setTimeout(() => {
-      if (wasCalled.current && queueSoundEnabledRef.current && document.visibilityState === 'visible') playQueueChime(true);
-    }, 30_000);
-    return () => window.clearTimeout(reminder);
-  }, [queueCalled]);
 
   const profileHref = userId ? `/profile/${userId}` : '/dashboard';
   const items = [

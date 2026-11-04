@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import ScoreStepper from '@/components/ScoreStepper';
-import { validateMatchScore } from '@/lib/match-result';
+import { defaultMatchScores, validateMatchScore } from '@/lib/match-result';
 import { Dispute, Match, MatchCancellationRequest, MatchSubmission } from '@/lib/types';
 import { isMatchOverdue } from '@/lib/ranking-rules';
 import { createClient } from '@/lib/supabase/client';
@@ -94,6 +94,20 @@ export default function MatchClient({
       .subscribe();
     return () => { void supabase.removeChannel(matchChannel); };
   }, [match.id, supabase]);
+
+  const chooseWinner = (nextWinnerId: string) => {
+    const scores = defaultMatchScores(nextWinnerId === currentUserId);
+    setWinnerId(nextWinnerId);
+    setMyScore(scores.myScore);
+    setTheirScore(scores.theirScore);
+  };
+
+  const chooseCorrectionWinner = (nextWinnerId: string) => {
+    const scores = defaultMatchScores(nextWinnerId === currentUserId);
+    setCorrectionWinnerId(nextWinnerId);
+    setCorrectionMyScore(scores.myScore);
+    setCorrectionTheirScore(scores.theirScore);
+  };
 
   const scorePayload = () => {
     const winnerScore = winnerId === currentUserId ? myScore : theirScore;
@@ -306,8 +320,8 @@ export default function MatchClient({
             {disputeResolution === 'correction' && (
               <>
                 <div className="mt-4 grid grid-cols-2 gap-3">
-                  <button onClick={() => setCorrectionWinnerId(currentUserId)} className={`min-h-12 rounded-xl border-2 font-black ${correctionWinnerId===currentUserId?'border-primary-purple bg-primary-purple/10 text-primary-purple':'border-accent-gray-200'}`}>I won</button>
-                  <button onClick={() => setCorrectionWinnerId(opponent?.id || '')} className={`min-h-12 rounded-xl border-2 font-black ${correctionWinnerId===opponent?.id?'border-primary-purple bg-primary-purple/10 text-primary-purple':'border-accent-gray-200'}`}>{opponent?.display_name} won</button>
+                  <button onClick={() => chooseCorrectionWinner(currentUserId)} className={`min-h-12 rounded-xl border-2 font-black ${correctionWinnerId===currentUserId?'border-primary-purple bg-primary-purple/10 text-primary-purple':'border-accent-gray-200'}`}>I won</button>
+                  <button onClick={() => chooseCorrectionWinner(opponent?.id || '')} className={`min-h-12 rounded-xl border-2 font-black ${correctionWinnerId===opponent?.id?'border-primary-purple bg-primary-purple/10 text-primary-purple':'border-accent-gray-200'}`}>{opponent?.display_name} won</button>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <ScoreStepper label="You" value={correctionMyScore} onChange={setCorrectionMyScore} />
@@ -364,7 +378,7 @@ export default function MatchClient({
                   { id: currentUserId, label: 'I won' },
                   { id: opponent?.id || '', label: `${opponent?.display_name} won` },
                 ].map((choice) => (
-                  <button key={choice.id} onClick={() => setWinnerId(choice.id)} className={`min-h-14 rounded-2xl border-2 font-black ${winnerId === choice.id ? 'border-primary-purple bg-primary-purple/10 text-primary-purple' : 'border-accent-gray-200 bg-white'}`}>
+                  <button key={choice.id} onClick={() => chooseWinner(choice.id)} className={`min-h-14 rounded-2xl border-2 font-black ${winnerId === choice.id ? 'border-primary-purple bg-primary-purple/10 text-primary-purple' : 'border-accent-gray-200 bg-white'}`}>
                     {choice.label}
                   </button>
                 ))}

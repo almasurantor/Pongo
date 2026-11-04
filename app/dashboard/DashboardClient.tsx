@@ -8,6 +8,7 @@ import { Challenge, Dispute, Match, MatchCancellationRequest, OpponentRankedUsag
 import { useDatabaseRefresh } from '@/lib/use-database-refresh';
 import RankBadge, { RankProgress } from '@/components/RankBadge';
 import DeadlineCountdown from '@/components/DeadlineCountdown';
+import RankedDecisionModal from '@/components/RankedDecisionModal';
 
 interface Props {
   user: Profile;
@@ -37,6 +38,7 @@ export default function DashboardClient({
   const [loading, setLoading] = useState<string | null>(null);
   const [playerQuery, setPlayerQuery] = useState('');
   const [selectedCard, setSelectedCard] = useState(0);
+  const [dismissedChallengeIds, setDismissedChallengeIds] = useState<string[]>([]);
   const cardTrackRef = useRef<HTMLDivElement>(null);
 
   const post = async (url: string, body: object, key: string) => {
@@ -112,6 +114,7 @@ export default function DashboardClient({
   const requestFor = (matchId: string) => cancellationRequests.find((request) => request.match_id === matchId);
   const incoming = pendingChallenges.filter((challenge) => challenge.opponent_id === user.id && new Date(challenge.expires_at).getTime() > Date.now());
   const outgoing = pendingChallenges.filter((challenge) => challenge.challenger_id === user.id && new Date(challenge.expires_at).getTime() > Date.now());
+  const popupChallenge = incoming.find((challenge) => !dismissedChallengeIds.includes(challenge.id));
   const cancellationNeedsResponse = cancellationRequests.filter((request) => request.requested_by !== user.id);
   const disputesNeedResponse = disputes.filter((dispute) => dispute.status === 'pending' && dispute.opened_by !== user.id);
   const winRate = user.total_wins + user.total_losses
@@ -122,7 +125,7 @@ export default function DashboardClient({
   const visiblePlayers = players
     .filter((player) => player.display_name.toLowerCase().includes(playerQuery.trim().toLowerCase()))
     .slice(0, 5);
-  const dashboardCards = ['Active Matches', 'Friends', 'Challenges'];
+  const dashboardCards = ['Pending Matches', 'Friends', 'Challenges'];
   const openCard = (index: number) => {
     const track = cardTrackRef.current;
     const card = track?.children[index] as HTMLElement | undefined;
@@ -143,6 +146,15 @@ export default function DashboardClient({
 
   return (
     <main className="app-screen min-h-screen bg-gradient-to-br from-white via-accent-gray-50 to-primary-purple/5 px-4 py-6 sm:py-10">
+      {popupChallenge && (
+        <RankedDecisionModal
+          challenger={popupChallenge.challenger}
+          busy={loading !== null}
+          onDismiss={() => setDismissedChallengeIds((current) => [...current, popupChallenge.id])}
+          onDecline={() => void respondChallenge(popupChallenge.id, 'decline')}
+          onAccept={() => void respondChallenge(popupChallenge.id, 'accept')}
+        />
+      )}
       <div className="app-screen-shell mx-auto max-w-5xl space-y-0 sm:space-y-7">
         <header className="screen-fixed flex items-end justify-between">
           <h1 className="text-3xl font-black sm:text-4xl">{user.display_name}</h1>
@@ -161,7 +173,7 @@ export default function DashboardClient({
             <div><p className="text-xl font-black">{user.total_wins}-{user.total_losses}</p><p className="text-xs text-white/70">Record</p></div>
             <div><p className="text-xl font-black">{winRate}%</p><p className="text-xs text-white/70">Win rate</p></div>
             <div><p className="text-xl font-black">{rankedUsage.daily_used}/{rankedUsage.daily_limit}</p><p className="text-xs text-white/70">Games today</p></div>
-            <div><p className="text-xl font-black">{rankedUsage.active_used}/{rankedUsage.active_limit}</p><p className="text-xs text-white/70">Active matches</p></div>
+            <div><p className="text-xl font-black">{rankedUsage.active_used}/{rankedUsage.active_limit}</p><p className="text-xs text-white/70">Pending matches</p></div>
           </div>
           <div className="mt-4 border-t border-white/20 pt-3"><RankProgress elo={user.current_elo} totalGames={totalGames} inverse /></div>
         </section>
@@ -186,8 +198,8 @@ export default function DashboardClient({
           className="screen-flex grid min-h-0 snap-x snap-mandatory auto-cols-[100%] grid-flow-col gap-3 overflow-x-auto overscroll-x-contain scroll-smooth pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid-flow-row sm:grid-cols-3 sm:overflow-visible"
         >
           <section className="app-surface-card mobile-widget scroll-widget h-full min-w-0 snap-start p-4">
-            <div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-black">Active Matches</h2><span className="text-sm font-bold text-accent-gray-500">{rankedUsage.active_used}/{rankedUsage.active_limit}</span></div>
-            <div className="widget-scroll space-y-3 pr-1" tabIndex={0} aria-label="Active matches and requests">
+            <div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-black">Pending Matches</h2><span className="text-sm font-bold text-accent-gray-500">{rankedUsage.active_used}/{rankedUsage.active_limit}</span></div>
+            <div className="widget-scroll space-y-3 pr-1" tabIndex={0} aria-label="Pending matches and requests">
               {disputesNeedResponse.map((dispute) => {
                 const disputedMatch = dispute.match;
                 const requester = disputedMatch?.player_one_id === dispute.opened_by ? disputedMatch.player_one : disputedMatch?.player_two;
@@ -210,7 +222,7 @@ export default function DashboardClient({
                   )}
                   <DeadlineCountdown deadline={challenge.expires_at} className="mt-2 block text-sm font-bold text-accent-gray-500" />
                   <div className="mt-3 grid grid-cols-2 gap-2">
-                    <button disabled={loading !== null} onClick={() => respondChallenge(challenge.id, 'decline')} className="min-h-11 rounded-xl border-2 border-accent-gray-300 font-bold disabled:opacity-50">Deny</button>
+                    <button disabled={loading !== null} onClick={() => respondChallenge(challenge.id, 'decline')} className="min-h-11 rounded-xl border-2 border-accent-gray-300 font-bold disabled:opacity-50">Decline</button>
                     <button disabled={loading !== null} onClick={() => respondChallenge(challenge.id, 'accept')} className="min-h-11 rounded-xl gradient-purple font-bold text-white disabled:opacity-50">Accept</button>
                   </div>
                 </article>
@@ -219,7 +231,7 @@ export default function DashboardClient({
                 const request = requestFor(match.id);
                 return <Link key={match.id} href={`/match/${match.id}`} className="block rounded-2xl border-2 border-primary-purple/15 bg-white p-4 shadow-sm transition active:scale-[.99]"><p className="text-xs font-black uppercase text-primary-purple">vs {opponentFor(match)?.display_name}</p>{opponentFor(match) && <div className="mt-2"><RankBadge elo={opponentFor(match)!.current_elo} totalGames={opponentFor(match)!.total_wins + opponentFor(match)!.total_losses} compact /></div>}<p className="mt-2 font-bold">{match.verification_mode === 'dual' ? 'Dual report' : 'Ready to score'}</p>{match.expires_at && <DeadlineCountdown deadline={match.expires_at} className="mt-1 block text-sm font-bold text-accent-gray-500" />}{request && <p className="mt-2 rounded-xl bg-amber-50 p-2 text-sm font-bold text-amber-700">{request.requested_by === user.id ? 'Cancellation pending' : 'Response needed'}</p>}</Link>;
               })}
-              {!activeMatches.length && !incoming.length && !disputesNeedResponse.length && !cancellationNeedsResponse.length && <div className="rounded-2xl bg-accent-gray-50 p-6 text-center text-accent-gray-500">No active matches or incoming challenges.</div>}
+              {!activeMatches.length && !incoming.length && !disputesNeedResponse.length && !cancellationNeedsResponse.length && <div className="rounded-2xl bg-accent-gray-50 p-6 text-center text-accent-gray-500">No pending matches or incoming challenges.</div>}
             </div>
           </section>
 

@@ -15,12 +15,23 @@ export async function POST(request: Request, { params }: { params: { id: string 
   if (validationError || winnerScore <= loserScore) return NextResponse.json({ error: validationError || 'Winner score must be higher' }, { status: 400 });
   if (typeof body.winner_id !== 'string') return NextResponse.json({ error: 'Winner is required' }, { status: 400 });
 
-  const { data, error } = await supabase.rpc('submit_match_report_v2', {
+  const { data: queueRequest, error: queueRequestError } = await supabase
+    .from('beaver_queue_ranked_requests')
+    .select('id')
+    .eq('match_id', params.id)
+    .eq('status', 'accepted')
+    .maybeSingle();
+  if (queueRequestError) return apiError(queueRequestError);
+
+  const { data, error } = await supabase.rpc(
+    queueRequest ? 'beaver_queue_submit_ranked_result_v1' : 'submit_match_report_v2',
+    {
     p_match: params.id,
     p_winner: body.winner_id,
     p_winner_score: winnerScore,
     p_loser_score: loserScore,
-  });
+    },
+  );
 
   if (error) return apiError(error);
   if (data?.conflicting_reports) {

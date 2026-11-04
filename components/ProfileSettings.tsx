@@ -14,34 +14,6 @@ const validName = (name: string) => {
     && /^[A-Za-z0-9][A-Za-z0-9 _.]*[A-Za-z0-9]$/.test(normalized);
 };
 
-function SettingSwitch({ checked, label, description, onChange, disabled = false }: {
-  checked: boolean;
-  label: string;
-  description: string;
-  onChange: (checked: boolean) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="flex min-h-14 items-center justify-between gap-4 rounded-2xl bg-accent-gray-50 px-4 py-3 dark:bg-[#0B1120]">
-      <div className="min-w-0">
-        <p className="font-black">{label}</p>
-        <p className="text-xs leading-relaxed text-accent-gray-500">{description}</p>
-      </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={label}
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className={`relative h-8 w-14 shrink-0 rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${checked ? 'bg-[#2563EB]' : 'bg-accent-gray-300 dark:bg-[#475569]'}`}
-      >
-        <span className={`absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-0'}`} />
-      </button>
-    </div>
-  );
-}
-
 export default function ProfileSettings({ profile, onSaved }: {
   profile: Profile;
   onSaved: (profile: Profile) => void;
@@ -50,14 +22,7 @@ export default function ProfileSettings({ profile, onSaved }: {
   const [savedName, setSavedName] = useState(profile.display_name);
   const [name, setName] = useState(profile.display_name);
   const [nameState, setNameState] = useState<NameState>('idle');
-  const [soundEnabled, setSoundEnabled] = useState(profile.queue_turn_sound_enabled ?? true);
-  const [pushEnabled, setPushEnabled] = useState(profile.queue_turn_push_enabled ?? false);
-  const [pushSupported, setPushSupported] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    setPushSupported('Notification' in window && 'serviceWorker' in navigator);
-  }, []);
 
   useEffect(() => {
     const normalized = name.trim();
@@ -82,31 +47,15 @@ export default function ProfileSettings({ profile, onSaved }: {
     return () => window.clearTimeout(timer);
   }, [name, savedName, supabase]);
 
-  const changePush = async (next: boolean) => {
-    if (!next) {
-      setPushEnabled(false);
-      return;
-    }
-    if (!pushSupported) {
-      toast.error('Queue reminders are not supported by this browser.');
-      return;
-    }
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      toast.error('Allow notifications to enable queue turn reminders.');
-      return;
-    }
-    setPushEnabled(true);
-  };
-
   const save = async () => {
     const normalized = name.trim();
     if (!validName(normalized) || nameState === 'taken' || nameState === 'checking') return;
     setSaving(true);
     const { data, error } = await supabase.rpc('update_my_profile_settings_v4', {
       p_display_name: normalized,
-      p_queue_turn_sound_enabled: soundEnabled,
-      p_queue_turn_push_enabled: pushEnabled,
+      // Preserve the legacy columns while these controls are retired from UI.
+      p_queue_turn_sound_enabled: profile.queue_turn_sound_enabled ?? true,
+      p_queue_turn_push_enabled: profile.queue_turn_push_enabled ?? false,
     });
     setSaving(false);
     if (error) {
@@ -119,7 +68,7 @@ export default function ProfileSettings({ profile, onSaved }: {
     setName(updated.display_name);
     setNameState('saved');
     onSaved(updated);
-    toast.success('Settings saved');
+    toast.success('Profile saved');
   };
 
   const status = nameState === 'checking' ? 'Checking…'
@@ -151,26 +100,13 @@ export default function ProfileSettings({ profile, onSaved }: {
         </div>
       </div>
 
-      <SettingSwitch
-        checked={soundEnabled}
-        label="Queue turn sound"
-        description="Play a short alert when your 60-second turn begins."
-        onChange={setSoundEnabled}
-      />
-      <SettingSwitch
-        checked={pushEnabled}
-        label="Queue push reminder"
-        description={pushSupported ? 'Show a device reminder while Pongo is running.' : 'Not supported by this browser.'}
-        onChange={(next) => void changePush(next)}
-        disabled={!pushSupported}
-      />
       <button
         type="button"
         onClick={() => void save()}
         disabled={saving || nameState === 'checking' || nameState === 'taken' || nameState === 'invalid'}
         className="min-h-12 w-full rounded-xl bg-[#2563EB] px-4 font-black text-white transition active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-45"
       >
-        {saving ? 'Saving…' : 'Save settings'}
+        {saving ? 'Saving…' : 'Save profile'}
       </button>
     </div>
   );

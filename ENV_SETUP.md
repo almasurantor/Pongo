@@ -20,7 +20,11 @@ real environment values to GitHub.
    ```
    NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+   SUPABASE_SERVICE_ROLE_KEY=your-server-only-service-role-key
    ```
+
+   Keep `SUPABASE_SERVICE_ROLE_KEY` server-only. It powers the protected account
+   deletion route and must never use a `NEXT_PUBLIC_` prefix.
 
 3. Verify the file was created:
    ```bash

@@ -22,19 +22,21 @@ describe('queue client safety', () => {
   });
 
   it('requires the repaired backend version and every RPC grant', () => {
-    const healthy = { version: '20261104_03', initialized: true, heartbeat_granted: true, join_granted: true, tick_granted: true, outcome_granted: true, swap_granted: true, afk_granted: true, holder_presence_trigger: true };
+    const healthy = { version: '20261104_05', initialized: true, heartbeat_granted: true, join_granted: true, tick_granted: true, outcome_granted: true, swap_granted: true, afk_granted: true, ranked_granted: true, ranked_requests_ready: true, holder_presence_trigger: true };
     expect(isQueueBackendHealthy(healthy)).toBe(true);
     expect(isQueueBackendHealthy({ ...healthy, version: '20261103_02' })).toBe(false);
     expect(isQueueBackendHealthy({ ...healthy, heartbeat_granted: false })).toBe(false);
     expect(isQueueBackendHealthy({ ...healthy, outcome_granted: false })).toBe(false);
     expect(isQueueBackendHealthy({ ...healthy, swap_granted: false })).toBe(false);
     expect(isQueueBackendHealthy({ ...healthy, afk_granted: false })).toBe(false);
+    expect(isQueueBackendHealthy({ ...healthy, ranked_granted: false })).toBe(false);
+    expect(isQueueBackendHealthy({ ...healthy, ranked_requests_ready: false })).toBe(false);
     expect(isQueueBackendHealthy({ ...healthy, tick_granted: false })).toBe(false);
     expect(isQueueBackendHealthy({ ...healthy, holder_presence_trigger: false })).toBe(false);
   });
 
   it('maps database failures to actionable messages without hiding the cause', () => {
-    expect(queueErrorMessage({ code: 'PGRST202', message: 'schema cache' })).toContain('20261104_03_queue_holder_presence.sql');
+    expect(queueErrorMessage({ code: 'PGRST202', message: 'schema cache' })).toContain('20261104_05_queue_ranked_inline_scoring.sql');
     expect(queueErrorMessage({ code: '42501', message: 'permission denied' })).toContain('RPC grants and RLS');
     expect(queueErrorMessage({ code: '23503', message: 'foreign key violation' })).toContain('profile');
     expect(queueErrorMessage({ code: '40P01', message: 'deadlock detected' })).toContain('try again');

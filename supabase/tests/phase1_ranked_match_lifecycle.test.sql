@@ -180,15 +180,17 @@ SELECT pg_temp.assert_true(
   'scheduled cleanup must expire unanswered challenges'
 );
 
--- The current pair limit remains enforced after finalization.
+-- The current ten-game pair limit remains enforced after finalization.
+UPDATE public.ranking_config SET daily_ranked_player_limit=11 WHERE id;
 INSERT INTO public.matches(player_one_id,player_two_id,status,source,ranked,ranked_day,winner_id,player_one_score,player_two_score,confirmed_at,finalized_at)
 SELECT 'f1000000-0000-0000-0000-000000000005','f1000000-0000-0000-0000-000000000006',
   'confirmed','challenge',TRUE,public.club_ranked_day_v3(),'f1000000-0000-0000-0000-000000000005',11,9,NOW(),NOW()
-FROM generate_series(1,3);
+FROM generate_series(1,10);
 SELECT pg_temp.assert_true(
   NOT public.check_daily_match_limit('f1000000-0000-0000-0000-000000000005','f1000000-0000-0000-0000-000000000006'),
-  'the daily pair cap must reject match 4'
+  'the daily pair cap must reject match 11'
 );
+UPDATE public.ranking_config SET daily_ranked_player_limit=10 WHERE id;
 
 -- An unrelated authenticated user cannot read cancellation history.
 SET LOCAL ROLE authenticated;

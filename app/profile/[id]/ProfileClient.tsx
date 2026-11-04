@@ -11,6 +11,7 @@ import InstallAppHint from '@/components/InstallAppHint';
 import RankBadge, { RankProgress } from '@/components/RankBadge';
 import ThemeSettings from '@/components/ThemeSettings';
 import ProfileSettings from '@/components/ProfileSettings';
+import AccountSecurity from '@/components/AccountSecurity';
 
 interface Props {
   profile: Profile;
@@ -131,21 +132,27 @@ export default function ProfileClient({ profile, matches, opponentUsage, rank, c
         </section>
 
         {mine && (
+          <section className="rounded-3xl border-2 border-accent-gray-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Profile actions">
+            <div className="space-y-4">
+              <ThemeSettings embedded />
+              <Link href="/landing" className="flex min-h-12 w-full items-center justify-center rounded-2xl border-2 border-[#2563EB]/25 bg-[#EFF6FF] px-4 font-black text-[#1D4ED8] transition hover:border-[#2563EB] hover:bg-[#DBEAFE] active:scale-[.99] dark:bg-[#17243C] dark:text-[#93C5FD]">
+                View Landing Page
+              </Link>
+              <button onClick={logout} className="min-h-12 w-full rounded-2xl border-2 border-red-200 font-bold text-red-600">Log out</button>
+            </div>
+          </section>
+        )}
+
+        {mine && (
           <section className="rounded-3xl border-2 border-accent-gray-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Profile settings">
             <div className="space-y-4">
             <div>
               <h2 className="text-xl font-black">Settings</h2>
-              <p className="mt-1 text-sm text-accent-gray-500">Your public name and queue reminders.</p>
+              <p className="mt-1 text-sm text-accent-gray-500">Manage your public profile and account security.</p>
             </div>
             <ProfileSettings profile={currentProfile} onSaved={setCurrentProfile} />
-            <div className="border-t border-accent-gray-200 pt-4 dark:border-[#334155]">
-              <ThemeSettings embedded />
-            </div>
+            <AccountSecurity displayName={currentProfile.display_name} />
             <InstallAppHint />
-            <Link href="/landing" className="flex min-h-12 w-full items-center justify-center rounded-2xl border-2 border-[#2563EB]/25 bg-[#EFF6FF] px-4 font-black text-[#1D4ED8] transition hover:border-[#2563EB] hover:bg-[#DBEAFE] active:scale-[.99] dark:bg-[#17243C] dark:text-[#93C5FD]">
-              View Landing Page
-            </Link>
-            <button onClick={logout} className="min-h-12 w-full rounded-2xl border-2 border-red-200 font-bold text-red-600">Log out</button>
             </div>
           </section>
         )}

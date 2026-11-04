@@ -1,8 +1,10 @@
 # Live Queue setup and verification
 
-The experimental `/queue` feature is intentionally separate from ranked BeaverSmash
-matches. Its tables, RPCs, recent results, and Realtime channels all use the
-`beaver_queue_*` prefix.
+The `/queue` feature records games as unranked by default. Its queue tables, RPCs,
+recent results, and Realtime channels use the `beaver_queue_*` prefix. If both active
+players agree to Ranked, the Current Match card switches to the normal ranked score
+rules. A valid score removes both players and advances the line; an unanswered score
+deadline voids the ranked match and removes both players.
 
 ## Apply the migration
 
@@ -15,11 +17,13 @@ matches. Its tables, RPCs, recent results, and Realtime channels all use the
    `supabase/migrations/20261103_04_queue_forward_swaps.sql` and
    `supabase/migrations/20261103_05_queue_afk_timeouts.sql` and
    `supabase/migrations/20261104_02_queue_match_expiry_checkins.sql` and
-   `supabase/migrations/20261104_03_queue_holder_presence.sql` through the Supabase CLI
+   `supabase/migrations/20261104_03_queue_holder_presence.sql` and
+   `supabase/migrations/20261104_04_queue_ranked_matches.sql` and
+   `supabase/migrations/20261104_05_queue_ranked_inline_scoring.sql` through the Supabase CLI
    or SQL editor. **A GitHub/Vercel deployment does not apply database migrations.**
    Test the repair against a disposable database before production.
-4. Verify `beaver_queue_table`, `beaver_queue_members`, `beaver_queue_games`, and
-   `beaver_queue_swap_requests` are in
+4. Verify `beaver_queue_table`, `beaver_queue_members`, `beaver_queue_games`,
+   `beaver_queue_swap_requests`, and `beaver_queue_ranked_requests` are in
    the `supabase_realtime` publication.
 5. Deploy the application code together with the migration. An application deployed
    before its database migration will show a missing-RPC error at `/queue`.
@@ -37,6 +41,8 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f supabase/tests/queue_afk_timeouts.test.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f supabase/tests/queue_match_expiry_checkins.test.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+  -f supabase/tests/queue_ranked_matches.test.sql
 ```
 
 The test runs in a transaction and rolls back its users and queue state. Follow
@@ -48,7 +54,7 @@ Run this in the Supabase SQL editor after applying the repair:
 
 ```sql
 SELECT
-  to_regprocedure('public.beaver_queue_health_v7()') IS NOT NULL AS repair_installed,
+  to_regprocedure('public.beaver_queue_health_v9()') IS NOT NULL AS repair_installed,
   has_function_privilege('authenticated','public.beaver_queue_heartbeat_v1()','EXECUTE') AS heartbeat_granted,
   has_function_privilege('authenticated','public.beaver_queue_join_v1()','EXECUTE') AS join_granted,
   has_function_privilege('authenticated','public.beaver_queue_tick_v1()','EXECUTE') AS tick_granted,
@@ -56,6 +62,9 @@ SELECT
   has_function_privilege('authenticated','public.beaver_queue_request_swap_v1(uuid)','EXECUTE') AS swap_granted,
   has_function_privilege('authenticated','public.beaver_queue_report_afk_v1()','EXECUTE') AS afk_report_granted,
   has_function_privilege('authenticated','public.beaver_queue_confirm_presence_v1()','EXECUTE') AS presence_granted,
+  has_function_privilege('authenticated','public.beaver_queue_request_ranked_v1()','EXECUTE') AS ranked_request_granted,
+  has_function_privilege('authenticated','public.beaver_queue_respond_ranked_v1(uuid,text)','EXECUTE') AS ranked_response_granted,
+  has_function_privilege('authenticated','public.beaver_queue_submit_ranked_result_v1(uuid,uuid,integer,integer)','EXECUTE') AS ranked_score_granted,
   EXISTS (
     SELECT 1 FROM pg_publication_tables
     WHERE pubname='supabase_realtime' AND schemaname='public'
@@ -64,7 +73,7 @@ SELECT
 ```
 
 All values must be `true`. From an authenticated app session,
-`beaver_queue_health_v7()` must return version `20261104_03`. A `PGRST202` response means
+`beaver_queue_health_v9()` must return version `20261104_05`. A `PGRST202` response means
 the migration was not applied or PostgREST has not reloaded its schema. A `42501`
 response for an authenticated user means the RPC grant is wrong; the same response for
 the anonymous role is expected.
@@ -90,7 +99,8 @@ authenticated tick RPC as soon as their displayed authoritative deadline reaches
 that client request is an immediate synchronization path, not a replacement for the worker.
 
 The same worker enforces the solo-player and in-game AFK 60-second deadlines, the
-10-minute game deadline, stores unfinished games as `abandoned` audit rows, expires
+10-minute game deadline, voids any accepted Ranked match without a submitted score,
+stores unfinished games as `abandoned` audit rows, expires
 60-second swap requests, and calls the next eligible players. AFK removals never create
 a win or loss. Abandoned games are visible only in the admin Integrity
 audit; they never appear in player Queue Activity.
@@ -114,8 +124,9 @@ audit; they never appear in player Queue Activity.
 8. Try joining twice, leaving while waiting, leaving while called, refreshing during a
    game, and submitting from a nonparticipant. The queue should remain consistent and
    unauthorized reporting should fail.
-9. Confirm that no row was added to `matches` or `rating_events`, and no ranked ELO,
-   win/loss record, limit, leaderboard, or dispute changed.
+9. For an Unranked game, confirm that no row was added to `matches` or
+   `rating_events`, and no ranked ELO, win/loss record, limit, leaderboard, or
+   dispute changed.
 10. While two or more players are waiting, request a swap from a player ahead to one
     behind. Accept it from the target session and verify both positions exchange for all
     clients. Decline and 60-second expiry must leave positions unchanged.
@@ -124,6 +135,15 @@ audit; they never appear in player Queue Activity.
     let a second check expire and verify the reporter stays while the next player is called.
 13. Let a game timer reach `0:00`. Both players should be removed, an abandoned queue
     audit row should contain no winner or loser, and the next waiting player should advance.
+14. Start another game and request **Ranked Game**. Declining must leave **I Won** and
+    **I Lost** available. Accepting must hide them and show the score controls inside
+    **Current Match**, without navigating away from `/queue`.
+15. Submit a valid Ranked score. Confirm that the normal ranked match is finalized,
+    both players leave the queue, ELO/rank data updates once, no completed unranked
+    queue result is stored, and the next waiting player advances.
+16. Accept Ranked in another game but submit no score. At the original `0:00` deadline,
+    both players must be removed, the ranked match must be `voided` with no rating
+    events, and the next waiting player must advance.
 
 ## Outcome corrections
 

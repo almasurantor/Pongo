@@ -658,6 +658,7 @@
 }
 
 .cancelButton,
+.rankedGameButton,
 .afkReportButton,
 .afkPrompt button {
   border: 1px solid #cbd5e1;
@@ -670,8 +671,16 @@
   cursor: pointer;
 }
 
+.matchSecondaryActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .5rem;
+}
+
+.rankedGameButton,
 .afkReportButton {
-  justify-self: end;
+  min-width: 7rem;
   padding: .45rem .65rem;
   color: var(--queue-match-secondary);
   border-color: #6f99d6;
@@ -680,8 +689,96 @@
 }
 
 .cancelButton:disabled,
+.rankedGameButton:disabled,
 .afkReportButton:disabled,
 .afkPrompt button:disabled { cursor: not-allowed; opacity: .5; }
+
+.rankedStatus,
+.rankedError {
+  margin: 0;
+  border-radius: .75rem;
+  padding: .55rem .7rem;
+  color: var(--queue-match-secondary);
+  background: var(--queue-match-inner);
+  font-size: .72rem;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.rankedReviewStatus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .65rem;
+}
+
+.rankedStatus button {
+  flex-shrink: 0;
+  border: 1px solid #6f99d6;
+  border-radius: .65rem;
+  padding: .45rem .6rem;
+  color: #fff;
+  background: transparent;
+  font-size: .68rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.rankedStatus button:disabled { cursor: not-allowed; opacity: .5; }
+
+.rankedError { color: #fecaca; }
+
+.rankedScorePanel {
+  display: grid;
+  gap: .7rem;
+  border: 1px solid var(--queue-match-divider);
+  border-radius: 1rem;
+  padding: .85rem;
+  background: var(--queue-match-inner);
+}
+
+.rankedWinnerActions,
+.rankedScoreFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .6rem;
+}
+
+.rankedWinnerActions button {
+  min-height: 2.75rem;
+  border: 1px solid #6f99d6;
+  border-radius: .75rem;
+  padding: .55rem;
+  color: #fff;
+  background: transparent;
+  font-size: .78rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.rankedWinnerActions button.rankedWinnerSelected {
+  border-color: var(--queue-orange);
+  background: rgba(255, 123, 26, .2);
+}
+
+.rankedWinnerActions button:disabled,
+.rankedSubmitButton:disabled { cursor: not-allowed; opacity: .5; }
+
+.rankedSubmitButton {
+  min-height: 3rem;
+  border: 0;
+  border-radius: .85rem;
+  padding: .7rem 1rem;
+  color: #fff;
+  background: var(--queue-win);
+  font-size: .9rem;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+@media (max-width: 480px) {
+  .rankedScoreFields { grid-template-columns: minmax(0, 1fr); }
+}
 
 .afkPrompt {
   display: grid;

@@ -275,7 +275,7 @@ DECLARE
   player_two_before INTEGER;
   player_one_delta INTEGER;
   player_two_delta INTEGER;
-  week_start DATE;
+  current_week_start DATE;
   domain_event UUID;
   calculation JSONB;
 BEGIN
@@ -336,7 +336,7 @@ BEGIN
   player_two_before:=CASE WHEN match_row.player_two_id=winner.id THEN winner_before ELSE loser_before END;
   player_one_delta:=CASE WHEN match_row.player_one_id=winner.id THEN winner_gain ELSE -loser_loss END;
   player_two_delta:=CASE WHEN match_row.player_two_id=winner.id THEN winner_gain ELSE -loser_loss END;
-  week_start:=(date_trunc('week',NOW() AT TIME ZONE 'America/New_York'))::DATE;
+  current_week_start:=(date_trunc('week',NOW() AT TIME ZONE 'America/New_York'))::DATE;
 
   UPDATE public.profiles SET
     current_elo=winner_before+winner_gain,
@@ -380,12 +380,12 @@ BEGIN
   );
 
   INSERT INTO public.weekly_player_stats(player_id,week_start,wins,losses)
-  VALUES(winner.id,week_start,1,0)
+  VALUES(winner.id,current_week_start,1,0)
   ON CONFLICT(player_id,week_start) DO UPDATE SET
     wins=public.weekly_player_stats.wins+1,
     updated_at=NOW();
   INSERT INTO public.weekly_player_stats(player_id,week_start,wins,losses)
-  VALUES(loser.id,week_start,0,1)
+  VALUES(loser.id,current_week_start,0,1)
   ON CONFLICT(player_id,week_start) DO UPDATE SET
     losses=public.weekly_player_stats.losses+1,
     updated_at=NOW();
