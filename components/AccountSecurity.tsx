@@ -1,10 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { createClient } from '@/lib/supabase/client';
 
-export default function AccountSecurity({ displayName }: { displayName: string }) {
+export default function AccountSecurity({ displayName, onDirtyChange }: { displayName: string; onDirtyChange?: (dirty: boolean) => void }) {
   const supabase = useMemo(() => createClient(), []);
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState('');
@@ -12,6 +12,10 @@ export default function AccountSecurity({ displayName }: { displayName: string }
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [showDelete, setShowDelete] = useState(false);
   const [busy, setBusy] = useState('');
+
+  useEffect(() => {
+    onDirtyChange?.(Boolean(password || confirmation || deleteConfirmation));
+  }, [confirmation, deleteConfirmation, onDirtyChange, password]);
 
   const changePassword = async () => {
     if (password.length < 8) {

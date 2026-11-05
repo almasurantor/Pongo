@@ -18,6 +18,10 @@ function applyTheme(preference: ThemePreference) {
     || (preference === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.classList.toggle('dark', dark);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  document.documentElement.style.backgroundColor = dark ? '#0B1120' : '#F8FAFC';
+  document.body.style.backgroundColor = dark ? '#0B1120' : '#F8FAFC';
+  const themeMeta = document.querySelector<HTMLMetaElement>('meta[data-pongo-runtime="true"]');
+  themeMeta?.setAttribute('content', dark ? '#0B1120' : '#F8FAFC');
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

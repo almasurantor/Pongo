@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 function RankedDemo() {
   const [settled, setSettled] = useState(false);
@@ -94,11 +94,71 @@ function LeaderboardDemo() {
 }
 
 export default function LandingFeatureShowcase() {
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const pointerStart = useRef({ x: 0, y: 0 });
+  const dragged = useRef(false);
+  const [activeCard, setActiveCard] = useState(0);
+  const cards = [<RankedDemo key="ranked" />, <QueueDemo key="queue" />, <LeaderboardDemo key="leaderboard" />];
+
+  const updateActiveCard = () => {
+    const carousel = carouselRef.current;
+    if (!carousel) return;
+    const carouselCenter = carousel.getBoundingClientRect().left + carousel.clientWidth / 2;
+    const cardElements = Array.from(carousel.children) as HTMLElement[];
+    const nextIndex = cardElements.reduce((closest, card, index) => {
+      const cardBounds = card.getBoundingClientRect();
+      const cardCenter = cardBounds.left + cardBounds.width / 2;
+      const closestCard = cardElements[closest];
+      const closestBounds = closestCard.getBoundingClientRect();
+      const closestCenter = closestBounds.left + closestBounds.width / 2;
+      return Math.abs(cardCenter - carouselCenter) < Math.abs(closestCenter - carouselCenter) ? index : closest;
+    }, 0);
+    setActiveCard(nextIndex);
+  };
+
+  const scrollToCard = (index: number) => {
+    const card = carouselRef.current?.children[index] as HTMLElement | undefined;
+    card?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  };
+
   return (
-    <div className="grid w-full gap-5 lg:grid-cols-3">
-      <RankedDemo />
-      <QueueDemo />
-      <LeaderboardDemo />
+    <div>
+      <div
+        ref={carouselRef}
+        onScroll={updateActiveCard}
+        onPointerDown={(event) => { pointerStart.current = { x: event.clientX, y: event.clientY }; dragged.current = false; }}
+        onPointerMove={(event) => {
+          if (Math.abs(event.clientX - pointerStart.current.x) > 8 || Math.abs(event.clientY - pointerStart.current.y) > 8) dragged.current = true;
+        }}
+        onPointerUp={() => { window.setTimeout(() => { dragged.current = false; }, 0); }}
+        onClickCapture={(event) => {
+          if (!dragged.current) return;
+          event.preventDefault();
+          event.stopPropagation();
+          dragged.current = false;
+        }}
+        className="flex w-full snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:gap-5 lg:grid lg:grid-cols-3 lg:overflow-visible lg:pb-0"
+        style={{ touchAction: 'pan-x pan-y' }}
+        aria-label="Pongo match-day features"
+      >
+        {cards.map((card, index) => (
+          <div key={index} className="w-full shrink-0 snap-center sm:w-[calc(50%-0.625rem)] lg:w-auto">
+            {card}
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex justify-center gap-2 lg:hidden" aria-label={`Feature ${activeCard + 1} of 3`}>
+        {cards.map((_, index) => (
+          <button
+            key={index}
+            type="button"
+            onClick={() => scrollToCard(index)}
+            aria-label={`Show feature ${index + 1}`}
+            aria-current={activeCard === index ? 'true' : undefined}
+            className={`h-2.5 rounded-full transition-all ${activeCard === index ? 'w-7 bg-[#2563EB]' : 'w-2.5 bg-slate-300 hover:bg-slate-400 dark:bg-slate-600'}`}
+          />
+        ))}
+      </div>
     </div>
   );
 }

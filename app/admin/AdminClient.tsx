@@ -4,6 +4,8 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useDatabaseRefresh } from '@/lib/use-database-refresh';
 import { useRouter } from 'next/navigation';
+import InAppConfirmDialog from '@/components/InAppConfirmDialog';
+import InAppPromptDialog from '@/components/InAppPromptDialog';
 
 type PlayerSummary = { id: string; display_name: string };
 type AdminDispute = {
@@ -72,6 +74,9 @@ export default function AdminClient({ disputes, integrity, flags, queueGames }: 
   const [notes, setNotes] = useState('');
   const [violationUser, setViolationUser] = useState('');
   const [violationResolution, setViolationResolution] = useState<'original' | 'proposed' | 'custom' | 'voided'>('original');
+  const [confirmation, setConfirmation] = useState<{ title: string; message: string; confirmLabel: string; action: () => void } | null>(null);
+  const [queueCorrection, setQueueCorrection] = useState<QueueGame | null>(null);
+  const [correctionReason, setCorrectionReason] = useState('');
   const openDispute = (dispute: AdminDispute) => {
     setSelected(dispute);
     setCustomWinner(dispute.original_winner_id);
@@ -81,33 +86,61 @@ export default function AdminClient({ disputes, integrity, flags, queueGames }: 
     setViolationUser(dispute.match.player_one_id);
     setViolationResolution('original');
   };
-  const resolve = async (resolution: string, payload: ResolutionPayload = {}) => {
+  const performResolve = async (resolution: string, payload: ResolutionPayload = {}) => {
     if (!selected) return;
-    if ((resolution === 'voided' || payload.violation_user_id) && !window.confirm(payload.violation_user_id ? 'Apply this resolution and assign a confirmed reporting violation?' : 'Void this match and replay affected ratings?')) return;
     setLoading(true);
     try { const response=await fetch(`/api/admin/disputes/${selected.id}/resolve`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({resolution,...payload,notes:payload.notes ?? notes})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Could not resolve dispute');toast.success('Dispute resolved');setSelected(null);router.refresh(); }
     catch(error){toast.error(error instanceof Error?error.message:'Could not resolve dispute');}finally{setLoading(false);}
   };
-  const setLevel = async (playerId:string,level:IntegrityLevel) => {
-    if(level==='ranked_restricted'&&!window.confirm('Restrict this player from all ranked play?'))return;
+  const resolve = (resolution: string, payload: ResolutionPayload = {}) => {
+    if (resolution === 'voided' || payload.violation_user_id) {
+      const recordsViolation = Boolean(payload.violation_user_id);
+      setConfirmation({
+        title: recordsViolation ? 'Record confirmed violation?' : 'Void this match?',
+        message: recordsViolation ? 'This resolution will also assign a confirmed reporting violation to the selected player.' : 'This will void the match and replay the affected ratings.',
+        confirmLabel: recordsViolation ? 'Resolve & record' : 'Void match',
+        action: () => void performResolve(resolution, payload),
+      });
+      return;
+    }
+    void performResolve(resolution, payload);
+  };
+  const performSetLevel = async (playerId:string,level:IntegrityLevel) => {
     try{const response=await fetch(`/api/admin/players/${playerId}/integrity`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({level})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Could not update player');toast.success('Integrity level updated');router.refresh();}catch(error){toast.error(error instanceof Error?error.message:'Could not update player');}
+  };
+  const setLevel = (playerId:string,level:IntegrityLevel) => {
+    if (level === 'ranked_restricted') {
+      setConfirmation({
+        title: 'Restrict ranked play?',
+        message: 'This player will be blocked from all ranked play until their integrity level is changed.',
+        confirmLabel: 'Restrict player',
+        action: () => void performSetLevel(playerId, level),
+      });
+      return;
+    }
+    void performSetLevel(playerId, level);
   };
   const reviewFlag = async (flagId: string) => {
     try { const response=await fetch(`/api/admin/integrity-flags/${flagId}/review`,{method:'POST'});const result=await response.json();if(!response.ok)throw new Error(result.error||'Could not review flag');toast.success('Integrity flag reviewed');router.refresh(); }
     catch(error){toast.error(error instanceof Error?error.message:'Could not review flag');}
   };
-  const correctQueueGame = async (game: QueueGame) => {
+  const requestQueueCorrection = (game: QueueGame) => {
     if (game.status !== 'completed' || !game.winner_id) return;
+    setCorrectionReason('');
+    setQueueCorrection(game);
+  };
+  const correctQueueGame = async () => {
+    const game = queueCorrection;
+    if (!game || game.status !== 'completed' || !game.winner_id) return;
     const newWinnerId = game.winner_id === game.king_id ? game.challenger_id : game.king_id;
-    const newWinnerName = newWinnerId === game.king_id ? game.king_name : game.challenger_name;
-    const reason = window.prompt(`Change this queue result so ${newWinnerName} is the winner? Enter the required audit reason:`)?.trim();
-    if (!reason) return;
+    const reason = correctionReason.trim();
     if (reason.length < 3) { toast.error('The correction reason must be at least 3 characters.'); return; }
     try {
       const response = await fetch(`/api/admin/queue-games/${game.id}/correct`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ winner_id: newWinnerId, reason }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Could not correct queue game');
       toast.success('Queue history corrected. Live queue state was not changed.');
+      setQueueCorrection(null);
       router.refresh();
     } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not correct queue game'); }
   };
@@ -211,7 +244,7 @@ export default function AdminClient({ disputes, integrity, flags, queueGames }: 
                       {game.corrected_at && <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-black text-blue-800">Corrected</span>}
                     </div>
                   </div>
-                  {game.status === 'completed' && <button onClick={() => void correctQueueGame(game)} className="mt-3 rounded-xl border-2 border-accent-gray-200 px-3 py-2 text-sm font-black transition hover:border-blue-300 hover:text-blue-700 dark:border-slate-600">Change recorded winner</button>}
+                  {game.status === 'completed' && <button onClick={() => requestQueueCorrection(game)} className="mt-3 rounded-xl border-2 border-accent-gray-200 px-3 py-2 text-sm font-black transition hover:border-blue-300 hover:text-blue-700 dark:border-slate-600">Change recorded winner</button>}
                   {game.status === 'abandoned' && <p className="mt-3 text-xs text-accent-gray-500">Audit only — an abandoned game cannot be assigned a winner.</p>}
                 </div>
               );
@@ -276,6 +309,32 @@ export default function AdminClient({ disputes, integrity, flags, queueGames }: 
             </div>
           </div>
         )}
+        {confirmation && (
+          <InAppConfirmDialog
+            title={confirmation.title}
+            message={confirmation.message}
+            confirmLabel={confirmation.confirmLabel}
+            onCancel={() => setConfirmation(null)}
+            onConfirm={() => { const action = confirmation.action; setConfirmation(null); action(); }}
+          />
+        )}
+        {queueCorrection && (() => {
+          const newWinnerId = queueCorrection.winner_id === queueCorrection.king_id ? queueCorrection.challenger_id : queueCorrection.king_id;
+          const newWinnerName = newWinnerId === queueCorrection.king_id ? queueCorrection.king_name : queueCorrection.challenger_name;
+          return (
+            <InAppPromptDialog
+              title="Change recorded winner?"
+              message={`The queue history will show ${newWinnerName} as the winner. Live queue state and ratings will not change.`}
+              label="Audit reason"
+              value={correctionReason}
+              placeholder="Explain why this correction is needed"
+              confirmLabel="Save correction"
+              onChange={setCorrectionReason}
+              onCancel={() => setQueueCorrection(null)}
+              onConfirm={() => void correctQueueGame()}
+            />
+          );
+        })()}
       </div>
     </main>
   );

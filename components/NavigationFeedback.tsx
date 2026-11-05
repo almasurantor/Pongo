@@ -37,8 +37,8 @@ export default function NavigationFeedback() {
   }, [navigating]);
 
   return (
-    <div aria-hidden="true" className={`pointer-events-none fixed inset-x-0 top-0 z-[100] h-1 overflow-hidden transition-opacity ${navigating ? 'opacity-100' : 'opacity-0'}`}>
-      <div className="navigation-progress h-full w-1/2 bg-gradient-to-r from-primary-purple to-primary-purpleLight" />
+    <div aria-hidden="true" className={`navigation-progress-track pointer-events-none fixed inset-x-0 z-[100] h-[2px] overflow-hidden transition-opacity ${navigating ? 'opacity-100' : 'opacity-0'}`}>
+      <div className="navigation-progress absolute inset-y-0 rounded-full bg-gradient-to-r from-transparent via-[#60A5FA] to-transparent" />
     </div>
   );
 }

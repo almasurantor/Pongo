@@ -42,7 +42,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   colorScheme: "light dark",
-  themeColor: "#2563EB",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F8FAFC" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B1120" },
+  ],
 };
 
 const themeScript = `
@@ -52,6 +55,12 @@ const themeScript = `
     var dark = saved === 'dark' || (automatic && matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.classList.toggle('dark', dark);
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    document.documentElement.style.backgroundColor = dark ? '#0B1120' : '#F8FAFC';
+    var themeMeta = document.createElement('meta');
+    themeMeta.name = 'theme-color';
+    themeMeta.content = dark ? '#0B1120' : '#F8FAFC';
+    themeMeta.dataset.pongoRuntime = 'true';
+    document.head.appendChild(themeMeta);
   } catch (_) {}
 `;
 

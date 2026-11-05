@@ -14,15 +14,20 @@ const validName = (name: string) => {
     && /^[A-Za-z0-9][A-Za-z0-9 _.]*[A-Za-z0-9]$/.test(normalized);
 };
 
-export default function ProfileSettings({ profile, onSaved }: {
+export default function ProfileSettings({ profile, onSaved, onDirtyChange }: {
   profile: Profile;
   onSaved: (profile: Profile) => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [savedName, setSavedName] = useState(profile.display_name);
   const [name, setName] = useState(profile.display_name);
   const [nameState, setNameState] = useState<NameState>('idle');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    onDirtyChange?.(name.trim() !== savedName);
+  }, [name, onDirtyChange, savedName]);
 
   useEffect(() => {
     const normalized = name.trim();
