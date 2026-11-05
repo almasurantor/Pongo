@@ -8,17 +8,24 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import NavigationFeedback from "@/components/NavigationFeedback";
 import { Suspense } from "react";
 import AppResumeRedirect from "@/components/AppResumeRedirect";
-import MatchResultPopup from "@/components/MatchResultPopup";
 
 const inter = Inter({ subsets: ["latin"] });
 
+function metadataBase() {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL;
+  const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  try { return new URL(configured || (vercelHost ? `https://${vercelHost}` : "http://localhost:3000")); }
+  catch { return new URL("http://localhost:3000"); }
+}
+
 export const metadata: Metadata = {
+  metadataBase: metadataBase(),
   applicationName: "Pongo",
   title: {
     default: "Pongo",
     template: "%s · Pongo",
   },
-  description: "Challenge players, track matches, and climb the table tennis ranks.",
+  description: "Pongo helps CCNY students challenge players, track matches, and climb the table tennis ranks.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [{ url: "/icon.png?v=4", type: "image/png", sizes: "512x512" }],
@@ -35,6 +42,19 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: "Pongo",
+    url: "/",
+    title: "Pongo",
+    description: "The CCNY Table Tennis Club ladder, live queue, and match-day app.",
+  },
+  twitter: {
+    card: "summary",
+    title: "Pongo",
+    description: "The CCNY Table Tennis Club ladder, live queue, and match-day app.",
+  },
 };
 
 export const viewport: Viewport = {
@@ -50,7 +70,9 @@ export const viewport: Viewport = {
 
 const themeScript = `
   try {
-    var saved = localStorage.getItem('beaversmash-theme');
+    var saved = localStorage.getItem('pongo-theme') || localStorage.getItem('beaversmash-theme');
+    if (saved === 'light' || saved === 'dark') localStorage.setItem('pongo-theme', saved);
+    localStorage.removeItem('beaversmash-theme');
     var automatic = saved !== 'light' && saved !== 'dark';
     var dark = saved === 'dark' || (automatic && matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.classList.toggle('dark', dark);
@@ -77,7 +99,6 @@ export default function RootLayout({
           <PWAClient />
           <Suspense fallback={null}><NavigationFeedback /></Suspense>
           <AppResumeRedirect />
-          <MatchResultPopup />
           <ConditionalNavbar />
           {children}
           <Toaster

@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { authRedirectForPath } from '@/lib/auth-routing'
+import { VERIFIED_USER_HEADER } from '@/lib/supabase/verified-user'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -35,6 +36,17 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  // Pages can reuse the identity that middleware just verified instead of
+  // making a second auth network request. Never trust an incoming copy.
+  const refreshedCookies = supabaseResponse.cookies.getAll()
+  const verifiedHeaders = new Headers(request.headers)
+  verifiedHeaders.delete(VERIFIED_USER_HEADER)
+  if (user) verifiedHeaders.set(VERIFIED_USER_HEADER, user.id)
+  const cookieHeader = request.cookies.toString()
+  if (cookieHeader) verifiedHeaders.set('cookie', cookieHeader)
+  supabaseResponse = NextResponse.next({ request: { headers: verifiedHeaders } })
+  refreshedCookies.forEach((cookie) => supabaseResponse.cookies.set(cookie))
 
   const redirectWithSessionCookies = (pathname: string) => {
     const url = request.nextUrl.clone()

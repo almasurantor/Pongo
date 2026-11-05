@@ -1,4 +1,4 @@
--- Beaver Smash V3 Phase 5: New York weekly/monthly/all-time leaderboards and archives.
+-- Pongo V3 Phase 5: New York weekly/monthly/all-time leaderboards and archives.
 BEGIN;
 
 CREATE INDEX IF NOT EXISTS idx_matches_ranked_confirmed_history_v3

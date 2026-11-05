@@ -1,4 +1,4 @@
--- Beaver Smash V3 Phase 7: mobile experience rollout boundary.
+-- Pongo V3 Phase 7: mobile experience rollout boundary.
 --
 -- Phase 7 is implemented in the application (confirmation UI, countdowns,
 -- result feedback, and the local-only casual scorekeeper). The user-facing

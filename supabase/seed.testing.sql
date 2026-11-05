@@ -1,10 +1,10 @@
--- BeaverSmash development fixtures.
+-- Pongo development fixtures.
 --
 -- TEST DATABASES ONLY. This script creates fake login accounts and replaces
 -- the current live-queue state. Run it after every migration, including
 -- 20261102_01_profile_settings_queue_alerts.sql.
--- All accounts use the password: BeaverTest123!
--- All fixture emails end in: @beaversmash.test
+-- All accounts use the password: PongoTest123!
+-- All fixture emails end in: @pongo.test
 
 BEGIN;
 
@@ -76,20 +76,20 @@ $migration_check$;
 
 WITH fixture_users(id, email, display_name) AS (
   VALUES
-    ('d0000000-0000-4000-8000-000000000001'::UUID, 'iron.iris@beaversmash.test', 'Iron Iris'),
-    ('d0000000-0000-4000-8000-000000000002'::UUID, 'bronze.ben@beaversmash.test', 'Bronze Ben'),
-    ('d0000000-0000-4000-8000-000000000003'::UUID, 'silver.sam@beaversmash.test', 'Silver Sam'),
-    ('d0000000-0000-4000-8000-000000000004'::UUID, 'gold.gia@beaversmash.test', 'Gold Gia'),
-    ('d0000000-0000-4000-8000-000000000005'::UUID, 'platinum.priya@beaversmash.test', 'Platinum Priya'),
-    ('d0000000-0000-4000-8000-000000000006'::UUID, 'diamond.diego@beaversmash.test', 'Diamond Diego'),
-    ('d0000000-0000-4000-8000-000000000007'::UUID, 'legend.luna@beaversmash.test', 'Legend Luna'),
-    ('d0000000-0000-4000-8000-000000000008'::UUID, 'provisional.pixel@beaversmash.test', 'Provisional Pixel'),
-    ('d0000000-0000-4000-8000-000000000009'::UUID, 'monitored.morgan@beaversmash.test', 'Monitored Morgan'),
-    ('d0000000-0000-4000-8000-000000000010'::UUID, 'dual.dana@beaversmash.test', 'Dual Dana'),
-    ('d0000000-0000-4000-8000-000000000011'::UUID, 'restricted.riley@beaversmash.test', 'Restricted Riley'),
-    ('d0000000-0000-4000-8000-000000000012'::UUID, 'queue.quinn@beaversmash.test', 'Queue Quinn'),
-    ('d0000000-0000-4000-8000-000000000013'::UUID, 'admin.avery@beaversmash.test', 'Admin Avery'),
-    ('d0000000-0000-4000-8000-000000000014'::UUID, 'newcomer.nico@beaversmash.test', 'Newcomer Nico')
+    ('d0000000-0000-4000-8000-000000000001'::UUID, 'iron.iris@pongo.test', 'Iron Iris'),
+    ('d0000000-0000-4000-8000-000000000002'::UUID, 'bronze.ben@pongo.test', 'Bronze Ben'),
+    ('d0000000-0000-4000-8000-000000000003'::UUID, 'silver.sam@pongo.test', 'Silver Sam'),
+    ('d0000000-0000-4000-8000-000000000004'::UUID, 'gold.gia@pongo.test', 'Gold Gia'),
+    ('d0000000-0000-4000-8000-000000000005'::UUID, 'platinum.priya@pongo.test', 'Platinum Priya'),
+    ('d0000000-0000-4000-8000-000000000006'::UUID, 'diamond.diego@pongo.test', 'Diamond Diego'),
+    ('d0000000-0000-4000-8000-000000000007'::UUID, 'legend.luna@pongo.test', 'Legend Luna'),
+    ('d0000000-0000-4000-8000-000000000008'::UUID, 'provisional.pixel@pongo.test', 'Provisional Pixel'),
+    ('d0000000-0000-4000-8000-000000000009'::UUID, 'monitored.morgan@pongo.test', 'Monitored Morgan'),
+    ('d0000000-0000-4000-8000-000000000010'::UUID, 'dual.dana@pongo.test', 'Dual Dana'),
+    ('d0000000-0000-4000-8000-000000000011'::UUID, 'restricted.riley@pongo.test', 'Restricted Riley'),
+    ('d0000000-0000-4000-8000-000000000012'::UUID, 'queue.quinn@pongo.test', 'Queue Quinn'),
+    ('d0000000-0000-4000-8000-000000000013'::UUID, 'admin.avery@pongo.test', 'Admin Avery'),
+    ('d0000000-0000-4000-8000-000000000014'::UUID, 'newcomer.nico@pongo.test', 'Newcomer Nico')
 )
 INSERT INTO auth.users(
   instance_id, id, aud, role, email, encrypted_password,
@@ -103,7 +103,7 @@ SELECT
   'authenticated',
   'authenticated',
   fixture.email,
-  crypt('BeaverTest123!', gen_salt('bf')),
+  crypt('PongoTest123!', gen_salt('bf')),
   NOW(),
   jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')),
   jsonb_build_object('display_name', fixture.display_name, 'fixture', TRUE),
@@ -137,7 +137,7 @@ BEGIN
         jsonb_build_object('sub', id::TEXT, 'email', email),
         'email', NOW(), created_at, NOW()
       FROM auth.users
-      WHERE email LIKE '%@beaversmash.test'
+      WHERE email LIKE '%@pongo.test'
       ON CONFLICT DO NOTHING
     $sql$;
   ELSE
@@ -150,7 +150,7 @@ BEGIN
         jsonb_build_object('sub', id::TEXT, 'email', email),
         'email', NOW(), created_at, NOW()
       FROM auth.users
-      WHERE email LIKE '%@beaversmash.test'
+      WHERE email LIKE '%@pongo.test'
       ON CONFLICT DO NOTHING
     $sql$;
   END IF;

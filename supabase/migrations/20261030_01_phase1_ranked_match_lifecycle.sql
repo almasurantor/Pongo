@@ -1,4 +1,4 @@
--- Beaver Smash V3 Phase 1: challenge-only ranked matches with first-report
+-- Pongo V3 Phase 1: challenge-only ranked matches with first-report
 -- finalization, concurrency-safe active limits, cancellation, and expiration.
 BEGIN;
 

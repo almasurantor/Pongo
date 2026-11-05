@@ -1,7 +1,10 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
-import Navbar from './Navbar';
+
+const Navbar = dynamic(() => import('./Navbar'));
+const MatchResultPopup = dynamic(() => import('./MatchResultPopup'));
 
 export default function ConditionalNavbar() {
   const pathname = usePathname();
@@ -11,5 +14,5 @@ export default function ConditionalNavbar() {
     return null;
   }
   
-  return <Navbar />;
+  return <><Navbar /><MatchResultPopup /></>;
 }

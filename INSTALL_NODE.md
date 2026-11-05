@@ -40,7 +40,7 @@ If you prefer using a package manager:
 Once Node.js is installed, you can proceed with the project setup:
 
 ```bash
-cd "/Users/almasur/Music/untitled folder/BeaverSmash"
+cd "/Users/almasur/Music/untitled folder/Pongo"
 npm install
 npm run dev
 ```

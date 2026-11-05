@@ -1,4 +1,4 @@
--- BeaverSmash V3 does not reset weekly statistics.
+-- Pongo V3 does not reset weekly statistics.
 --
 -- Weekly and monthly leaderboards are derived from retained confirmed matches
 -- and active rating events using America/New_York period boundaries. Historical

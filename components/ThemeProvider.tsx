@@ -4,7 +4,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 
 export type ThemePreference = 'light' | 'dark' | 'auto';
 
-const STORAGE_KEY = 'beaversmash-theme';
+const STORAGE_KEY = 'pongo-theme';
+// Read once for existing installations, then remove the retired brand key.
+const LEGACY_STORAGE_KEY = 'beaversmash-theme';
 
 interface ThemeContextValue {
   preference: ThemePreference;
@@ -28,8 +30,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [preference, setPreferenceState] = useState<ThemePreference>('auto');
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
+    const saved = window.localStorage.getItem(STORAGE_KEY) ?? window.localStorage.getItem(LEGACY_STORAGE_KEY);
     const initial: ThemePreference = saved === 'light' || saved === 'dark' ? saved : 'auto';
+    if (saved === 'light' || saved === 'dark') window.localStorage.setItem(STORAGE_KEY, saved);
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
     setPreferenceState(initial);
     applyTheme(initial);
   }, []);
@@ -43,6 +47,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setPreference = useCallback((next: ThemePreference) => {
     setPreferenceState(next);
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
     if (next === 'auto') window.localStorage.removeItem(STORAGE_KEY);
     else window.localStorage.setItem(STORAGE_KEY, next);
     applyTheme(next);

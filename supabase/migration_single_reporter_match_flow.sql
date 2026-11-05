@@ -1,4 +1,4 @@
--- Single-reporter match lifecycle. Safe to run against the previous Beaver Smash schema.
+-- Single-reporter match lifecycle. Safe to run against the previous Pongo schema.
 ALTER TABLE public.matches ADD COLUMN IF NOT EXISTS reported_by UUID REFERENCES public.profiles(id);
 ALTER TABLE public.matches ADD COLUMN IF NOT EXISTS reported_at TIMESTAMPTZ;
 ALTER TABLE public.matches ADD COLUMN IF NOT EXISTS confirmed_by UUID REFERENCES public.profiles(id);

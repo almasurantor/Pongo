@@ -1,21 +1,21 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef } from 'react';
-import { APP_HIDDEN_AT_KEY, hasBeenAwayLongEnough } from '@/lib/app-resume';
-import { createClient } from '@/lib/supabase/client';
+import { useEffect, useRef } from 'react';
+import { APP_HIDDEN_AT_KEY, APP_RESUME_EVENT, hasBeenAwayLongEnough } from '@/lib/app-resume';
+
+const REFRESHABLE_APP_PATHS = ['/dashboard', '/leaderboard', '/players', '/profile/', '/match/'];
 
 export default function AppResumeRedirect() {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
   const pathnameRef = useRef(pathname);
-  const redirecting = useRef(false);
+  const reconciling = useRef(false);
 
   useEffect(() => {
     const navigatedInApp = pathnameRef.current !== pathname;
     pathnameRef.current = pathname;
-    if (pathname === '/dashboard') redirecting.current = false;
+    reconciling.current = false;
 
     // An intentional client-side visit to the landing page starts a fresh
     // active session and must never bounce straight back to the dashboard.
@@ -28,17 +28,21 @@ export default function AppResumeRedirect() {
       window.localStorage.setItem(APP_HIDDEN_AT_KEY, String(Date.now()));
     };
     const evaluateResume = async () => {
-      if (redirecting.current || document.visibilityState !== 'visible') return;
+      if (reconciling.current || document.visibilityState !== 'visible') return;
       const hiddenAt = window.localStorage.getItem(APP_HIDDEN_AT_KEY);
       if (!hasBeenAwayLongEnough(hiddenAt)) {
         window.localStorage.removeItem(APP_HIDDEN_AT_KEY);
         return;
       }
-      const { data } = await supabase.auth.getSession();
+      reconciling.current = true;
       window.localStorage.removeItem(APP_HIDDEN_AT_KEY);
-      if (!data.session || pathname === '/dashboard') return;
-      redirecting.current = true;
-      router.replace('/dashboard');
+      window.dispatchEvent(new CustomEvent(APP_RESUME_EVENT));
+      // Keep the existing screen visible while server-backed, non-live data
+      // refreshes. Queue reconciles directly and must not be remounted here.
+      if (REFRESHABLE_APP_PATHS.some((prefix) => pathname === prefix || pathname.startsWith(prefix))) {
+        router.refresh();
+      }
+      window.setTimeout(() => { reconciling.current = false; }, 1_000);
     };
     const visibilityChanged = () => {
       if (document.visibilityState === 'hidden') recordHidden();
@@ -54,7 +58,7 @@ export default function AppResumeRedirect() {
       window.removeEventListener('focus', evaluateResume);
       window.removeEventListener('pagehide', recordHidden);
     };
-  }, [pathname, router, supabase]);
+  }, [pathname, router]);
 
   return null;
 }

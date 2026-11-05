@@ -1,4 +1,4 @@
--- Beaver Smash V3 Phase 3: K=40 weighted, exactly zero-sum ELO.
+-- Pongo V3 Phase 3: K=40 weighted, exactly zero-sum ELO.
 BEGIN;
 
 ALTER TABLE public.ranking_config

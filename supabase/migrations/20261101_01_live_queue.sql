@@ -1,4 +1,4 @@
--- BeaverSmash experimental one-table live queue.
+-- Pongo experimental one-table live queue.
 -- Completely independent from ranked matches, ratings, challenges, and stats.
 BEGIN;
 

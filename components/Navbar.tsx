@@ -45,9 +45,10 @@ export default function Navbar() {
       return;
     }
     let backendReady = false;
-    const syncQueue = async (trigger: QueueSyncTrigger) => {
-      const memberResponse = await supabase.from('beaver_queue_members').select('status').eq('user_id', userId).maybeSingle();
-      const status = memberResponse.data?.status ?? null;
+    const syncQueue = async (trigger: QueueSyncTrigger, knownStatus?: string | null) => {
+      const status = knownStatus === undefined
+        ? (await supabase.from('beaver_queue_members').select('status').eq('user_id', userId).maybeSingle()).data?.status ?? null
+        : knownStatus;
       setQueueCalled(status === 'called');
       if (!isActiveQueueStatus(status)) heartbeatFailures.current = 0;
       if (backendReady && !pathname.startsWith('/queue') && shouldSendQueueHeartbeat(status, trigger, heartbeatFailures.current)) {
@@ -62,9 +63,12 @@ export default function Navbar() {
       }
     };
     const start = async () => {
-      const health = await supabase.rpc('beaver_queue_health_v5');
+      const [health, memberResponse] = await Promise.all([
+        supabase.rpc('beaver_queue_health_v5'),
+        supabase.from('beaver_queue_members').select('status').eq('user_id', userId).maybeSingle(),
+      ]);
       backendReady = !health.error && isQueueBackendHealthy(health.data);
-      await syncQueue('initial');
+      await syncQueue('initial', memberResponse.data?.status ?? null);
     };
     void start();
     const heartbeat = window.setInterval(() => void syncQueue('interval'), 30_000);
@@ -90,16 +94,28 @@ export default function Navbar() {
   ];
   const active = (href: string) => href === '/dashboard' ? pathname === href : pathname.startsWith(href);
 
+  useEffect(() => {
+    const likelyNextRoutes = pathname.startsWith('/queue')
+      ? ['/dashboard']
+      : pathname.startsWith('/play')
+        ? ['/queue', '/players']
+        : pathname === '/dashboard'
+          ? ['/play', '/queue']
+          : ['/dashboard'];
+    const timer = window.setTimeout(() => likelyNextRoutes.forEach((route) => router.prefetch(route)), 1_200);
+    return () => window.clearTimeout(timer);
+  }, [pathname, router]);
+
   return (
     <>
       <nav className="glass-effect sticky top-0 z-40 hidden border-b border-accent-gray-200 sm:block">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <Link href="/dashboard" className="flex items-center gap-2 rounded-xl pr-2 text-xl transition active:scale-[0.98]" aria-label="Pongo home">
+          <Link href="/dashboard" prefetch={false} className="flex items-center gap-2 rounded-xl pr-2 text-xl transition active:scale-[0.98]" aria-label="Pongo home">
             <PongoLogo size="sm" priority />
             <PongoWordmark />
           </Link>
           <div className="flex items-center gap-5 lg:gap-7">
-            {items.map((item) => <Link key={item.label} href={item.href}
+            {items.map((item) => <Link key={item.label} href={item.href} prefetch={false}
               className={`text-sm font-bold transition ${active(item.href) ? 'text-primary-purple' : 'text-accent-gray-600 hover:text-primary-purple'} ${item.primary ? 'rounded-full bg-brand-orange px-5 py-2.5 text-white hover:bg-brand-orangeDark hover:text-white' : ''}`}>
               {item.label}
             </Link>)}
@@ -114,14 +130,11 @@ export default function Navbar() {
               <Link
                 key={item.label}
                 href={item.href}
+                prefetch={false}
                 aria-label={item.label}
                 aria-current={isActive ? 'page' : undefined}
                 onClick={(event) => {
                   if (event.detail > 0) event.currentTarget.blur();
-                  if (item.href === '/dashboard' && pathname === '/dashboard') {
-                    event.preventDefault();
-                    router.refresh();
-                  }
                 }}
                 className={`mobile-nav-item relative mx-auto flex items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB] dark:focus-visible:outline-[#60A5FA] ${item.primary ? 'mobile-nav-play text-white' : isActive ? 'mobile-nav-active text-[#2563EB] dark:text-[#93C5FD]' : 'text-accent-gray-500 dark:text-accent-gray-300'}`}
               >

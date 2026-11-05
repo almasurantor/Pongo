@@ -2,11 +2,12 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import MatchClient from './MatchClient';
 import { Dispute, MatchSubmission } from '@/lib/types';
+import { getVerifiedUserId } from '@/lib/supabase/verified-user';
 
 export default async function MatchPage({ params }: { params: { id: string } }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  const userId = await getVerifiedUserId();
+  if (!userId) redirect('/login');
 
   const { data: match } = await supabase
     .from('matches')
@@ -18,7 +19,7 @@ export default async function MatchPage({ params }: { params: { id: string } }) 
     .eq('id', params.id)
     .single();
 
-  if (!match || (match.player_one_id !== user.id && match.player_two_id !== user.id)) {
+  if (!match || (match.player_one_id !== userId && match.player_two_id !== userId)) {
     redirect('/dashboard');
   }
 
@@ -41,7 +42,7 @@ export default async function MatchPage({ params }: { params: { id: string } }) 
       .from('match_submissions')
       .select('*')
       .eq('match_id', match.id)
-      .eq('submitted_by', user.id)
+      .eq('submitted_by', userId)
       .maybeSingle()
     : { data: null };
 
@@ -51,7 +52,7 @@ export default async function MatchPage({ params }: { params: { id: string } }) 
       cancellationRequest={cancellationRequest}
       dispute={dispute as Dispute | null}
       mySubmission={mySubmission as MatchSubmission | null}
-      currentUserId={user.id}
+      currentUserId={userId}
     />
   );
 }

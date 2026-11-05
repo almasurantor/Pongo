@@ -50,7 +50,7 @@ export default function BeaverAvatar({ config, className = '', label = 'Pongo th
       {avatar.accessory === 'headphones' && <><path d="M35 102a85 85 0 0 1 170 0" fill="none" stroke="#183C78" strokeWidth="14" strokeLinecap="round" /><rect x="23" y="93" width="33" height="65" rx="16" fill="#FF7A1A" stroke={outline} strokeWidth="5" /><rect x="184" y="93" width="33" height="65" rx="16" fill="#FF7A1A" stroke={outline} strokeWidth="5" /></>}
 
       {/* The real transparent Pongo artwork is the character base. Default config renders it untouched. */}
-      <image href="/pongo.png" x="2" y="2" width="236" height="236" preserveAspectRatio="xMidYMid meet" filter={filter} />
+      <image href="/pongo.webp" x="2" y="2" width="236" height="236" preserveAspectRatio="xMidYMid meet" filter={filter} />
 
       {avatar.expression === 'confident' && <><path d="m66 84 32-9" fill="none" stroke={outline} strokeWidth="7" strokeLinecap="round" /><path d="m142 75 32 9" fill="none" stroke={outline} strokeWidth="7" strokeLinecap="round" /></>}
       {avatar.expression === 'mischievous' && <><path d="m66 77 32 11" fill="none" stroke={outline} strokeWidth="7" strokeLinecap="round" /><path d="m142 88 32-11" fill="none" stroke={outline} strokeWidth="7" strokeLinecap="round" /></>}

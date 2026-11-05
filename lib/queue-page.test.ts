@@ -60,7 +60,7 @@ describe('queue page structure', () => {
     expect(source).toContain('showRankedRequestPopup && matchActionsAvailable && !isAfkTarget');
     expect(source).toContain('<RankedDecisionModal');
     expect(source).toContain('challenger={rankedRequester}');
-    expect(source).toContain("supabase.from('profiles').select('id,display_name,current_elo,total_wins,total_losses')");
+    expect(source).toContain("supabase.from('profiles').select('id,display_name,current_elo,total_wins,total_losses,avatar_config')");
     expect(source).toContain('setDismissedRankedRequestId(rankedRequest.id)');
     expect(source).toContain('Review Ranked Request');
     expect(rankedModal).toContain('Incoming challenge');

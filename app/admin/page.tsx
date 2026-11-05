@@ -1,11 +1,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import AdminClient from './AdminClient';
+import { getVerifiedUserId } from '@/lib/supabase/verified-user';
 
 export default async function AdminPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  if (!await getVerifiedUserId()) redirect('/login');
   const { data: isAdmin } = await supabase.rpc('is_admin');
   if (!isAdmin) redirect('/dashboard');
   const [{ data: disputes }, { data: integrity }, { data: flags }, { data: queueGames }] = await Promise.all([

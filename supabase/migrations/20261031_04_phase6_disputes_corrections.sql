@@ -1,4 +1,4 @@
--- Beaver Smash V3 Phase 6: mutual post-result corrections/voids with rating replay.
+-- Pongo V3 Phase 6: mutual post-result corrections/voids with rating replay.
 BEGIN;
 
 ALTER TABLE public.ranking_config
@@ -48,6 +48,8 @@ GRANT SELECT ON public.match_revisions TO authenticated;
 
 -- All rating writes use the same global lock as historical replay. This keeps
 -- a new finalization from holding a match row while replay holds profile rows.
+-- The legacy lock text is a persistent cross-version concurrency contract and
+-- must remain identical in every migration that participates in rating replay.
 CREATE OR REPLACE FUNCTION public.submit_match_report_v2(
   p_match UUID,p_winner UUID,p_winner_score INTEGER,p_loser_score INTEGER
 )

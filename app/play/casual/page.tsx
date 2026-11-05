@@ -1,10 +1,8 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import CasualScorekeeper from './CasualScorekeeper';
+import { getVerifiedUserId } from '@/lib/supabase/verified-user';
 
 export default async function CasualPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  if (!await getVerifiedUserId()) redirect('/login');
   return <CasualScorekeeper />;
 }

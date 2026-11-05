@@ -52,8 +52,8 @@ npm run dev
 
 ## Install on a phone
 
-Pongo includes an App Router web manifest, branded PWA icons, standalone display metadata, safe-area layout support, and a conservative service worker. Live Supabase pages are always network-first; only the static offline explanation and app icons are cached.
+Pongo includes an App Router web manifest, branded PWA icons, standalone display metadata, safe-area layout support, and a conservative service worker. Authenticated pages and Supabase responses remain network-authoritative, while content-hashed app bundles, fonts, icons, mascot artwork, and the static offline explanation are cached safely.
 
 On iPhone, open the deployed HTTPS site in Safari, tap **Share**, choose **Add to Home Screen**, confirm the name **Pongo**, and tap **Add**. Launching that icon opens the site in a standalone window. On supported Android browsers, use **Install App** or **Add to Home Screen** from the browser menu.
 
-For Vercel, configure `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and the server-only `SUPABASE_SERVICE_ROLE_KEY` used by account deletion. Never expose the service-role key through a `NEXT_PUBLIC_` variable. Disable **Confirm email**, and add `https://YOUR_DOMAIN/auth/callback` to the Supabase Auth redirect allowlist. For Google, use the Supabase `/auth/v1/callback` URL shown in its provider panel as the Google Cloud redirect URI. Verify `/manifest.webmanifest`, `/sw.js`, `/icon.png`, and `/apple-icon.png` after deployment.
+For Vercel, configure `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`, and the server-only `SUPABASE_SERVICE_ROLE_KEY` used by account deletion. Never expose the service-role key through a `NEXT_PUBLIC_` variable. Set `NEXT_PUBLIC_SITE_URL` to the final Pongo HTTPS domain. Disable **Confirm email**, and add `https://YOUR_DOMAIN/auth/callback` to the Supabase Auth redirect allowlist. For Google, use the Supabase `/auth/v1/callback` URL shown in its provider panel as the Google Cloud redirect URI. Verify `/manifest.webmanifest`, `/sw.js`, `/icon.png`, `/apple-icon.png`, `/opengraph-image.png`, and `/twitter-image.png` after deployment.

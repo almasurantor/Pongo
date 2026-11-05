@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { createClient } from '@/lib/supabase/client';
@@ -12,6 +12,7 @@ import ThemeSettings from '@/components/ThemeSettings';
 import BeaverAvatar from '@/components/BeaverAvatar';
 import AvatarEditor from '@/components/AvatarEditor';
 import ProfileSettingsPanel from '@/components/ProfileSettingsPanel';
+import { clearCachedProfileShell, writeCachedProfileShell } from '@/lib/profile-cache';
 
 interface Props {
   profile: Profile;
@@ -31,6 +32,10 @@ export default function ProfileClient({ profile, matches, opponentUsage, rank, c
   const mine = profile.id === currentUserId;
   const totalGames = profile.total_wins + profile.total_losses;
   const winRate = totalGames ? Math.round(profile.total_wins / totalGames * 100) : 0;
+
+  useEffect(() => {
+    if (mine) writeCachedProfileShell(window.localStorage, currentProfile);
+  }, [currentProfile, mine]);
 
   const challenge = async () => {
     setLoading(true);
@@ -52,6 +57,7 @@ export default function ProfileClient({ profile, matches, opponentUsage, rank, c
 
   const logout = async () => {
     await supabase.auth.signOut();
+    clearCachedProfileShell(window.localStorage);
     window.location.replace('/');
   };
 

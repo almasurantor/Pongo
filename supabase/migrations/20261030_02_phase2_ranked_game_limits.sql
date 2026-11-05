@@ -1,4 +1,4 @@
--- Beaver Smash V3 Phase 2: acceptance-day reservations and ranked game limits.
+-- Pongo V3 Phase 2: acceptance-day reservations and ranked game limits.
 BEGIN;
 
 ALTER TABLE public.ranking_config

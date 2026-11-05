@@ -22,7 +22,7 @@ export default function MatchResultPopup() {
   useEffect(() => {
     let active = true;
     let channel: ReturnType<typeof supabase.channel> | null = null;
-    let fallbackPoll: number | null = null;
+    let lastCheckedAt = 0;
 
     const show = (matchId: string, winnerId: string, userId: string, eloChange: number) => {
       if (!matchId || shownMatch.current === matchId || wasResultPopupDismissed(matchId)) return;
@@ -54,6 +54,8 @@ export default function MatchResultPopup() {
         .subscribe();
 
       const checkRecentResult = async () => {
+        if (document.visibilityState !== 'visible' || Date.now() - lastCheckedAt < 10_000) return;
+        lastCheckedAt = Date.now();
         const since = new Date(Date.now() - 2 * 60_000).toISOString();
         const { data: recent } = await supabase
           .from('matches')
@@ -71,9 +73,15 @@ export default function MatchResultPopup() {
         show(recent.id, recent.winner_id, userId, eloChange);
       };
       void checkRecentResult();
-      fallbackPoll = window.setInterval(() => void checkRecentResult(), 10_000);
+      const checkAfterResume = () => void checkRecentResult();
+      window.addEventListener('focus', checkAfterResume);
+      document.addEventListener('visibilitychange', checkAfterResume);
 
-      const cleanup = () => window.removeEventListener(MATCH_RESULT_EVENT, announced);
+      const cleanup = () => {
+        window.removeEventListener(MATCH_RESULT_EVENT, announced);
+        window.removeEventListener('focus', checkAfterResume);
+        document.removeEventListener('visibilitychange', checkAfterResume);
+      };
       if (!active) cleanup();
       else cleanupRef.current = cleanup;
     });
@@ -82,7 +90,6 @@ export default function MatchResultPopup() {
       active = false;
       cleanupRef.current?.();
       cleanupRef.current = null;
-      if (fallbackPoll !== null) window.clearInterval(fallbackPoll);
       if (channel) void supabase.removeChannel(channel);
     };
   }, [supabase]);

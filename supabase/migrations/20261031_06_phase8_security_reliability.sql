@@ -1,4 +1,4 @@
--- Beaver Smash V3 Phase 8: audit immutability, privilege hardening, and optional dual verification.
+-- Pongo V3 Phase 8: audit immutability, privilege hardening, and optional dual verification.
 BEGIN;
 
 -- Preserve only the newest active revision if legacy correction code left more
@@ -199,6 +199,7 @@ DECLARE
   result JSONB;
   opponent UUID;
 BEGIN
+  -- Keep the legacy advisory-lock text aligned with every rating replay version.
   PERFORM pg_advisory_xact_lock(hashtextextended('beaver-smash-rating-replay-v3',0));
   SELECT * INTO m FROM public.matches WHERE id=p_match FOR UPDATE;
   IF NOT FOUND OR auth.uid() NOT IN (m.player_one_id,m.player_two_id) THEN RAISE EXCEPTION 'Match not found'; END IF;

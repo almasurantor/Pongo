@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'Pongo',
     short_name: 'Pongo',
     id: '/',
-    description: 'Challenge players, track matches, and climb the table tennis ranks.',
+    description: 'Pongo is the CCNY Table Tennis Club ladder, live queue, and match-day app.',
     // The root performs a server-side session check: returning users reach the
     // dashboard, while signed-out users receive the public landing page.
     start_url: '/',

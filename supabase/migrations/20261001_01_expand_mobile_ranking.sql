@@ -1,4 +1,4 @@
--- Beaver Smash mobile ranking platform: additive/legacy-compatible expansion.
+-- Pongo mobile ranking platform: additive/legacy-compatible expansion.
 -- Apply this before deploying the matching application. It intentionally keeps
 -- the legacy submission columns and status names until the contract migration.
 BEGIN;

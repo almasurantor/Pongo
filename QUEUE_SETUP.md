@@ -107,7 +107,7 @@ audit; they never appear in player Queue Activity.
 
 ## Test with 3–5 phones or browser sessions
 
-1. Create three to five normal BeaverSmash accounts. Use separate devices, browser
+1. Create three to five normal Pongo accounts. Use separate devices, browser
    profiles, or regular/incognito windows so each session has a different login.
 2. Open `/queue` in each session.
 3. Join as A. A should become the table holder.

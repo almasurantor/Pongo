@@ -15,7 +15,7 @@ export function useDatabaseRefresh(channelName: string, tables: readonly string[
   useEffect(() => {
     const supabase = createClient();
     let pending: ReturnType<typeof setTimeout> | undefined;
-    let lastRefresh = 0;
+    let lastRefresh = Date.now();
     const refresh = () => {
       if (document.visibilityState !== 'visible') return;
       clearTimeout(pending);
@@ -32,7 +32,7 @@ export function useDatabaseRefresh(channelName: string, tables: readonly string[
     channel.subscribe();
 
     const refreshAfterSleep = () => {
-      if (document.visibilityState === 'visible' && Date.now() - lastRefresh > 5000) refresh();
+      if (document.visibilityState === 'visible' && Date.now() - lastRefresh > 15_000) refresh();
     };
     window.addEventListener('focus', refreshAfterSleep);
     document.addEventListener('visibilitychange', refreshAfterSleep);

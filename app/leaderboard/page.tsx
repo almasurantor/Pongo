@@ -2,13 +2,14 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import LeaderboardClient from './LeaderboardClient';
 import { LeaderboardArchiveEntry, LeaderboardEntry, LeaderboardScope } from '@/lib/types';
+import { getVerifiedUserId } from '@/lib/supabase/verified-user';
 
 const scopes: LeaderboardScope[] = ['weekly', 'monthly', 'all_time'];
 
 export default async function LeaderboardPage({ searchParams }: { searchParams?: { tab?: string; period?: string } }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  const userId = await getVerifiedUserId();
+  if (!userId) redirect('/login');
 
   const scope = scopes.includes(searchParams?.tab as LeaderboardScope)
     ? searchParams!.tab as LeaderboardScope
@@ -24,14 +25,11 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
   const archivePromise = scope === 'all_time'
     ? Promise.resolve({ data: [], error: null })
     : supabase.rpc('get_leaderboard_archive_v3', { p_scope: scope, p_limit: 12 });
-  const [{ data: entries, error }, { data: archives }] = await Promise.all([
+  const [{ data: entries, error }, { data: archives }, { data: avatarRows }] = await Promise.all([
     leaderboardPromise,
     archivePromise,
+    supabase.from('profiles').select('id,avatar_config'),
   ]);
-  const playerIds = ((entries || []) as LeaderboardEntry[]).map((entry) => entry.player_id);
-  const { data: avatarRows } = playerIds.length
-    ? await supabase.from('profiles').select('id,avatar_config').in('id', playerIds)
-    : { data: [] };
   const avatarConfigs = Object.fromEntries((avatarRows || []).map((row) => [row.id, row.avatar_config]));
 
   return (
@@ -40,7 +38,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
       archives={(archives || []) as LeaderboardArchiveEntry[]}
       scope={scope}
       selectedPeriod={requestedPeriod}
-      currentUserId={user.id}
+      currentUserId={userId}
       loadError={error?.message || null}
       avatarConfigs={avatarConfigs}
     />

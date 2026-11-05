@@ -1,4 +1,4 @@
--- BeaverSmash V4: 500 starting ELO and recalibrated competitive tiers.
+-- Pongo V4: 500 starting ELO and recalibrated competitive tiers.
 -- Existing player ratings are deliberately preserved.
 BEGIN;
 

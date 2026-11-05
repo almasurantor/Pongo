@@ -388,10 +388,6 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
-.page-transition {
-  animation: page-enter 160ms ease-out;
-}
-
 .navigation-progress-track {
   top: env(safe-area-inset-top);
 }
@@ -402,18 +398,12 @@ a {
   animation: navigation-progress 1.15s ease-in-out infinite alternate;
 }
 
-@keyframes page-enter {
-  from { opacity: 0.65; }
-  to { opacity: 1; }
-}
-
 @keyframes navigation-progress {
   from { left: -9rem; }
   to { left: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .page-transition { animation: none; }
   .navigation-progress {
     left: 0;
     width: 100%;

@@ -1,11 +1,9 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { getVerifiedUserId } from '@/lib/supabase/verified-user';
 
 export default async function PlayPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  if (!await getVerifiedUserId()) redirect('/login');
 
   return (
     <main className="app-screen fixed-list-screen min-h-screen bg-gradient-to-br from-white via-accent-gray-50 to-primary-purple/5 px-4 py-7 sm:py-12">

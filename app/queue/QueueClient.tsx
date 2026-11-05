@@ -17,6 +17,7 @@ import { isActiveQueueStatus, isQueueBackendHealthy, isRetryableQueueError, queu
 import styles from './QueueClient.module.css';
 import BeaverAvatar from '@/components/BeaverAvatar';
 import type { AvatarConfig } from '@/lib/avatar';
+import { APP_RESUME_EVENT } from '@/lib/app-resume';
 
 interface QueueMember { user_id: string; display_name: string; status: QueueMemberStatus; queue_position: number; joined_at: string; }
 interface TableState { id: number; phase: 'idle' | 'called' | 'playing'; king_id: string | null; challenger_id: string | null; call_expires_at: string | null; game_id: string | null; game_started_at: string | null; game_expires_at: string | null; king_confirmed_at: string | null; challenger_confirmed_at: string | null; solo_expires_at: string | null; afk_reporter_id: string | null; afk_target_id: string | null; afk_expires_at: string | null; }
@@ -69,14 +70,13 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
     if (reading.current) return;
     reading.current = true;
     try {
-      const [stateResponse, memberResponse, gameResponse, swapResponse, rankedResponse, profileResponse, avatarResponse] = await Promise.all([
+      const [stateResponse, memberResponse, gameResponse, swapResponse, rankedResponse, profileResponse] = await Promise.all([
         supabase.from('beaver_queue_table').select('*').eq('id', 1).single(),
         supabase.from('beaver_queue_members').select('*').order('queue_position'),
         supabase.from('beaver_queue_games').select('*').eq('status', 'completed').order('completed_at', { ascending: false }).limit(10),
         supabase.from('beaver_queue_swap_requests').select('*').eq('status', 'pending').order('created_at'),
         supabase.from('beaver_queue_ranked_requests').select('*').order('created_at', { ascending: false }).limit(10),
-        supabase.from('profiles').select('id,display_name,current_elo,total_wins,total_losses'),
-        supabase.from('profiles').select('id,avatar_config'),
+        supabase.from('profiles').select('id,display_name,current_elo,total_wins,total_losses,avatar_config'),
       ]);
       if (stateResponse.error) throw stateResponse.error;
       if (memberResponse.error) throw memberResponse.error;
@@ -89,8 +89,7 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
       setGames((gameResponse.data ?? []) as QueueGame[]);
       setSwaps((swapResponse.data ?? []) as SwapRequest[]);
       setRankedRequests((rankedResponse.data ?? []) as RankedRequest[]);
-      const avatars = new Map((avatarResponse.data ?? []).map((profile) => [profile.id, profile.avatar_config]));
-      setQueueProfiles(((profileResponse.data ?? []) as QueueProfile[]).map((profile) => ({ ...profile, avatar_config: avatars.get(profile.id) ?? null })));
+      setQueueProfiles((profileResponse.data ?? []) as QueueProfile[]);
       setLoadError('');
     } catch (caught) { setLoadError(queueErrorMessage(caught, 'Unable to load the queue.')); }
     finally { reading.current = false; setLoading(false); }
@@ -98,19 +97,30 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
 
   useEffect(() => {
     void refresh();
-    const poll = window.setInterval(() => void refresh(), 4000);
-    const timer = window.setInterval(() => setNow(Date.now()), 250);
-    const focus = () => void refresh();
-    window.addEventListener('focus', focus);
+    // Realtime drives live updates. A low-frequency visible-only check repairs
+    // missed events without continuously spending six queries every 4 seconds.
+    const poll = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(); }, 15_000);
+    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
+    const reconcile = () => { if (document.visibilityState === 'visible') void refresh(); };
+    window.addEventListener('focus', reconcile);
+    window.addEventListener(APP_RESUME_EVENT, reconcile);
+    document.addEventListener('visibilitychange', reconcile);
     const channel = supabase.channel('beaver-queue-live-v4')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_table' }, focus)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_members' }, focus)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_games' }, focus)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_swap_requests' }, focus)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_ranked_requests' }, focus)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, focus)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_table' }, reconcile)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_members' }, reconcile)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_games' }, reconcile)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_swap_requests' }, reconcile)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_ranked_requests' }, reconcile)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, reconcile)
       .subscribe();
-    return () => { window.clearInterval(poll); window.clearInterval(timer); window.removeEventListener('focus', focus); void supabase.removeChannel(channel); };
+    return () => {
+      window.clearInterval(poll);
+      window.clearInterval(timer);
+      window.removeEventListener('focus', reconcile);
+      window.removeEventListener(APP_RESUME_EVENT, reconcile);
+      document.removeEventListener('visibilitychange', reconcile);
+      void supabase.removeChannel(channel);
+    };
   }, [refresh, supabase]);
 
   useEffect(() => {

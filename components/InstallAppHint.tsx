@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 
 type NavigatorWithStandalone = Navigator & { standalone?: boolean };
+const INSTALL_HINT_KEY = 'pongo-install-hint-dismissed';
+// Preserve a previous dismissal while migrating it to the Pongo key.
+const LEGACY_INSTALL_HINT_KEY = 'beaver-smash-install-hint-dismissed';
 
 export default function InstallAppHint() {
   const [visible, setVisible] = useState(false);
@@ -13,22 +16,26 @@ export default function InstallAppHint() {
       || Boolean((navigator as NavigatorWithStandalone).standalone);
     const ios = /iPad|iPhone|iPod/.test(navigator.userAgent)
       || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const dismissed = localStorage.getItem(INSTALL_HINT_KEY) === 'true'
+      || localStorage.getItem(LEGACY_INSTALL_HINT_KEY) === 'true';
+    if (dismissed) localStorage.setItem(INSTALL_HINT_KEY, 'true');
+    localStorage.removeItem(LEGACY_INSTALL_HINT_KEY);
     setIsIOS(ios);
-    setVisible(!standalone && localStorage.getItem('beaver-smash-install-hint-dismissed') !== 'true');
+    setVisible(!standalone && !dismissed);
   }, []);
 
   if (!visible) return null;
 
   const dismiss = () => {
-    localStorage.setItem('beaver-smash-install-hint-dismissed', 'true');
+    localStorage.setItem(INSTALL_HINT_KEY, 'true');
     setVisible(false);
   };
 
   return (
-    <section className="rounded-3xl border-2 border-primary-purple/20 bg-white p-5 shadow-sm" aria-labelledby="install-beaver-smash">
+    <section className="rounded-3xl border-2 border-primary-purple/20 bg-white p-5 shadow-sm" aria-labelledby="install-pongo">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 id="install-beaver-smash" className="text-lg font-black">Install app</h2>
+          <h2 id="install-pongo" className="text-lg font-black">Install Pongo</h2>
           <p className="mt-1 text-sm text-accent-gray-600">
             {isIOS
               ? 'In Safari, tap Share, then Add to Home Screen.'

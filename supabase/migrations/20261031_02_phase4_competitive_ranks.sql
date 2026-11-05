@@ -1,4 +1,4 @@
--- Beaver Smash V3 Phase 4: automatic competitive tiers and immutable rank snapshots.
+-- Pongo V3 Phase 4: automatic competitive tiers and immutable rank snapshots.
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS public.competitive_rank_tiers (

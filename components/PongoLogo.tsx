@@ -36,7 +36,7 @@ export default function PongoLogo({
   return (
     <span className={`inline-flex shrink-0 items-center justify-center bg-[#2563EB] p-0.5 shadow-sm shadow-blue-950/15 ${sizeClasses[size]} ${className}`}>
       <Image
-        src="/pongo.png"
+        src="/pongo.webp"
         alt={alt}
         width={pixels}
         height={pixels}

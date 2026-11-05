@@ -2,14 +2,13 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import DashboardClient from './DashboardClient';
 import { OpponentRankedUsage, RankedUsage } from '@/lib/types';
+import { getVerifiedUserId } from '@/lib/supabase/verified-user';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getVerifiedUserId();
 
-  if (!user) {
-    redirect('/login');
-  }
+  if (!userId) redirect('/login');
 
   const now = new Date().toISOString();
   const [
@@ -31,7 +30,7 @@ export default async function DashboardPage() {
         challenger:profiles!challenges_challenger_id_fkey(*),
         opponent:profiles!challenges_opponent_id_fkey(*)
       `)
-      .or(`challenger_id.eq.${user.id},opponent_id.eq.${user.id}`)
+      .or(`challenger_id.eq.${userId},opponent_id.eq.${userId}`)
       .eq('status', 'pending')
       .gt('expires_at', now)
       .order('created_at', { ascending: false }),
@@ -42,7 +41,7 @@ export default async function DashboardPage() {
         player_one:profiles!matches_player_one_id_fkey(*),
         player_two:profiles!matches_player_two_id_fkey(*)
       `)
-      .or(`player_one_id.eq.${user.id},player_two_id.eq.${user.id}`)
+      .or(`player_one_id.eq.${userId},player_two_id.eq.${userId}`)
       .eq('status', 'ready')
       .gt('expires_at', now)
       .order('created_at', { ascending: false }),
@@ -56,7 +55,7 @@ export default async function DashboardPage() {
     supabase.rpc('get_my_opponent_ranked_usage_v3'),
   ]);
 
-  const profile = (players || []).find((player) => player.id === user.id);
+  const profile = (players || []).find((player) => player.id === userId);
   if (!profile) throw new Error('Your Pongo profile could not be loaded.');
 
   const activeMatchIds = (activeMatches || []).map((match) => match.id);
@@ -81,14 +80,14 @@ export default async function DashboardPage() {
   return (
     <DashboardClient
       user={profile}
-      players={(players || []).filter((player) => player.id !== user.id)}
+      players={(players || []).filter((player) => player.id !== userId)}
       opponentUsage={(opponentUsageData || []) as OpponentRankedUsage[]}
       pendingChallenges={pendingChallenges || []}
       activeMatches={activeMatches || []}
       cancellationRequests={cancellationRequests || []}
       rankedUsage={rankedUsage}
       disputes={(disputes || []).filter((dispute) => dispute.match
-        && (dispute.match.player_one_id === user.id || dispute.match.player_two_id === user.id))}
+        && (dispute.match.player_one_id === userId || dispute.match.player_two_id === userId))}
       isAdmin={!!isAdmin}
     />
   );

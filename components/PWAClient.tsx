@@ -24,7 +24,7 @@ export default function PWAClient() {
     const recoveryReset = window.setTimeout(() => window.sessionStorage.removeItem(CHUNK_RECOVERY_KEY), 10_000);
 
     if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {
+      navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' }).catch(() => {
         // The website remains fully functional if registration is unavailable.
       });
     }

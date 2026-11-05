@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { Challenge, Dispute, Match, MatchCancellationRequest, OpponentRankedUsage, Profile, RankedUsage } from '@/lib/types';
@@ -10,6 +10,7 @@ import RankBadge, { RankProgress } from '@/components/RankBadge';
 import DeadlineCountdown from '@/components/DeadlineCountdown';
 import RankedDecisionModal from '@/components/RankedDecisionModal';
 import BeaverAvatar from '@/components/BeaverAvatar';
+import { writeCachedProfileShell } from '@/lib/profile-cache';
 
 interface Props {
   user: Profile;
@@ -41,6 +42,8 @@ export default function DashboardClient({
   const [selectedCard, setSelectedCard] = useState(0);
   const [dismissedChallengeIds, setDismissedChallengeIds] = useState<string[]>([]);
   const cardTrackRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => writeCachedProfileShell(window.localStorage, user), [user]);
 
   const post = async (url: string, body: object, key: string) => {
     setLoading(key);

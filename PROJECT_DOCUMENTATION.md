@@ -45,7 +45,7 @@ The project combines server-rendered Next.js pages with realtime client-side upd
 
 ### Installable web app
 
-The App Router publishes `/manifest.webmanifest` with `/` as its standalone launch URL and Pongo icons. Server middleware resolves that launch before rendering: an authenticated session opens `/dashboard`, while a signed-out session receives the landing page. Apple web-app metadata, `viewport-fit=cover`, Dynamic Island/home-indicator safe areas, and a fixed safe-area-aware mobile navigation make the Vercel-hosted site installable from iPhone Safari. A network-first service worker never caches authenticated match or ranking responses; when navigation is unavailable it shows a static reconnect screen.
+The App Router publishes `/manifest.webmanifest` with `/` as its standalone launch URL and Pongo icons. Server middleware resolves that launch before rendering: an authenticated session opens `/dashboard`, while a signed-out session receives the landing page. Apple web-app metadata, `viewport-fit=cover`, Dynamic Island/home-indicator safe areas, and a fixed safe-area-aware mobile navigation make the Vercel-hosted site installable from iPhone Safari. The service worker caches only content-hashed app assets and public brand artwork; it never caches authenticated match, queue, ranking, API, or auth responses, and falls back to a static reconnect screen when navigation is unavailable.
 
 ---
 

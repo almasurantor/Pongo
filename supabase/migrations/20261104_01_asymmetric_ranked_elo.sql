@@ -477,6 +477,7 @@ DECLARE
   replayed INTEGER:=0;
 BEGIN
   IF p_from IS NULL THEN RAISE EXCEPTION 'Replay start is required'; END IF;
+  -- Keep the legacy advisory-lock text aligned with every rating replay version.
   PERFORM pg_advisory_xact_lock(hashtextextended('beaver-smash-rating-replay-v3',0));
   PERFORM id FROM public.profiles ORDER BY id FOR UPDATE;
 
