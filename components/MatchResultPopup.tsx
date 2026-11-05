@@ -51,7 +51,9 @@ export default function MatchResultPopup() {
             : Number(next.player_two_elo_change ?? 0);
           show(next.id, next.winner_id, userId, eloChange);
         })
-        .subscribe();
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') void checkRecentResult();
+        });
 
       const checkRecentResult = async () => {
         if (document.visibilityState !== 'visible' || Date.now() - lastCheckedAt < 10_000) return;

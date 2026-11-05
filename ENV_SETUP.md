@@ -21,12 +21,12 @@ real environment values to GitHub.
    NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
    SUPABASE_SERVICE_ROLE_KEY=your-server-only-service-role-key
-   NEXT_PUBLIC_SITE_URL=https://your-pongo-domain.example
+   NEXT_PUBLIC_SITE_URL=https://playpongo.vercel.app
    ```
 
    Keep `SUPABASE_SERVICE_ROLE_KEY` server-only. It powers the protected account
    deletion route and must never use a `NEXT_PUBLIC_` prefix.
-   Set `NEXT_PUBLIC_SITE_URL` to the final HTTPS production domain so canonical
+   Set `NEXT_PUBLIC_SITE_URL` to `https://playpongo.vercel.app` in Vercel so canonical
    and social-sharing metadata resolve to the Pongo URL.
 
 3. Verify the file was created:

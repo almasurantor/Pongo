@@ -8,18 +8,12 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import NavigationFeedback from "@/components/NavigationFeedback";
 import { Suspense } from "react";
 import AppResumeRedirect from "@/components/AppResumeRedirect";
+import { getSiteUrl } from "@/lib/site-url";
 
 const inter = Inter({ subsets: ["latin"] });
 
-function metadataBase() {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL;
-  const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  try { return new URL(configured || (vercelHost ? `https://${vercelHost}` : "http://localhost:3000")); }
-  catch { return new URL("http://localhost:3000"); }
-}
-
 export const metadata: Metadata = {
-  metadataBase: metadataBase(),
+  metadataBase: getSiteUrl(),
   applicationName: "Pongo",
   title: {
     default: "Pongo",

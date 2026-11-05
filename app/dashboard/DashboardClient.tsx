@@ -11,6 +11,7 @@ import DeadlineCountdown from '@/components/DeadlineCountdown';
 import RankedDecisionModal from '@/components/RankedDecisionModal';
 import BeaverAvatar from '@/components/BeaverAvatar';
 import { writeCachedProfileShell } from '@/lib/profile-cache';
+import { readDismissedChallengeIds, rememberDismissedChallenge } from '@/lib/challenge-popup-dismissal';
 
 interface Props {
   user: Profile;
@@ -41,9 +42,14 @@ export default function DashboardClient({
   const [playerQuery, setPlayerQuery] = useState('');
   const [selectedCard, setSelectedCard] = useState(0);
   const [dismissedChallengeIds, setDismissedChallengeIds] = useState<string[]>([]);
+  const [dismissalsLoaded, setDismissalsLoaded] = useState(false);
   const cardTrackRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => writeCachedProfileShell(window.localStorage, user), [user]);
+  useEffect(() => {
+    setDismissedChallengeIds(readDismissedChallengeIds(window.localStorage, user.id));
+    setDismissalsLoaded(true);
+  }, [user.id]);
 
   const post = async (url: string, body: object, key: string) => {
     setLoading(key);
@@ -118,7 +124,17 @@ export default function DashboardClient({
   const requestFor = (matchId: string) => cancellationRequests.find((request) => request.match_id === matchId);
   const incoming = pendingChallenges.filter((challenge) => challenge.opponent_id === user.id && new Date(challenge.expires_at).getTime() > Date.now());
   const outgoing = pendingChallenges.filter((challenge) => challenge.challenger_id === user.id && new Date(challenge.expires_at).getTime() > Date.now());
-  const popupChallenge = incoming.find((challenge) => !dismissedChallengeIds.includes(challenge.id));
+  const popupChallenge = dismissalsLoaded
+    ? incoming.find((challenge) => !dismissedChallengeIds.includes(challenge.id))
+    : undefined;
+  const dismissChallengePopup = (challengeId: string) => {
+    setDismissedChallengeIds((current) => rememberDismissedChallenge(
+      window.localStorage,
+      user.id,
+      current,
+      challengeId,
+    ));
+  };
   const cancellationNeedsResponse = cancellationRequests.filter((request) => request.requested_by !== user.id);
   const disputesNeedResponse = disputes.filter((dispute) => dispute.status === 'pending' && dispute.opened_by !== user.id);
   const winRate = user.total_wins + user.total_losses
@@ -129,10 +145,17 @@ export default function DashboardClient({
   const visiblePlayers = players
     .filter((player) => player.display_name.toLowerCase().includes(playerQuery.trim().toLowerCase()))
     .slice(0, 5);
-  const dashboardCards = ['Pending Matches', 'Friends', 'Challenges'];
+  const pendingCount = activeMatches.length + incoming.length + cancellationNeedsResponse.length + disputesNeedResponse.length;
+  const dashboardCards = ['Friends', 'Pending', 'Challenges'];
+  const dashboardCounts: Record<string, number | undefined> = {
+    Pending: pendingCount,
+    Challenges: outgoing.length,
+  };
   const openCard = (index: number) => {
     const track = cardTrackRef.current;
-    const card = track?.children[index] as HTMLElement | undefined;
+    const card = Array.from(track?.children ?? []).find(
+      (item) => (item as HTMLElement).dataset.dashboardCard === dashboardCards[index],
+    ) as HTMLElement | undefined;
     if (!track || !card) return;
     track.scrollTo({ left: card.offsetLeft - track.offsetLeft, behavior: 'smooth' });
     setSelectedCard(index);
@@ -141,11 +164,11 @@ export default function DashboardClient({
     const track = cardTrackRef.current;
     if (!track) return;
     const cards = Array.from(track.children) as HTMLElement[];
-    const closest = cards.reduce((best, card, index) => (
+    const closest = cards.reduce((best, card) => (
       Math.abs(card.offsetLeft - track.offsetLeft - track.scrollLeft)
-        < Math.abs(cards[best].offsetLeft - track.offsetLeft - track.scrollLeft) ? index : best
-    ), 0);
-    setSelectedCard(closest);
+        < Math.abs(best.offsetLeft - track.offsetLeft - track.scrollLeft) ? card : best
+    ));
+    setSelectedCard(dashboardCards.indexOf(closest.dataset.dashboardCard ?? ''));
   };
 
   return (
@@ -154,7 +177,7 @@ export default function DashboardClient({
         <RankedDecisionModal
           challenger={popupChallenge.challenger}
           busy={loading !== null}
-          onDismiss={() => setDismissedChallengeIds((current) => [...current, popupChallenge.id])}
+          onDismiss={() => dismissChallengePopup(popupChallenge.id)}
           onDecline={() => void respondChallenge(popupChallenge.id, 'decline')}
           onAccept={() => void respondChallenge(popupChallenge.id, 'accept')}
         />
@@ -189,9 +212,14 @@ export default function DashboardClient({
               type="button"
               onClick={() => openCard(index)}
               aria-current={selectedCard === index ? 'page' : undefined}
-              className={`min-h-10 rounded-xl px-2 text-xs font-black transition active:scale-[.97] sm:text-sm ${selectedCard === index ? 'bg-primary-purple text-white shadow-sm' : 'text-accent-gray-500 hover:bg-primary-purple/5'}`}
+              className={`flex min-h-10 items-center justify-center gap-1.5 rounded-xl px-2 text-xs font-black transition active:scale-[.97] sm:text-sm ${selectedCard === index ? 'bg-primary-purple text-white shadow-sm' : 'text-accent-gray-500 hover:bg-primary-purple/5'}`}
             >
-              {label}
+              <span>{label}</span>
+              {!!dashboardCounts[label] && (
+                <span aria-label={`${dashboardCounts[label]} ${label.toLowerCase()}`} className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] leading-none ${selectedCard === index ? 'bg-white text-primary-purple' : 'bg-primary-purple text-white'}`}>
+                  {dashboardCounts[label]}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -201,8 +229,8 @@ export default function DashboardClient({
           onScroll={syncSelectedCard}
           className="screen-flex grid min-h-0 snap-x snap-mandatory auto-cols-[100%] grid-flow-col gap-3 overflow-x-auto overscroll-x-contain scroll-smooth pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid-flow-row sm:grid-cols-3 sm:overflow-visible"
         >
-          <section className="app-surface-card mobile-widget scroll-widget h-full min-w-0 snap-start p-4">
-            <div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-black">Pending Matches</h2><span className="text-sm font-bold text-accent-gray-500">{rankedUsage.active_used}/{rankedUsage.active_limit}</span></div>
+          <section data-dashboard-card="Pending" className="app-surface-card mobile-widget scroll-widget order-2 h-full min-w-0 snap-start p-4">
+            <div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-black">Pending</h2><span aria-label={`${pendingCount} pending items`} className="inline-flex min-w-6 items-center justify-center rounded-full bg-primary-purple px-2 py-1 text-xs font-black text-white">{pendingCount}</span></div>
             <div className="widget-scroll space-y-3 pr-1" tabIndex={0} aria-label="Pending matches and requests">
               {disputesNeedResponse.map((dispute) => {
                 const disputedMatch = dispute.match;
@@ -239,7 +267,7 @@ export default function DashboardClient({
             </div>
           </section>
 
-          <section className="app-surface-card mobile-widget scroll-widget h-full min-w-0 snap-start p-4">
+          <section data-dashboard-card="Friends" className="app-surface-card mobile-widget scroll-widget order-1 h-full min-w-0 snap-start p-4">
             <div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-black">Friends</h2><Link href="/players" className="text-sm font-bold text-primary-purple">View all</Link></div>
             <input type="search" value={playerQuery} onChange={(event) => setPlayerQuery(event.target.value)} placeholder="Search by name" className="mb-3 min-h-11 w-full rounded-2xl border-2 border-accent-gray-200 bg-white px-4 outline-none transition focus:border-primary-purple" />
             <div className="widget-scroll space-y-2 pr-1" tabIndex={0} aria-label="Friends and players">
@@ -252,8 +280,8 @@ export default function DashboardClient({
             </div>
           </section>
 
-          <section className="app-surface-card mobile-widget scroll-widget h-full min-w-0 snap-start p-4">
-            <div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-black">Challenges</h2><span className="text-sm font-bold text-accent-gray-500">{outgoing.length}</span></div>
+          <section data-dashboard-card="Challenges" className="app-surface-card mobile-widget scroll-widget order-3 h-full min-w-0 snap-start p-4">
+            <div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-black">Challenges</h2><span aria-label={`${outgoing.length} sent challenges`} className="inline-flex min-w-6 items-center justify-center rounded-full bg-primary-purple px-2 py-1 text-xs font-black text-white">{outgoing.length}</span></div>
             <div className="widget-scroll space-y-3 pr-1" tabIndex={0} aria-label="Outgoing challenges">
               {outgoing.map((challenge) => <article key={challenge.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm">{challenge.opponent && <BeaverAvatar config={challenge.opponent.avatar_config} className="h-11 w-11 shrink-0 rounded-full" label={`${challenge.opponent.display_name}'s avatar`} />}<div className="min-w-0 flex-1"><p className="text-xs font-black uppercase text-amber-600">Pending Acceptance</p><p className="truncate font-bold">{challenge.opponent?.display_name}</p>{challenge.opponent && <div className="mt-1 flex flex-wrap items-center gap-2"><RankBadge elo={challenge.opponent.current_elo} totalGames={challenge.opponent.total_wins + challenge.opponent.total_losses} compact /><span className="text-xs font-bold text-accent-gray-500">{challenge.opponent.current_elo} ELO</span></div>}<DeadlineCountdown deadline={challenge.expires_at} className="mt-1 block text-sm font-bold text-accent-gray-500" /></div><button disabled={loading !== null} onClick={() => cancelChallenge(challenge.id)} className="min-h-10 shrink-0 rounded-xl px-3 font-bold text-red-600 disabled:opacity-50">Cancel</button></article>)}
               {!outgoing.length && <div className="rounded-2xl bg-accent-gray-50 p-6 text-center text-accent-gray-500">No sent challenges awaiting acceptance.</div>}

@@ -74,12 +74,18 @@ export default function Navbar() {
     const heartbeat = window.setInterval(() => void syncQueue('interval'), 30_000);
     const focus = () => void syncQueue('focus');
     window.addEventListener('focus', focus);
+    window.addEventListener('online', focus);
+    document.addEventListener('visibilitychange', focus);
     const channel = supabase.channel(`queue-nav-${userId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_members', filter: `user_id=eq.${userId}` }, () => void syncQueue('realtime'))
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') void syncQueue('realtime');
+      });
     return () => {
       window.clearInterval(heartbeat);
       window.removeEventListener('focus', focus);
+      window.removeEventListener('online', focus);
+      document.removeEventListener('visibilitychange', focus);
       void supabase.removeChannel(channel);
     };
   }, [pathname, supabase, userId]);

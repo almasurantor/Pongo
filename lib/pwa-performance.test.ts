@@ -23,6 +23,8 @@ describe('native-like PWA performance safeguards', () => {
     expect(browserClient).toContain('if (browserClient) return browserClient');
     expect(middleware).toContain('api(?:/|$)');
     expect(middleware).toContain('auth/callback');
+    expect(middleware).toContain('robots.txt');
+    expect(middleware).toContain('sitemap.xml');
     expect(sessionMiddleware).toContain('verifiedHeaders.delete(VERIFIED_USER_HEADER)');
     expect(sessionMiddleware).toContain('verifiedHeaders.set(VERIFIED_USER_HEADER, user.id)');
     expect(dashboardPage).toContain('getVerifiedUserId()');

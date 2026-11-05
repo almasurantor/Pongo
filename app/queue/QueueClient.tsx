@@ -51,6 +51,7 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
   const [rankedError, setRankedError] = useState('');
   const [heartbeatError, setHeartbeatError] = useState('');
   const reading = useRef(false);
+  const refreshQueued = useRef(false);
   const heartbeatFailures = useRef(0);
   const syncedExpiration = useRef('');
   const me = members.find((member) => member.user_id === currentUserId);
@@ -67,7 +68,10 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
   }, [supabase]);
 
   const refresh = useCallback(async () => {
-    if (reading.current) return;
+    if (reading.current) {
+      refreshQueued.current = true;
+      return;
+    }
     reading.current = true;
     try {
       const [stateResponse, memberResponse, gameResponse, swapResponse, rankedResponse, profileResponse] = await Promise.all([
@@ -92,7 +96,14 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
       setQueueProfiles((profileResponse.data ?? []) as QueueProfile[]);
       setLoadError('');
     } catch (caught) { setLoadError(queueErrorMessage(caught, 'Unable to load the queue.')); }
-    finally { reading.current = false; setLoading(false); }
+    finally {
+      reading.current = false;
+      setLoading(false);
+      if (refreshQueued.current) {
+        refreshQueued.current = false;
+        window.setTimeout(() => void refresh(), 0);
+      }
+    }
   }, [supabase]);
 
   useEffect(() => {
@@ -101,10 +112,32 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
     // missed events without continuously spending six queries every 4 seconds.
     const poll = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(); }, 15_000);
     const timer = window.setInterval(() => setNow(Date.now()), 1_000);
-    const reconcile = () => { if (document.visibilityState === 'visible') void refresh(); };
+    let reconcileTimer: number | undefined;
+    let missedWhileHidden = false;
+    const reconcile = () => {
+      if (document.visibilityState !== 'visible') {
+        missedWhileHidden = true;
+        return;
+      }
+      window.clearTimeout(reconcileTimer);
+      reconcileTimer = window.setTimeout(() => {
+        missedWhileHidden = false;
+        void refresh();
+      }, 75);
+    };
+    const reconcileAfterInterruption = () => {
+      if (document.visibilityState === 'visible') {
+        window.clearTimeout(reconcileTimer);
+        reconcileTimer = window.setTimeout(() => {
+          missedWhileHidden = false;
+          void refresh();
+        }, missedWhileHidden ? 0 : 75);
+      }
+    };
     window.addEventListener('focus', reconcile);
-    window.addEventListener(APP_RESUME_EVENT, reconcile);
-    document.addEventListener('visibilitychange', reconcile);
+    window.addEventListener('online', reconcileAfterInterruption);
+    window.addEventListener(APP_RESUME_EVENT, reconcileAfterInterruption);
+    document.addEventListener('visibilitychange', reconcileAfterInterruption);
     const channel = supabase.channel('beaver-queue-live-v4')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_table' }, reconcile)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_members' }, reconcile)
@@ -112,13 +145,18 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
       .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_swap_requests' }, reconcile)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'beaver_queue_ranked_requests' }, reconcile)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, reconcile)
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') reconcileAfterInterruption();
+        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') missedWhileHidden = true;
+      });
     return () => {
       window.clearInterval(poll);
       window.clearInterval(timer);
+      window.clearTimeout(reconcileTimer);
       window.removeEventListener('focus', reconcile);
-      window.removeEventListener(APP_RESUME_EVENT, reconcile);
-      document.removeEventListener('visibilitychange', reconcile);
+      window.removeEventListener('online', reconcileAfterInterruption);
+      window.removeEventListener(APP_RESUME_EVENT, reconcileAfterInterruption);
+      document.removeEventListener('visibilitychange', reconcileAfterInterruption);
       void supabase.removeChannel(channel);
     };
   }, [refresh, supabase]);

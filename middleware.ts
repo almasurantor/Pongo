@@ -17,6 +17,6 @@ export const config = {
      */
     // API handlers and the auth callback perform their own authentication.
     // Skipping middleware there avoids a duplicate remote getUser() call.
-    '/((?!api(?:/|$)|auth/callback(?:/|$)|_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|offline.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api(?:/|$)|auth/callback(?:/|$)|_next/static|_next/image|favicon.ico|manifest.webmanifest|robots.txt|sitemap.xml|sw.js|offline.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

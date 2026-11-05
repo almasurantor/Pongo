@@ -14,12 +14,21 @@ describe('Pongo rebrand', () => {
     expect(layout).toContain('applicationName: "Pongo"');
     expect(layout).toContain('appleWebApp');
     expect(layout).toContain('siteName: "Pongo"');
-    expect(layout).toContain('NEXT_PUBLIC_SITE_URL');
+    expect(layout).toContain('getSiteUrl');
     expect(layout).toContain('alternates: { canonical: "/" }');
     expect(manifest).toContain("name: 'Pongo'");
     expect(manifest).toContain("short_name: 'Pongo'");
     expect(existsSync(resolve(process.cwd(), 'app/opengraph-image.png'))).toBe(true);
     expect(existsSync(resolve(process.cwd(), 'app/twitter-image.png'))).toBe(true);
+  });
+
+  it('uses the Pongo production URL for metadata discovery files', () => {
+    const siteUrl = readFileSync(resolve(process.cwd(), 'lib/site-url.ts'), 'utf8');
+    const sitemap = readFileSync(resolve(process.cwd(), 'app/sitemap.ts'), 'utf8');
+    const robots = readFileSync(resolve(process.cwd(), 'app/robots.ts'), 'utf8');
+    expect(siteUrl).toContain("https://playpongo.vercel.app");
+    expect(sitemap).toContain("new URL('/', siteUrl)");
+    expect(robots).toContain("'/sitemap.xml'");
   });
 
   it('migrates legacy local preferences to Pongo keys', () => {

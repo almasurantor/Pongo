@@ -60,7 +60,7 @@ For a brand-new project, provision the legacy base schema from `supabase/schema.
 1. In Supabase Dashboard, go to Authentication > Providers
 2. Enable Email provider
 3. Under Authentication > Providers > Email, turn **Confirm email** off. This makes signup return a session immediately, matching `supabase/config.toml` for local projects.
-4. Under Authentication > URL Configuration, set the Site URL and add `http://localhost:3000/auth/callback` plus `https://YOUR_DOMAIN/auth/callback` to Redirect URLs.
+4. Under Authentication > URL Configuration, set the production Site URL to `https://playpongo.vercel.app` and add both `http://localhost:3000/auth/callback` and `https://playpongo.vercel.app/auth/callback` to Redirect URLs.
 5. Enable Google OAuth and add your Google client ID and secret. In Google Cloud, set the authorized redirect URI to the Supabase callback shown by the provider panel (normally `https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback`), not the app callback URL.
 
 ## Step 5: Schedule Expiration
