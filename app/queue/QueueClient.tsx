@@ -15,13 +15,15 @@ import {
 } from '@/lib/queue';
 import { isActiveQueueStatus, isQueueBackendHealthy, isRetryableQueueError, queueErrorMessage } from '@/lib/queue-client';
 import styles from './QueueClient.module.css';
+import BeaverAvatar from '@/components/BeaverAvatar';
+import type { AvatarConfig } from '@/lib/avatar';
 
 interface QueueMember { user_id: string; display_name: string; status: QueueMemberStatus; queue_position: number; joined_at: string; }
 interface TableState { id: number; phase: 'idle' | 'called' | 'playing'; king_id: string | null; challenger_id: string | null; call_expires_at: string | null; game_id: string | null; game_started_at: string | null; game_expires_at: string | null; king_confirmed_at: string | null; challenger_confirmed_at: string | null; solo_expires_at: string | null; afk_reporter_id: string | null; afk_target_id: string | null; afk_expires_at: string | null; }
 interface QueueGame { id: string; king_id: string; challenger_id: string; king_name: string; challenger_name: string; winner_id: string; loser_id: string; completed_at: string; }
 interface SwapRequest { id: string; requester_id: string; target_id: string; requester_position: number; target_position: number; status: 'pending' | 'accepted' | 'declined' | 'expired' | 'canceled'; expires_at: string; }
 interface RankedRequest { id: string; queue_game_id: string; requester_id: string; opponent_id: string; status: 'pending' | 'accepted' | 'declined' | 'canceled'; match_id: string | null; created_at: string; responded_at: string | null; }
-interface QueueProfile extends RankedDecisionPlayer { id: string; }
+interface QueueProfile extends RankedDecisionPlayer { id: string; avatar_config?: AvatarConfig | null; }
 
 const formatTimer = (seconds: number) => `${Math.floor(Math.max(0, seconds) / 60)}:${String(Math.max(0, seconds) % 60).padStart(2, '0')}`;
 
@@ -67,13 +69,14 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
     if (reading.current) return;
     reading.current = true;
     try {
-      const [stateResponse, memberResponse, gameResponse, swapResponse, rankedResponse, profileResponse] = await Promise.all([
+      const [stateResponse, memberResponse, gameResponse, swapResponse, rankedResponse, profileResponse, avatarResponse] = await Promise.all([
         supabase.from('beaver_queue_table').select('*').eq('id', 1).single(),
         supabase.from('beaver_queue_members').select('*').order('queue_position'),
         supabase.from('beaver_queue_games').select('*').eq('status', 'completed').order('completed_at', { ascending: false }).limit(10),
         supabase.from('beaver_queue_swap_requests').select('*').eq('status', 'pending').order('created_at'),
         supabase.from('beaver_queue_ranked_requests').select('*').order('created_at', { ascending: false }).limit(10),
         supabase.from('profiles').select('id,display_name,current_elo,total_wins,total_losses'),
+        supabase.from('profiles').select('id,avatar_config'),
       ]);
       if (stateResponse.error) throw stateResponse.error;
       if (memberResponse.error) throw memberResponse.error;
@@ -86,7 +89,8 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
       setGames((gameResponse.data ?? []) as QueueGame[]);
       setSwaps((swapResponse.data ?? []) as SwapRequest[]);
       setRankedRequests((rankedResponse.data ?? []) as RankedRequest[]);
-      setQueueProfiles((profileResponse.data ?? []) as QueueProfile[]);
+      const avatars = new Map((avatarResponse.data ?? []).map((profile) => [profile.id, profile.avatar_config]));
+      setQueueProfiles(((profileResponse.data ?? []) as QueueProfile[]).map((profile) => ({ ...profile, avatar_config: avatars.get(profile.id) ?? null })));
       setLoadError('');
     } catch (caught) { setLoadError(queueErrorMessage(caught, 'Unable to load the queue.')); }
     finally { reading.current = false; setLoading(false); }
@@ -196,6 +200,7 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
   );
   const matchActionsAvailable = amPlaying && gameSeconds > 0;
   const nameOf = (id: string | null) => members.find((member) => member.user_id === id)?.display_name ?? 'Player';
+  const avatarOf = (id: string | null) => queueProfiles.find((profile) => profile.id === id)?.avatar_config;
   const snapshotName = (game: QueueGame, id: string) => id === game.king_id ? game.king_name : game.challenger_name;
 
   useEffect(() => {
@@ -309,9 +314,9 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
           <div className={styles.sectionHeading}><h2>Current Match</h2><span className={styles.pill}>{acceptedRankedRequest ? 'RANKED' : table?.phase === 'playing' ? 'PLAYING' : table?.phase === 'called' ? 'CHECK-IN' : 'READY'}</span></div>
           {loading && !table ? <p className={styles.muted}>Loading current table…</p> : king ? <>
             <div className={styles.tableMatch}>
-              <div className={styles.matchPlayer}><div aria-hidden="true" className={styles.avatar}><span>★★★</span></div><div className={styles.playerName}><strong>{nameOf(king)}</strong>{king === currentUserId && <span className={styles.youTag}>You</span>}</div><div className={styles.seatLabel}>Holder</div></div>
+              <div className={styles.matchPlayer}><BeaverAvatar config={avatarOf(king)} className={styles.beaverAvatar} label={`${nameOf(king)}'s avatar`} /><div className={styles.playerName}><strong>{nameOf(king)}</strong>{king === currentUserId && <span className={styles.youTag}>You</span>}</div><div className={styles.seatLabel}>Holder</div></div>
               <div className={styles.vs}>VS</div>
-              <div className={styles.matchPlayer}><div aria-hidden="true" className={styles.avatarAlt}><span>★★★</span></div><div className={styles.playerName}><strong>{challenger ? nameOf(challenger) : 'Waiting…'}</strong>{challenger === currentUserId && <span className={styles.youTag}>You</span>}</div><div className={styles.seatLabel}>{challenger ? 'Opponent' : 'Next player'}</div></div>
+              <div className={styles.matchPlayer}><BeaverAvatar config={avatarOf(challenger)} className={styles.beaverAvatar} label={`${challenger ? nameOf(challenger) : 'Next player'} avatar`} /><div className={styles.playerName}><strong>{challenger ? nameOf(challenger) : 'Waiting…'}</strong>{challenger === currentUserId && <span className={styles.youTag}>You</span>}</div><div className={styles.seatLabel}>{challenger ? 'Opponent' : 'Next player'}</div></div>
             </div>
             {table?.phase === 'idle' && !challenger && table.solo_expires_at && <div className={styles.soloTimer}><span>Waiting for an opponent</span><strong>{formatTimer(soloSeconds)}</strong></div>}
             {table?.phase === 'called' && <div className={styles.callBanner}><span>{checkInPending ? "You're up — check in now" : 'Waiting for the other player'}</span><strong className={callSeconds <= 15 ? styles.urgent : ''}>{formatTimer(callSeconds)}</strong></div>}
@@ -339,14 +344,14 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
             {outgoingSwap && <div className={styles.outgoingSwap}><strong>Swap requested from {nameOf(outgoingSwap.target_id)}</strong><span>{formatTimer(Math.max(0, Math.ceil((new Date(outgoingSwap.expires_at).getTime() - now) / 1000)))} remaining</span></div>}
             {waiting.length ? <ol className={styles.waitList}>{waiting.map((player) => {
               const canRequest = canRequestQueueSwap(me, player, Boolean(incomingSwap || outgoingSwap));
-              return <li key={player.user_id}><span className={styles.queueIndex}>#{activePosition(player.user_id)}</span><span className={styles.waitingName}><strong>{player.display_name}</strong>{player.user_id === currentUserId && <span className={styles.youTag}>You</span>}</span>{canRequest && <button className={styles.swapRequestButton} disabled={Boolean(busy)} onClick={() => void action(`swap-${player.user_id}`, 'beaver_queue_request_swap_v1', { p_target: player.user_id })}>Request Swap</button>}</li>;
+              return <li key={player.user_id}><span className={styles.queueIndex}>#{activePosition(player.user_id)}</span><BeaverAvatar config={avatarOf(player.user_id)} className={styles.queueListAvatar} label={`${player.display_name}'s avatar`} /><span className={styles.waitingName}><strong>{player.display_name}</strong>{player.user_id === currentUserId && <span className={styles.youTag}>You</span>}</span>{canRequest && <button className={styles.swapRequestButton} disabled={Boolean(busy)} onClick={() => void action(`swap-${player.user_id}`, 'beaver_queue_request_swap_v1', { p_target: player.user_id })}>Request Swap</button>}</li>;
             })}</ol> : <p className={styles.compactEmpty}>No players waiting.</p>}
           </div>
         </section>
 
         <section data-queue-card="recent-results" className={`${styles.card} ${styles.recentResultsCard}`}>
           <div className={styles.sectionHeading}><h2>Recent Results</h2><span className={styles.count}>Last 10 games</span></div>
-          {games.length ? <div className={styles.resultList} tabIndex={0} aria-label="Last 10 queue results">{games.map((game) => <div key={game.id} className={styles.resultRow}><div><strong>{snapshotName(game, game.winner_id)} won</strong><div className={styles.mutedSmall}>vs. {snapshotName(game, game.loser_id)}</div></div></div>)}</div> : <p className={styles.compactEmpty}>No completed queue games yet.</p>}
+          {games.length ? <div className={styles.resultList} tabIndex={0} aria-label="Last 10 queue results">{games.map((game) => <div key={game.id} className={styles.resultRow}><BeaverAvatar config={avatarOf(game.winner_id)} className={styles.queueListAvatar} label={`${snapshotName(game, game.winner_id)}'s avatar`} /><div><strong>{snapshotName(game, game.winner_id)} won</strong><div className={styles.mutedSmall}>vs. {snapshotName(game, game.loser_id)}</div></div></div>)}</div> : <p className={styles.compactEmpty}>No completed queue games yet.</p>}
         </section>
       </div>
     </main>

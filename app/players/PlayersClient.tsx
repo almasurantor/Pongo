@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { OpponentRankedUsage, Profile } from '@/lib/types';
 import { useDatabaseRefresh } from '@/lib/use-database-refresh';
 import RankBadge from '@/components/RankBadge';
+import BeaverAvatar from '@/components/BeaverAvatar';
 
 export default function PlayersClient({ players, usage, currentUserId }: { players: Profile[]; usage: OpponentRankedUsage[]; currentUserId: string }) {
   useDatabaseRefresh('players-list', ['profiles']);
@@ -73,10 +74,11 @@ export default function PlayersClient({ players, usage, currentUserId }: { playe
             return (
               <article key={player.id} className="rounded-2xl border-2 border-accent-gray-200 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
-                  <Link href={`/profile/${player.id}`} className="min-h-11 min-w-0 flex-1">
-                    <p className="truncate text-lg font-black">{player.display_name}</p>
-                    <p className="text-sm text-accent-gray-500">#{rank} overall · {player.current_elo} ELO · {player.total_wins}-{player.total_losses}</p>
-                    <span className="mt-2 block"><RankBadge elo={player.current_elo} totalGames={player.total_wins + player.total_losses} compact /></span>
+                  <Link href={`/profile/${player.id}`} className="flex min-h-11 min-w-0 flex-1 items-center gap-3">
+                    <BeaverAvatar config={player.avatar_config} className="h-14 w-14 shrink-0 rounded-full" label={`${player.display_name}'s avatar`} />
+                    <span className="min-w-0"><span className="block truncate text-lg font-black">{player.display_name}</span>
+                    <span className="block text-sm text-accent-gray-500">#{rank} overall · {player.current_elo} ELO · {player.total_wins}-{player.total_losses}</span>
+                    <span className="mt-2 block"><RankBadge elo={player.current_elo} totalGames={player.total_wins + player.total_losses} compact /></span></span>
                   </Link>
                   <span className="rounded-full bg-primary-purple/10 px-3 py-1 text-sm font-black text-primary-purple">#{rank}</span>
                 </div>

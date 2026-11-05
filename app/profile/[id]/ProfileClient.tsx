@@ -12,6 +12,8 @@ import RankBadge, { RankProgress } from '@/components/RankBadge';
 import ThemeSettings from '@/components/ThemeSettings';
 import ProfileSettings from '@/components/ProfileSettings';
 import AccountSecurity from '@/components/AccountSecurity';
+import BeaverAvatar from '@/components/BeaverAvatar';
+import AvatarEditor from '@/components/AvatarEditor';
 
 interface Props {
   profile: Profile;
@@ -26,6 +28,7 @@ export default function ProfileClient({ profile, matches, opponentUsage, rank, c
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
   const [currentProfile, setCurrentProfile] = useState(profile);
+  const [avatarEditorOpen, setAvatarEditorOpen] = useState(false);
   const mine = profile.id === currentUserId;
   const totalGames = profile.total_wins + profile.total_losses;
   const winRate = totalGames ? Math.round(profile.total_wins / totalGames * 100) : 0;
@@ -56,11 +59,10 @@ export default function ProfileClient({ profile, matches, opponentUsage, rank, c
   return (
     <main className="app-screen min-h-screen bg-accent-gray-50 px-4 py-7">
       <div className="app-screen-shell mx-auto w-full max-w-3xl space-y-0 sm:space-y-6">
-        <section className="screen-fixed rounded-3xl gradient-purple p-4 text-white shadow-xl sm:p-6">
-          <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white/20 text-2xl font-black">
-              {currentProfile.display_name[0].toUpperCase()}
-            </div>
+        <section className="screen-fixed relative rounded-3xl gradient-purple p-5 text-white shadow-xl sm:p-7">
+          {mine && <button type="button" onClick={() => setAvatarEditorOpen(true)} className="absolute right-4 top-4 z-10 min-h-10 rounded-full border border-white/35 bg-white/15 px-4 text-sm font-black text-white shadow-sm backdrop-blur transition hover:bg-white/25 active:scale-[.98] sm:right-6 sm:top-6">Edit avatar</button>}
+          <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] items-center gap-4 pt-10 sm:grid-cols-[9.5rem_minmax(0,1fr)] sm:gap-6 sm:pt-0">
+            <BeaverAvatar config={currentProfile.avatar_config} className="aspect-square w-full rounded-full border-[5px] border-white/25 shadow-xl" label={`${currentProfile.display_name}'s Pongo avatar`} />
             <div className="min-w-0">
               <h1 className="truncate text-3xl font-black">{currentProfile.display_name}</h1>
               <p className="text-sm text-white/70">Member since {format(new Date(profile.created_at), 'MMM yyyy')}</p>
@@ -76,6 +78,7 @@ export default function ProfileClient({ profile, matches, opponentUsage, rank, c
         </section>
 
         <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
+        {mine && avatarEditorOpen && <AvatarEditor initialConfig={currentProfile.avatar_config} onSaved={(avatar_config) => setCurrentProfile((current) => ({ ...current, avatar_config }))} onClose={() => setAvatarEditorOpen(false)} />}
         {!mine && (
           <section className="rounded-3xl border-2 border-accent-gray-200 bg-white p-4 shadow-sm sm:p-5">
             <p className={`mb-3 rounded-xl px-3 py-2 text-center text-sm font-bold ${(opponentUsage?.games_remaining ?? 3) > 0 ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
@@ -117,8 +120,9 @@ export default function ProfileClient({ profile, matches, opponentUsage, rank, c
               const theirScore = isPlayerOne ? playerTwoScore : playerOneScore;
               const change = (isPlayerOne ? match.player_one_elo_change : match.player_two_elo_change) ?? 0;
               return (
-                <Link href={`/match/${match.id}`} key={match.id} className="grid grid-cols-[2.8rem_1fr_auto] items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
+                <Link href={`/match/${match.id}`} key={match.id} className="grid grid-cols-[2.8rem_2.5rem_1fr_auto] items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
                   <span className={`text-sm font-black ${won ? 'text-green-600' : 'text-red-600'}`}>{won ? 'WIN' : 'LOSS'}</span>
+                  <BeaverAvatar config={opponent?.avatar_config} className="h-10 w-10 rounded-full" label={`${opponent?.display_name ?? 'Opponent'} avatar`} />
                   <span className="min-w-0">
                     <span className="block truncate font-black">vs {opponent?.display_name}</span>
                     <span className="text-xs text-accent-gray-500">{myScore}–{theirScore} · {match.confirmed_at ? format(new Date(match.confirmed_at), 'MMM d, yyyy') : ''}</span>

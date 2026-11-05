@@ -543,6 +543,21 @@
   letter-spacing: .06em;
 }
 
+.beaverAvatar {
+  width: 5.5rem;
+  height: 5.5rem;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.queueListAvatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+}
+
 .avatarAlt {
   color: var(--queue-stars);
   background: var(--queue-ball);
@@ -966,7 +981,7 @@
 }
 .waitList li {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
   gap: .75rem;
   border: 1px solid #e5e7eb;
@@ -1149,7 +1164,7 @@
 .resultRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: .75rem;
   border-bottom: 1px solid #e5e7eb;
   padding: .55rem 0;

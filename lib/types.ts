@@ -1,6 +1,9 @@
+import type { AvatarConfig } from '@/lib/avatar';
+
 export interface Profile {
   id: string;
   display_name: string;
+  avatar_config?: AvatarConfig | null;
   queue_turn_sound_enabled?: boolean;
   queue_turn_push_enabled?: boolean;
   current_elo: number;

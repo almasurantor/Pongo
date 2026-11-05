@@ -28,6 +28,11 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
     leaderboardPromise,
     archivePromise,
   ]);
+  const playerIds = ((entries || []) as LeaderboardEntry[]).map((entry) => entry.player_id);
+  const { data: avatarRows } = playerIds.length
+    ? await supabase.from('profiles').select('id,avatar_config').in('id', playerIds)
+    : { data: [] };
+  const avatarConfigs = Object.fromEntries((avatarRows || []).map((row) => [row.id, row.avatar_config]));
 
   return (
     <LeaderboardClient
@@ -37,6 +42,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
       selectedPeriod={requestedPeriod}
       currentUserId={user.id}
       loadError={error?.message || null}
+      avatarConfigs={avatarConfigs}
     />
   );
 }

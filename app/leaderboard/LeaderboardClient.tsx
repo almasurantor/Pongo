@@ -6,6 +6,7 @@ import RankBadge from '@/components/RankBadge';
 import { LeaderboardArchiveEntry, LeaderboardEntry, LeaderboardScope } from '@/lib/types';
 import { splitLeaderboardRows } from '@/lib/leaderboards';
 import { useDatabaseRefresh } from '@/lib/use-database-refresh';
+import BeaverAvatar from '@/components/BeaverAvatar';
 
 const tabs: { scope: LeaderboardScope; label: string }[] = [
   { scope: 'weekly', label: 'Weekly' },
@@ -31,13 +32,14 @@ function periodLabel(start: string, end: string, scope: LeaderboardScope) {
   return `${dateFormatter.format(dateAtNoon(start))} – ${dateFormatter.format(dateAtNoon(end))}`;
 }
 
-function StandingCard({ entry, scope, currentUserId }: { entry: LeaderboardEntry; scope: LeaderboardScope; currentUserId: string }) {
+function StandingCard({ entry, scope, currentUserId, avatarConfig }: { entry: LeaderboardEntry; scope: LeaderboardScope; currentUserId: string; avatarConfig?: unknown }) {
   const mine = entry.player_id === currentUserId;
   const change = Number(entry.net_elo_change);
   return (
     <Link href={`/profile/${entry.player_id}`} className={`app-surface-card block p-3.5 transition active:scale-[.99] ${mine ? 'app-surface-card--active' : ''}`}>
-      <div className="grid grid-cols-[3rem_1fr_auto] items-start gap-3">
+      <div className="grid grid-cols-[3rem_2.75rem_1fr_auto] items-start gap-3">
         <span className={`text-xl font-black ${entry.placement <= 3 ? 'text-primary-purple' : 'text-accent-gray-500'}`}>#{entry.placement}</span>
+        <BeaverAvatar config={avatarConfig} className="h-11 w-11 rounded-full" label={`${entry.display_name}'s avatar`} />
         <span className="min-w-0">
           <span className="block truncate font-black">{entry.display_name}{mine && <span className="ml-2 text-xs text-primary-purple">YOU</span>}</span>
           <span className="mt-1 block"><RankBadge elo={entry.current_elo} totalGames={entry.current_rank === 'Unranked' ? 0 : 1} compact /></span>
@@ -65,9 +67,10 @@ interface Props {
   selectedPeriod: string | null;
   currentUserId: string;
   loadError: string | null;
+  avatarConfigs: Record<string, unknown>;
 }
 
-export default function LeaderboardClient({ entries, archives, scope, selectedPeriod, currentUserId, loadError }: Props) {
+export default function LeaderboardClient({ entries, archives, scope, selectedPeriod, currentUserId, loadError, avatarConfigs }: Props) {
   useDatabaseRefresh('unified-leaderboards', ['rating_events', 'profiles']);
   const [visibleCount, setVisibleCount] = useState(50);
   const { topRows, currentUserRow } = splitLeaderboardRows(entries, currentUserId);
@@ -106,7 +109,7 @@ export default function LeaderboardClient({ entries, archives, scope, selectedPe
           {loadError && <div className="mb-4 rounded-2xl border-2 border-red-200 bg-red-50 p-5 font-bold text-red-700">Could not load standings: {loadError}</div>}
 
         <section className="space-y-2.5">
-          {visibleTopRows.map((entry) => <StandingCard key={entry.player_id} entry={entry} scope={scope} currentUserId={currentUserId} />)}
+          {visibleTopRows.map((entry) => <StandingCard key={entry.player_id} entry={entry} scope={scope} currentUserId={currentUserId} avatarConfig={avatarConfigs[entry.player_id]} />)}
           {!topRows.length && !loadError && <div className="app-surface-card p-8 text-center text-accent-gray-500">No ranked results.</div>}
           {visibleCount < topRows.length && (
             <button type="button" onClick={() => setVisibleCount((count) => count + 50)} className="app-surface-card min-h-12 w-full font-black text-primary-purple">
@@ -118,7 +121,7 @@ export default function LeaderboardClient({ entries, archives, scope, selectedPe
         {currentUserRow && (
           <section className="mt-7">
             <div className="mb-3 flex items-center gap-3"><span className="h-px flex-1 bg-accent-gray-300" /><span className="text-xs font-black uppercase text-accent-gray-500">Your placement</span><span className="h-px flex-1 bg-accent-gray-300" /></div>
-            <StandingCard entry={currentUserRow} scope={scope} currentUserId={currentUserId} />
+            <StandingCard entry={currentUserRow} scope={scope} currentUserId={currentUserId} avatarConfig={avatarConfigs[currentUserRow.player_id]} />
           </section>
         )}
 

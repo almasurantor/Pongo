@@ -9,6 +9,7 @@ import { useDatabaseRefresh } from '@/lib/use-database-refresh';
 import RankBadge, { RankProgress } from '@/components/RankBadge';
 import DeadlineCountdown from '@/components/DeadlineCountdown';
 import RankedDecisionModal from '@/components/RankedDecisionModal';
+import BeaverAvatar from '@/components/BeaverAvatar';
 
 interface Props {
   user: Profile;
@@ -156,8 +157,8 @@ export default function DashboardClient({
         />
       )}
       <div className="app-screen-shell mx-auto max-w-5xl space-y-0 sm:space-y-7">
-        <header className="screen-fixed flex items-end justify-between">
-          <h1 className="text-3xl font-black sm:text-4xl">{user.display_name}</h1>
+        <header className="screen-fixed flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3"><BeaverAvatar config={user.avatar_config} className="h-14 w-14 shrink-0" label={`${user.display_name}'s avatar`} /><h1 className="truncate text-3xl font-black sm:text-4xl">{user.display_name}</h1></div>
           {isAdmin && <Link href="/admin" className="rounded-full bg-accent-black px-4 py-2 text-sm font-bold text-white">Admin</Link>}
         </header>
 
@@ -213,7 +214,7 @@ export default function DashboardClient({
               {incoming.map((challenge) => (
                 <article key={challenge.id} className="rounded-2xl border-2 border-primary-purple/25 bg-white p-4 shadow-sm">
                   <p className="text-xs font-black uppercase text-primary-purple">Incoming challenge</p>
-                  <p className="mt-1 text-lg font-black">{challenge.challenger?.display_name}</p>
+                  <div className="mt-2 flex items-center gap-2">{challenge.challenger && <BeaverAvatar config={challenge.challenger.avatar_config} className="h-11 w-11 shrink-0 rounded-full" label={`${challenge.challenger.display_name}'s avatar`} />}<p className="text-lg font-black">{challenge.challenger?.display_name}</p></div>
                   {challenge.challenger && (
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <RankBadge elo={challenge.challenger.current_elo} totalGames={challenge.challenger.total_wins + challenge.challenger.total_losses} compact />
@@ -242,7 +243,7 @@ export default function DashboardClient({
               {visiblePlayers.map((player) => {
                 const usage = usageFor(player.id);
                 const remaining = usage?.games_remaining ?? 20;
-                return <article key={player.id} className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm"><Link href={`/profile/${player.id}`} className="min-w-0 flex-1"><p className="truncate font-black">{player.display_name}</p><div className="mt-1 flex flex-wrap items-center gap-2"><RankBadge elo={player.current_elo} totalGames={player.total_wins + player.total_losses} compact /><span className="text-xs font-bold text-accent-gray-500">{player.current_elo} ELO</span></div></Link><button type="button" disabled={loading !== null || remaining === 0} onClick={() => challengePlayer(player.id)} className="min-h-10 rounded-xl bg-primary-purple px-3 text-sm font-black text-white disabled:opacity-45">{loading === `challenge-${player.id}` ? 'Sending…' : remaining === 0 ? 'Limit' : 'Challenge'}</button></article>;
+                return <article key={player.id} className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm"><BeaverAvatar config={player.avatar_config} className="h-11 w-11 shrink-0 rounded-full" label={`${player.display_name}'s avatar`} /><Link href={`/profile/${player.id}`} className="min-w-0 flex-1"><p className="truncate font-black">{player.display_name}</p><div className="mt-1 flex flex-wrap items-center gap-2"><RankBadge elo={player.current_elo} totalGames={player.total_wins + player.total_losses} compact /><span className="text-xs font-bold text-accent-gray-500">{player.current_elo} ELO</span></div></Link><button type="button" disabled={loading !== null || remaining === 0} onClick={() => challengePlayer(player.id)} className="min-h-10 rounded-xl bg-primary-purple px-3 text-sm font-black text-white disabled:opacity-45">{loading === `challenge-${player.id}` ? 'Sending…' : remaining === 0 ? 'Limit' : 'Challenge'}</button></article>;
               })}
               {!visiblePlayers.length && <div className="rounded-2xl bg-accent-gray-50 p-6 text-center text-accent-gray-500">No players found.</div>}
             </div>
@@ -251,7 +252,7 @@ export default function DashboardClient({
           <section className="app-surface-card mobile-widget scroll-widget h-full min-w-0 snap-start p-4">
             <div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-black">Challenges</h2><span className="text-sm font-bold text-accent-gray-500">{outgoing.length}</span></div>
             <div className="widget-scroll space-y-3 pr-1" tabIndex={0} aria-label="Outgoing challenges">
-              {outgoing.map((challenge) => <article key={challenge.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm"><div className="min-w-0"><p className="text-xs font-black uppercase text-amber-600">Pending Acceptance</p><p className="truncate font-bold">{challenge.opponent?.display_name}</p>{challenge.opponent && <div className="mt-1 flex flex-wrap items-center gap-2"><RankBadge elo={challenge.opponent.current_elo} totalGames={challenge.opponent.total_wins + challenge.opponent.total_losses} compact /><span className="text-xs font-bold text-accent-gray-500">{challenge.opponent.current_elo} ELO</span></div>}<DeadlineCountdown deadline={challenge.expires_at} className="mt-1 block text-sm font-bold text-accent-gray-500" /></div><button disabled={loading !== null} onClick={() => cancelChallenge(challenge.id)} className="min-h-10 shrink-0 rounded-xl px-3 font-bold text-red-600 disabled:opacity-50">Cancel</button></article>)}
+              {outgoing.map((challenge) => <article key={challenge.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm">{challenge.opponent && <BeaverAvatar config={challenge.opponent.avatar_config} className="h-11 w-11 shrink-0 rounded-full" label={`${challenge.opponent.display_name}'s avatar`} />}<div className="min-w-0 flex-1"><p className="text-xs font-black uppercase text-amber-600">Pending Acceptance</p><p className="truncate font-bold">{challenge.opponent?.display_name}</p>{challenge.opponent && <div className="mt-1 flex flex-wrap items-center gap-2"><RankBadge elo={challenge.opponent.current_elo} totalGames={challenge.opponent.total_wins + challenge.opponent.total_losses} compact /><span className="text-xs font-bold text-accent-gray-500">{challenge.opponent.current_elo} ELO</span></div>}<DeadlineCountdown deadline={challenge.expires_at} className="mt-1 block text-sm font-bold text-accent-gray-500" /></div><button disabled={loading !== null} onClick={() => cancelChallenge(challenge.id)} className="min-h-10 shrink-0 rounded-xl px-3 font-bold text-red-600 disabled:opacity-50">Cancel</button></article>)}
               {!outgoing.length && <div className="rounded-2xl bg-accent-gray-50 p-6 text-center text-accent-gray-500">No sent challenges awaiting acceptance.</div>}
             </div>
           </section>

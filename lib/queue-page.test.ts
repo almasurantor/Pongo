@@ -120,7 +120,8 @@ describe('queue page structure', () => {
     expect(styles).toContain('--queue-loss: #b5525c');
     expect(source).toContain('styles.matchPlayer');
     expect(source).not.toContain('styles.playerCard');
-    expect(source.match(/★★★/g)).toHaveLength(2);
+    expect(source).toContain("import BeaverAvatar from '@/components/BeaverAvatar'");
+    expect(source.match(/<BeaverAvatar config=\{avatarOf\(/g)?.length).toBeGreaterThanOrEqual(2);
     expect(styles).toContain('border-radius: 999px');
     expect(styles).not.toMatch(/\.currentMatchCard \.avatar[^}]*queue-orange/s);
     expect(styles).not.toContain('linear-gradient');
