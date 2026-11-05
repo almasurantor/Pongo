@@ -16,9 +16,9 @@ SELECT pg_temp.assert_true(
   AND has_function_privilege('authenticated','public.beaver_queue_respond_ranked_v1(uuid,text)','EXECUTE')
   AND has_function_privilege('authenticated','public.beaver_queue_submit_ranked_result_v1(uuid,uuid,integer,integer)','EXECUTE')
   AND NOT has_function_privilege('anon','public.beaver_queue_request_ranked_v1()','EXECUTE')
-  AND (SELECT daily_ranked_player_limit=10 AND daily_ranked_pair_limit=10
+  AND (SELECT daily_ranked_player_limit=10 AND daily_ranked_pair_limit=3
     FROM public.ranking_config WHERE id),
-  'v9 must expose only authenticated Ranked actions and share both ten-game limits'
+  'v9 must expose only authenticated Ranked actions and share the 10-player/3-opponent limits'
 );
 
 INSERT INTO auth.users(id,email,raw_user_meta_data,created_at,updated_at)
@@ -127,6 +127,18 @@ SELECT pg_temp.assert_true(
 
 -- D and E mutually agree. Their standard ranked match is created, but they
 -- remain at the live table with the original timer until a score is submitted.
+-- Two completed regular challenges already consumed their first two shared
+-- pair slots, so this queue match is the third and final allowed game today.
+INSERT INTO public.matches(
+  player_one_id,player_two_id,status,source,ranked,ranked_day,
+  winner_id,player_one_score,player_two_score,confirmed_at,finalized_at
+)
+SELECT
+  'fb000000-0000-4000-8000-000000000004',
+  'fb000000-0000-4000-8000-000000000005',
+  'confirmed','challenge',TRUE,public.club_ranked_day_v3(),
+  'fb000000-0000-4000-8000-000000000004',11,9,NOW(),NOW()
+FROM generate_series(1,2);
 DELETE FROM public.beaver_queue_members;
 UPDATE public.beaver_queue_table SET
   phase='idle',king_id=NULL,challenger_id=NULL,call_expires_at=NULL,
@@ -268,6 +280,42 @@ SELECT pg_temp.assert_true(
   'inline score must use the existing finalizer, remove both players, and advance the queue'
 );
 
+-- A fourth game for the same unordered pair is rejected at queue request time.
+-- No Ranked request is written, so the live game remains available as Unranked.
+DELETE FROM public.beaver_queue_members;
+UPDATE public.beaver_queue_table SET
+  phase='playing',king_id='fb000000-0000-4000-8000-000000000005',
+  challenger_id='fb000000-0000-4000-8000-000000000004',
+  call_expires_at=NULL,game_id='fb100000-0000-4000-8000-000000000006',
+  game_started_at=clock_timestamp(),game_expires_at=clock_timestamp()+INTERVAL '10 minutes',
+  king_confirmed_at=NULL,challenger_confirmed_at=NULL,solo_expires_at=NULL,
+  afk_reporter_id=NULL,afk_target_id=NULL,afk_expires_at=NULL,updated_at=NOW()
+WHERE id=1;
+INSERT INTO public.beaver_queue_members(
+  user_id,display_name,status,queue_position,joined_at,updated_at
+) VALUES
+ ('fb000000-0000-4000-8000-000000000004','Queue Ranked D','playing',814,NOW(),NOW()),
+ ('fb000000-0000-4000-8000-000000000005','Queue Ranked E','playing',815,NOW(),NOW());
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','fb000000-0000-4000-8000-000000000005',TRUE);
+DO $$
+BEGIN
+  PERFORM public.beaver_queue_request_ranked_v1();
+  RAISE EXCEPTION 'Expected daily opponent cap rejection';
+EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM='Expected daily opponent cap rejection' THEN RAISE; END IF;
+  IF SQLERRM NOT ILIKE '%limit of 3 ranked games against this opponent%' THEN RAISE; END IF;
+END;
+$$;
+RESET ROLE;
+SELECT pg_temp.assert_true(
+  NOT EXISTS(SELECT 1 FROM public.beaver_queue_ranked_requests
+    WHERE queue_game_id='fb100000-0000-4000-8000-000000000006')
+  AND (SELECT phase='playing' AND game_id='fb100000-0000-4000-8000-000000000006'
+    FROM public.beaver_queue_table WHERE id=1),
+  'pair-limit rejection must leave the queue game available as Unranked'
+);
+
 -- A failed final eligibility check rolls back every conversion write and
 -- leaves the AFK-capable unranked game running.
 DELETE FROM public.beaver_queue_members;
@@ -293,13 +341,9 @@ UPDATE public.beaver_queue_table SET
 WHERE id=1;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','fb000000-0000-4000-8000-000000000007',TRUE);
-SELECT public.beaver_queue_request_ranked_v1();
-SELECT set_config('request.jwt.claim.sub','fb000000-0000-4000-8000-000000000008',TRUE);
 DO $$
 BEGIN
-  PERFORM public.beaver_queue_respond_ranked_v1(
-    (SELECT id FROM public.beaver_queue_ranked_requests WHERE status='pending'),'accept'
-  );
+  PERFORM public.beaver_queue_request_ranked_v1();
   RAISE EXCEPTION 'Expected active ranked limit rejection';
 EXCEPTION WHEN OTHERS THEN
   IF SQLERRM='Expected active ranked limit rejection' THEN RAISE; END IF;
@@ -310,7 +354,7 @@ RESET ROLE;
 UPDATE public.ranking_config SET active_ranked_match_limit=3 WHERE id;
 
 SELECT pg_temp.assert_true(
-  (SELECT status='pending' AND match_id IS NULL FROM public.beaver_queue_ranked_requests
+  NOT EXISTS(SELECT 1 FROM public.beaver_queue_ranked_requests
     WHERE queue_game_id='fb100000-0000-4000-8000-000000000004')
   AND (SELECT phase='playing' AND game_id='fb100000-0000-4000-8000-000000000004'
     AND afk_reporter_id IS NULL FROM public.beaver_queue_table WHERE id=1)
@@ -319,7 +363,7 @@ SELECT pg_temp.assert_true(
   AND (SELECT status='playing' FROM public.beaver_queue_members
     WHERE user_id='fb000000-0000-4000-8000-000000000008')
   AND NOT EXISTS(SELECT 1 FROM public.matches
-    WHERE request_id=(SELECT id FROM public.beaver_queue_ranked_requests
+    WHERE request_id IN(SELECT id FROM public.beaver_queue_ranked_requests
       WHERE queue_game_id='fb100000-0000-4000-8000-000000000004')),
   'ineligibility must preserve the queue game and create no partial ranked match'
 );

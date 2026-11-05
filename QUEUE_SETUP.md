@@ -18,8 +18,9 @@ deadline voids the ranked match and removes both players.
    `supabase/migrations/20261103_05_queue_afk_timeouts.sql` and
    `supabase/migrations/20261104_02_queue_match_expiry_checkins.sql` and
    `supabase/migrations/20261104_03_queue_holder_presence.sql` and
-   `supabase/migrations/20261104_04_queue_ranked_matches.sql` and
-   `supabase/migrations/20261104_05_queue_ranked_inline_scoring.sql` through the Supabase CLI
+   `supabase/migrations/20261104_04_queue_ranked_matches.sql`,
+   `supabase/migrations/20261104_05_queue_ranked_inline_scoring.sql`, and
+   `supabase/migrations/20261104_08_restore_three_ranked_games_per_opponent.sql` through the Supabase CLI
    or SQL editor. **A GitHub/Vercel deployment does not apply database migrations.**
    Test the repair against a disposable database before production.
 4. Verify `beaver_queue_table`, `beaver_queue_members`, `beaver_queue_games`,
@@ -135,13 +136,17 @@ audit; they never appear in player Queue Activity.
     let a second check expire and verify the reporter stays while the next player is called.
 13. Let a game timer reach `0:00`. Both players should be removed, an abandoned queue
     audit row should contain no winner or loser, and the next waiting player should advance.
-14. Start another game and request **Ranked Game**. Declining must leave **I Won** and
+14. After the same pair has completed three Ranked games that New York calendar day,
+    start another game and request **Ranked Game**. The request must show the inline
+    three-game-limit message while leaving **I Won** and **I Lost** available for an
+    Unranked result.
+15. Start another game and request **Ranked Game**. Declining must leave **I Won** and
     **I Lost** available. Accepting must hide them and show the score controls inside
     **Current Match**, without navigating away from `/queue`.
-15. Submit a valid Ranked score. Confirm that the normal ranked match is finalized,
+16. Submit a valid Ranked score. Confirm that the normal ranked match is finalized,
     both players leave the queue, ELO/rank data updates once, no completed unranked
     queue result is stored, and the next waiting player advances.
-16. Accept Ranked in another game but submit no score. At the original `0:00` deadline,
+17. Accept Ranked in another game but submit no score. At the original `0:00` deadline,
     both players must be removed, the ranked match must be `voided` with no rating
     events, and the next waiting player must advance.
 

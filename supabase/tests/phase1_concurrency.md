@@ -24,20 +24,25 @@ starting the second.
    reservations, then accept two challenges concurrently in separate sessions.
    Profile-row locking must let exactly one acceptance commit as reservation 10;
    the other must re-count and fail with the daily player limit.
-7. **Weighted rating snapshot:** finalize two different matches involving the
+7. **Shared opponent cap:** prepare an unordered pair with two confirmed Ranked
+   games today, then accept a regular challenge in one session while accepting a
+   queue Ranked request for the reversed pair in another. Stable profile-row
+   locking must allow exactly one third reservation; the other must re-count and
+   fail with the three-games-per-opponent limit.
+8. **Weighted rating snapshot:** finalize two different matches involving the
    same player concurrently. Stable profile locking must make the second match
    calculate from the first match's updated rating, while each match and its two
    rating events retain their own immutable calculation JSON.
-8. **Correction approval versus new report:** approve a historical correction
+9. **Correction approval versus new report:** approve a historical correction
    in session A while session B submits a fresh result. The shared advisory lock
    must serialize both rating writes; the fresh match either participates in the
    replay or finalizes afterward from the replayed ratings, never from a partial
    state.
-9. **Concurrent correction approvals:** approve disputes on two different
+10. **Concurrent correction approvals:** approve disputes on two different
    matches in separate sessions. The shared replay lock must let one complete
    before the other obtains match/profile locks, with no deadlock and exactly
    one active rating-event pair per confirmed match revision.
-10. **Independent dual reports:** mark one participant `dual_verification`, then
+11. **Independent dual reports:** mark one participant `dual_verification`, then
     submit each participant's report in separate sessions. Matching reports must
     retain two private submissions and finalize one rating-event pair. Conflicting
     reports must retain both submissions, expire the match and any pending

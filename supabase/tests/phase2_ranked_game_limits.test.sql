@@ -93,7 +93,7 @@ SELECT pg_temp.assert_true(
   'canceled reservations must be released and reusable'
 );
 SELECT pg_temp.assert_true(
-  (SELECT games_used=1 AND games_remaining=9 FROM public.get_my_opponent_ranked_usage_v3() WHERE opponent_id='f2000000-0000-0000-0000-00000000000c'),
+  (SELECT games_used=1 AND games_remaining=2 FROM public.get_my_opponent_ranked_usage_v3() WHERE opponent_id='f2000000-0000-0000-0000-00000000000c'),
   'opponent usage must include accepted reservations'
 );
 -- Sending is still allowed at the cap because acceptance may occur tomorrow.
@@ -118,7 +118,7 @@ SELECT pg_temp.assert_true(
 );
 RESET ROLE;
 
--- Nine completed M/N games plus one accepted result reach the ten-game pair cap.
+-- Two completed M/N games plus one accepted result reach the three-game pair cap.
 INSERT INTO public.matches(
   player_one_id,player_two_id,status,source,ranked,ranked_day,
   winner_id,player_one_score,player_two_score,confirmed_at,finalized_at
@@ -126,9 +126,7 @@ INSERT INTO public.matches(
 SELECT 'f2000000-0000-0000-0000-00000000000d','f2000000-0000-0000-0000-00000000000e',
   'confirmed','challenge',TRUE,public.club_ranked_day_v3(),
   'f2000000-0000-0000-0000-00000000000d',11,9,NOW(),NOW()
-FROM generate_series(1,9);
--- Isolate the pair guard from the per-player guard for this assertion.
-UPDATE public.ranking_config SET daily_ranked_player_limit=11 WHERE id;
+FROM generate_series(1,2);
 INSERT INTO public.challenges(challenger_id,opponent_id,status,expires_at)
 VALUES('f2000000-0000-0000-0000-00000000000d','f2000000-0000-0000-0000-00000000000e','pending',NOW()+INTERVAL '24 hours');
 SET LOCAL ROLE authenticated;
@@ -137,6 +135,15 @@ SELECT public.respond_challenge_v2((SELECT id FROM public.challenges WHERE oppon
 SELECT public.submit_match_report_v2(
   (SELECT id FROM public.matches WHERE status='ready' AND player_one_id='f2000000-0000-0000-0000-00000000000d' AND player_two_id=auth.uid()),
   'f2000000-0000-0000-0000-00000000000d', 11, 9
+);
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', 'f2000000-0000-0000-0000-00000000000d', TRUE);
+SELECT pg_temp.assert_true(
+  (SELECT games_used=3 AND games_remaining=0
+    FROM public.get_my_opponent_ranked_usage_v3()
+    WHERE opponent_id='f2000000-0000-0000-0000-00000000000e'),
+  'the first three completed games against an opponent must consume exactly three slots'
 );
 RESET ROLE;
 INSERT INTO public.challenges(challenger_id,opponent_id,status,expires_at)
@@ -151,12 +158,10 @@ BEGIN
   RAISE EXCEPTION 'Expected daily opponent cap rejection';
 EXCEPTION WHEN OTHERS THEN
   IF SQLERRM = 'Expected daily opponent cap rejection' THEN RAISE; END IF;
-  IF SQLERRM NOT LIKE '%limit of 10 ranked games against this opponent%' THEN RAISE; END IF;
+  IF SQLERRM NOT LIKE '%limit of 3 ranked games against this opponent%' THEN RAISE; END IF;
 END;
 $$;
 RESET ROLE;
-UPDATE public.ranking_config SET daily_ranked_player_limit=10 WHERE id;
-
 -- Expiration also releases a reservation.
 INSERT INTO public.challenges(challenger_id,opponent_id,status,expires_at)
 VALUES('f2000000-0000-0000-0000-00000000000f','f2000000-0000-0000-0000-000000000010','pending',NOW()+INTERVAL '24 hours');

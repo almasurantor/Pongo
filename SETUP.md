@@ -50,6 +50,7 @@ For an existing Pongo project:
 22. Manually run `supabase/migrations/20261103_04_queue_forward_swaps.sql` to enforce forward-only swap offers: only a waiting player ahead in line can request a swap with someone behind them. It cancels still-pending requests created under the previous direction and installs the v4 health check.
 23. Manually run `supabase/migrations/20261103_05_queue_afk_timeouts.sql` to install server-authoritative 60-second solo and in-game AFK deadlines, participant presence confirmation, abandoned-game auditing, and the v5 health check.
 24. Run `supabase/migrations/20261104_01_asymmetric_ranked_elo.sql` locally to install the 50-ELO first-game baseline, asymmetric K=70/K=40 calculation, zero floor, and updated rank thresholds. Do not apply it to production until the rollout is approved.
+25. Manually run `supabase/migrations/20261104_08_restore_three_ranked_games_per_opponent.sql` after the queue Ranked migrations. It restores the shared 10-games-per-player and 3-games-per-opponent daily limits and adds queue-request preflight enforcement. Deploying application code does not apply this SQL automatically.
 
 The expand migration is retry-safe, keeps the legacy columns/statuses during rollout, creates audited opening-balance events, and bootstraps `almasurantor` using profile UUID `494357c8-607e-4605-980b-19260c8a2cfc` as the first administrator. The old `migration_single_reporter_match_flow.sql` is superseded and must not be applied.
 

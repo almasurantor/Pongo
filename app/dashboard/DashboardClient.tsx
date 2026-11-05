@@ -12,6 +12,7 @@ import RankedDecisionModal from '@/components/RankedDecisionModal';
 import BeaverAvatar from '@/components/BeaverAvatar';
 import { writeCachedProfileShell } from '@/lib/profile-cache';
 import { readDismissedChallengeIds, rememberDismissedChallenge } from '@/lib/challenge-popup-dismissal';
+import { DAILY_RANKED_PAIR_LIMIT, rankedLimitMessage } from '@/lib/ranked-limits';
 
 interface Props {
   user: Profile;
@@ -74,7 +75,7 @@ export default function DashboardClient({
       if (result.match_id) router.push(`/match/${result.match_id}`);
       else router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not update challenge');
+      toast.error(rankedLimitMessage(error, 'Could not update challenge'));
       router.refresh();
     }
   };
@@ -273,7 +274,7 @@ export default function DashboardClient({
             <div className="widget-scroll space-y-2 pr-1" tabIndex={0} aria-label="Friends and players">
               {visiblePlayers.map((player) => {
                 const usage = usageFor(player.id);
-                const remaining = usage?.games_remaining ?? 20;
+                const remaining = usage?.games_remaining ?? DAILY_RANKED_PAIR_LIMIT;
                 return <article key={player.id} className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm"><BeaverAvatar config={player.avatar_config} className="h-11 w-11 shrink-0 rounded-full" label={`${player.display_name}'s avatar`} /><Link href={`/profile/${player.id}`} className="min-w-0 flex-1"><p className="truncate font-black">{player.display_name}</p><div className="mt-1 flex flex-wrap items-center gap-2"><RankBadge elo={player.current_elo} totalGames={player.total_wins + player.total_losses} compact /><span className="text-xs font-bold text-accent-gray-500">{player.current_elo} ELO</span></div></Link><button type="button" disabled={loading !== null || remaining === 0} onClick={() => challengePlayer(player.id)} className="min-h-10 rounded-xl bg-primary-purple px-3 text-sm font-black text-white disabled:opacity-45">{loading === `challenge-${player.id}` ? 'Sending…' : remaining === 0 ? 'Limit' : 'Challenge'}</button></article>;
               })}
               {!visiblePlayers.length && <div className="rounded-2xl bg-accent-gray-50 p-6 text-center text-accent-gray-500">No players found.</div>}

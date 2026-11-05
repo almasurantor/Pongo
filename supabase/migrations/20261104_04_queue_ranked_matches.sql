@@ -207,10 +207,10 @@ END;
 $$;
 
 -- Queue matches and regular challenges reserve the same daily allowance.
--- The product limit is ten games for a player and ten for a player pair.
+-- The product limit is ten games for a player and three for a player pair.
 UPDATE public.ranking_config
 SET daily_ranked_player_limit=10,
-    daily_ranked_pair_limit=10,
+    daily_ranked_pair_limit=3,
     updated_at=clock_timestamp()
 WHERE id;
 

@@ -7,6 +7,7 @@ import { OpponentRankedUsage, Profile } from '@/lib/types';
 import { useDatabaseRefresh } from '@/lib/use-database-refresh';
 import RankBadge from '@/components/RankBadge';
 import BeaverAvatar from '@/components/BeaverAvatar';
+import { DAILY_RANKED_PAIR_LIMIT, DAILY_RANKED_PAIR_LIMIT_MESSAGE } from '@/lib/ranked-limits';
 
 export default function PlayersClient({ players, usage, currentUserId }: { players: Profile[]; usage: OpponentRankedUsage[]; currentUserId: string }) {
   useDatabaseRefresh('players-list', ['profiles']);
@@ -18,7 +19,7 @@ export default function PlayersClient({ players, usage, currentUserId }: { playe
   const filtered = players.filter((player) => player.id !== currentUserId && player.display_name.toLowerCase().includes(debouncedQuery.toLowerCase()));
   const visiblePlayers = filtered.slice(0, visibleCount);
   const usageFor = (playerId: string) => usage.find((row) => row.opponent_id === playerId)
-    || { opponent_id: playerId, games_used: 0, games_limit: 20, games_remaining: 20 };
+    || { opponent_id: playerId, games_used: 0, games_limit: DAILY_RANKED_PAIR_LIMIT, games_remaining: DAILY_RANKED_PAIR_LIMIT };
   const challenge = async (opponentId: string) => {
     setLoadingId(opponentId);
     try {
@@ -83,6 +84,7 @@ export default function PlayersClient({ players, usage, currentUserId }: { playe
                   <span className="rounded-full bg-primary-purple/10 px-3 py-1 text-sm font-black text-primary-purple">#{rank}</span>
                 </div>
                 <p className={`mt-3 rounded-xl px-3 py-2 text-sm font-bold ${today.games_remaining > 0 ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>{today.games_used}/{today.games_limit} today · {today.games_remaining} left</p>
+                {today.games_remaining === 0 && <p className="mt-2 text-sm font-bold text-amber-700">{DAILY_RANKED_PAIR_LIMIT_MESSAGE}</p>}
                 <button onClick={() => challenge(player.id)} disabled={loadingId === player.id || today.games_remaining === 0} className="mt-3 min-h-12 w-full rounded-xl gradient-purple font-bold text-white disabled:opacity-50">{loadingId === player.id ? 'Sending…' : today.games_remaining === 0 ? 'Opponent limit reached today' : 'Challenge'}</button>
               </article>
             );

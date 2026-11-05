@@ -1,4 +1,5 @@
 import type { QueueMemberStatus } from './queue';
+import { rankedLimitMessage } from './ranked-limits';
 
 export type QueueSyncTrigger = 'initial' | 'interval' | 'focus' | 'realtime';
 
@@ -81,6 +82,13 @@ export function queueErrorMessage(caught: unknown, fallback = 'Unable to update 
     return 'Your session expired. Sign in again to use the queue.';
   }
   return raw || fallback;
+}
+
+export function queueRankedErrorMessage(caught: unknown) {
+  return rankedLimitMessage(
+    caught,
+    queueErrorMessage(caught, 'Unable to update the Ranked request.'),
+  );
 }
 
 export function isRetryableQueueError(caught: unknown) {

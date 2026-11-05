@@ -4,6 +4,7 @@ import {
   isQueueBackendHealthy,
   isRetryableQueueError,
   queueErrorMessage,
+  queueRankedErrorMessage,
   shouldSendQueueHeartbeat,
 } from './queue-client';
 
@@ -41,6 +42,12 @@ describe('queue client safety', () => {
     expect(queueErrorMessage({ code: '23503', message: 'foreign key violation' })).toContain('profile');
     expect(queueErrorMessage({ code: '40P01', message: 'deadlock detected' })).toContain('try again');
     expect(queueErrorMessage({ code: 'XX000', message: 'specific database failure' })).toBe('specific database failure');
+  });
+
+  it('uses concise inline copy for the shared per-opponent Ranked limit', () => {
+    expect(queueRankedErrorMessage({
+      message: 'You have reached the daily limit of 3 ranked games against this opponent',
+    })).toBe("You've reached today's 3 ranked games against this player.");
   });
 
   it('classifies only transient database contention as retryable', () => {

@@ -13,7 +13,7 @@ import {
   queueSecondsUntil,
   type QueueMemberStatus,
 } from '@/lib/queue';
-import { isActiveQueueStatus, isQueueBackendHealthy, isRetryableQueueError, queueErrorMessage } from '@/lib/queue-client';
+import { isActiveQueueStatus, isQueueBackendHealthy, isRetryableQueueError, queueErrorMessage, queueRankedErrorMessage } from '@/lib/queue-client';
 import styles from './QueueClient.module.css';
 import BeaverAvatar from '@/components/BeaverAvatar';
 import type { AvatarConfig } from '@/lib/avatar';
@@ -200,7 +200,7 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
       if (result.error) throw result.error;
       await refresh();
     } catch (caught) {
-      setRankedError(queueErrorMessage(caught, 'Unable to update the Ranked request.'));
+      setRankedError(queueRankedErrorMessage(caught));
       await refresh();
     } finally { setBusy(''); }
   };

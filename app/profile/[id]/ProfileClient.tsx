@@ -13,6 +13,7 @@ import BeaverAvatar from '@/components/BeaverAvatar';
 import AvatarEditor from '@/components/AvatarEditor';
 import ProfileSettingsPanel from '@/components/ProfileSettingsPanel';
 import { clearCachedProfileShell, writeCachedProfileShell } from '@/lib/profile-cache';
+import { DAILY_RANKED_PAIR_LIMIT, DAILY_RANKED_PAIR_LIMIT_MESSAGE } from '@/lib/ranked-limits';
 
 interface Props {
   profile: Profile;
@@ -89,11 +90,13 @@ export default function ProfileClient({ profile, matches, opponentUsage, rank, c
         {mine && settingsOpen && <ProfileSettingsPanel profile={currentProfile} onSaved={setCurrentProfile} onClose={() => setSettingsOpen(false)} onLogout={() => void logout()} />}
         {!mine && (
           <section className="rounded-3xl border-2 border-accent-gray-200 bg-white p-4 shadow-sm sm:p-5">
-            <p className={`mb-3 rounded-xl px-3 py-2 text-center text-sm font-bold ${(opponentUsage?.games_remaining ?? 3) > 0 ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
-              {opponentUsage?.games_remaining ?? 20} ranked games available today
+            <p className={`mb-3 rounded-xl px-3 py-2 text-center text-sm font-bold ${(opponentUsage?.games_remaining ?? DAILY_RANKED_PAIR_LIMIT) > 0 ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
+              {(opponentUsage?.games_remaining ?? DAILY_RANKED_PAIR_LIMIT) > 0
+                ? `${opponentUsage?.games_remaining ?? DAILY_RANKED_PAIR_LIMIT} ranked games available today`
+                : DAILY_RANKED_PAIR_LIMIT_MESSAGE}
             </p>
-            <button onClick={challenge} disabled={loading || (opponentUsage?.games_remaining ?? 20) === 0} className="min-h-14 w-full rounded-2xl gradient-purple font-black text-white disabled:opacity-50">
-              {loading ? 'Sending…' : (opponentUsage?.games_remaining ?? 20) === 0 ? 'Daily limit reached' : 'Challenge'}
+            <button onClick={challenge} disabled={loading || (opponentUsage?.games_remaining ?? DAILY_RANKED_PAIR_LIMIT) === 0} className="min-h-14 w-full rounded-2xl gradient-purple font-black text-white disabled:opacity-50">
+              {loading ? 'Sending…' : (opponentUsage?.games_remaining ?? DAILY_RANKED_PAIR_LIMIT) === 0 ? 'Daily limit reached' : 'Challenge'}
             </button>
           </section>
         )}
