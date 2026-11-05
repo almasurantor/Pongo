@@ -165,13 +165,12 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
     if (!isActiveQueueStatus(me?.status)) { heartbeatFailures.current = 0; setHeartbeatError(''); return; }
     let cancelled = false;
     const heartbeat = async () => {
-      if (heartbeatFailures.current >= 3) return;
       const result = await supabase.rpc('beaver_queue_heartbeat_v1');
       if (cancelled) return;
       if (result.error) {
         heartbeatFailures.current = isRetryableQueueError(result.error) ? heartbeatFailures.current + 1 : 3;
-        const paused = heartbeatFailures.current >= 3 ? ' Automatic heartbeats are paused until this page is reloaded.' : '';
-        setHeartbeatError(`${queueErrorMessage(result.error, 'Unable to keep your queue spot active.')}${paused}`);
+        const retrying = heartbeatFailures.current >= 3 ? ' Pongo will keep retrying automatically.' : '';
+        setHeartbeatError(`${queueErrorMessage(result.error, 'Unable to keep your queue spot active.')}${retrying}`);
       } else { heartbeatFailures.current = 0; setHeartbeatError(''); }
     };
     void heartbeat();

@@ -24,37 +24,27 @@ npm install
 
 ## Step 3: Database Setup and Rollout
 
-For an existing Pongo project:
+For a new or disposable local project, the migration chain is self-contained:
 
-1. Export `profiles`, `matches`, and `challenges` before changing the schema.
-2. Run `supabase/migrations/20261001_01_expand_mobile_ranking.sql` in the Supabase SQL Editor.
-3. Verify profile ratings/records and the confirmed-match count are unchanged.
-4. Deploy this compatible application and smoke-test reporting, confirmation, leaderboard, profile, and admin reads.
-5. Run `supabase/migrations/20261001_02_contract_mobile_ranking.sql` only after the compatible deployment is live.
-6. Run `supabase/migrations/20261001_03_fix_signup_and_mobile_scroll.sql` to install the current signup trigger.
-7. Run `supabase/migrations/20261025_01_repair_stale_challenges.sql` so expired challenge rows cannot block or break future challenge actions.
-8. Run `supabase/migrations/20261030_01_phase1_ranked_match_lifecycle.sql` immediately before deploying the Phase 1 application. This intentionally expires every unfinished legacy match without changing ratings.
-9. Run `supabase/migrations/20261030_02_phase2_ranked_game_limits.sql` before deploying the Phase 2 application. It backfills each ranked match’s New York acceptance day and changes the daily pair cap from 20 to 3.
-10. Run `supabase/migrations/20261031_01_phase3_weighted_elo.sql` before deploying the Phase 3 application. It changes only future finalizations to K=40 weighted ELO; historical match and rating-event deltas remain unchanged.
-11. Run `supabase/migrations/20261031_02_phase4_competitive_ranks.sql` before deploying the Phase 4 application. It installs the seven automatic rank tiers and backfills rank labels onto rating events without changing any ELO value.
-12. Run `supabase/migrations/20261031_03_phase5_unified_leaderboards.sql` before deploying the Phase 5 application. It installs New York-aware weekly/monthly/all-time leaderboard and archive RPCs over the immutable match and rating-event history.
-13. Run `supabase/migrations/20261031_04_phase6_disputes_corrections.sql` before deploying the Phase 6 application. It installs the 48-hour mutual dispute workflow and serialized downstream rating replay. Take a fresh backup of profiles, matches, rating events, and statistics before applying it.
-14. Run `supabase/migrations/20261031_05_phase7_mobile_experience.sql` before deploying the Phase 7 application. Phase 7 is application-only, so this migration intentionally records the rollout boundary without changing the database.
-15. Run `supabase/migrations/20261031_06_phase8_security_reliability.sql` immediately before deploying the Phase 8 application. It hardens write privileges and audit immutability, activates administrator-controlled independent reporting, adds integrity signals, and expands the Realtime publication. Back up matches, rating events, submissions, integrity records, and domain events first.
-16. Run `supabase/migrations/20261101_01_live_queue.sql` immediately before exposing `/queue`. It creates an isolated one-table live queue, server-authoritative 60-second calls, queue-only game history, least-privilege RPCs, and Realtime publication entries. It does not alter ranked matches, ratings, challenges, disputes, or leaderboards.
-17. Run `supabase/migrations/20261101_02_v4_starting_elo_and_ranks.sql` to set new accounts to 500 ELO, recalibrate the Iron-to-Legend thresholds, and keep K=40. It does not reset existing profile ratings.
-18. Run `supabase/migrations/20261102_01_profile_settings_queue_alerts.sql` to enforce unique public display names and add the opt-in queue sound and device-reminder preferences.
-19. Run `supabase/migrations/20261103_01_coordinated_auth_rank_queue.sql` to remove placement ranks, add queue liveness cleanup, preserve K=40/500 starting ELO, and install challenge/match query indexes.
-20. Run `supabase/migrations/20261103_02_queue_production_repair.sql` to repair the production queue RPCs, re-assert grants/RLS/Realtime publication entries, and install the queue backend health check. Deploying application code does not run this SQL automatically.
-21. Manually run `supabase/migrations/20261103_03_queue_outcomes_swaps.sql` to install outcome-only queue games, the 10-minute abandoned-game deadline, mutual position swaps, v3 health checks, and audited admin history corrections. Deploying or pushing application code does not run this migration.
-22. Manually run `supabase/migrations/20261103_04_queue_forward_swaps.sql` to enforce forward-only swap offers: only a waiting player ahead in line can request a swap with someone behind them. It cancels still-pending requests created under the previous direction and installs the v4 health check.
-23. Manually run `supabase/migrations/20261103_05_queue_afk_timeouts.sql` to install server-authoritative 60-second solo and in-game AFK deadlines, participant presence confirmation, abandoned-game auditing, and the v5 health check.
-24. Run `supabase/migrations/20261104_01_asymmetric_ranked_elo.sql` locally to install the 50-ELO first-game baseline, asymmetric K=70/K=40 calculation, zero floor, and updated rank thresholds. Do not apply it to production until the rollout is approved.
-25. Manually run `supabase/migrations/20261104_08_restore_three_ranked_games_per_opponent.sql` after the queue Ranked migrations. It restores the shared 10-games-per-player and 3-games-per-opponent daily limits and adds queue-request preflight enforcement. Deploying application code does not apply this SQL automatically.
+```bash
+npx supabase start
+npx supabase db reset
+npm run test:db:local
+npm run test:load:queue
+```
 
-The expand migration is retry-safe, keeps the legacy columns/statuses during rollout, creates audited opening-balance events, and bootstraps `almasurantor` using profile UUID `494357c8-607e-4605-980b-19260c8a2cfc` as the first administrator. The old `migration_single_reporter_match_flow.sql` is superseded and must not be applied.
+`20260930000000_baseline_schema.sql` is the complete baseline. Apply every file
+in `supabase/migrations` in filename order; do not create or apply a separate schema dump.
 
-For a brand-new project, provision the legacy base schema from `supabase/schema.sql`, then apply all files in `supabase/migrations` in filename order before exposing the app to users.
+For an existing hosted project, first take a restorable database backup and
+export the migration history. The historical files now use unique 14-digit
+Supabase versions, so reconcile the remote migration ledger against the renamed
+files before `supabase db push`. Review the generated plan in a disposable linked
+project. Do not apply migrations through a Vercel/GitHub deployment.
+
+Enable the Supabase Cron integration before applying
+`20261104100000_queue_maintenance_worker.sql`. The migration creates the queue,
+ranked-expiration, and Cron-history-retention jobs only when `pg_cron` is present.
 
 ## Step 4: Set Up Authentication
 
@@ -62,13 +52,19 @@ For a brand-new project, provision the legacy base schema from `supabase/schema.
 2. Enable Email provider
 3. Under Authentication > Providers > Email, turn **Confirm email** off. This makes signup return a session immediately, matching `supabase/config.toml` for local projects.
 4. Under Authentication > URL Configuration, set the production Site URL to `https://playpongo.vercel.app` and add both `http://localhost:3000/auth/callback` and `https://playpongo.vercel.app/auth/callback` to Redirect URLs.
-5. Enable Google OAuth and add your Google client ID and secret. In Google Cloud, set the authorized redirect URI to the Supabase callback shown by the provider panel (normally `https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback`), not the app callback URL.
 
 ## Step 5: Schedule Expiration
 
-Call `expire_mobile_ranking_items_v2()` from a trusted scheduled worker or Supabase Edge Function every five minutes. It expires stale challenges, accepted matches, and their pending cancellation requests, and escalates unanswered result disputes to administrators without changing ratings or trust. The live project does not currently have `pg_cron`, so scheduling is intentionally external.
+Migration `20261104100000` schedules `run_pongo_queue_maintenance_v1()` every
+10 seconds and `run_pongo_ranked_maintenance_v1()` every five minutes. The first
+advances every expired queue deadline without a browser; the second expires stale
+challenges/matches/cancellations and escalates overdue disputes. A daily job keeps
+seven days of Cron run history. Verify the jobs and both health RPCs using
+`supabase/functions/queue-tick.sql`.
 
-Call `beaver_queue_advance_expired_v1()` from a service-role worker every 5–15 seconds. This browser-independent path removes a called or solo player after 60 seconds, resolves expired in-game AFK checks without recording a win or loss, abandons unfinished games after 10 minutes, expires invalid swap requests, and immediately advances the queue. `supabase/functions/queue-tick.sql` contains the worker query. Never expose the service-role key to the browser. Active queue members heartbeat every 30 seconds; Realtime changes only refetch state and never trigger a heartbeat.
+Active queue members heartbeat every 30 seconds. Realtime changes refetch state
+but never create a heartbeat loop. The database workers remain authoritative when
+all browsers are closed.
 
 Weekly records do not need a reset job. `weekly_player_stats` stores one row per player and New York club week.
 
@@ -103,7 +99,7 @@ Visit http://localhost:3000
 ## Step 7: Create Your First User
 
 1. Go to `/login`
-2. Sign up with email/password or Google
+2. Sign up with email/password
 3. Your profile will be automatically created
 
 ## Features

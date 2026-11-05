@@ -289,6 +289,18 @@ BEGIN
     RAISE EXCEPTION 'You already have an unfinished ranked match with this opponent';
   END IF;
 
+  -- Check the symmetric pair before the per-player total so callers receive
+  -- the most specific explanation when both limits have been reached.
+  SELECT COUNT(*) INTO usage_count
+  FROM public.matches
+  WHERE ranked AND ranked_day=day
+    AND status IN('ready','result_reported','confirmed')
+    AND LEAST(player_one_id,player_two_id)=LEAST(p_challenger,p_opponent)
+    AND GREATEST(player_one_id,player_two_id)=GREATEST(p_challenger,p_opponent);
+  IF usage_count>=cfg.daily_ranked_pair_limit THEN
+    RAISE EXCEPTION 'You have reached the daily limit of % ranked games against this opponent',cfg.daily_ranked_pair_limit;
+  END IF;
+
   SELECT COUNT(*) INTO usage_count
   FROM public.matches
   WHERE ranked AND ranked_day=day
@@ -305,16 +317,6 @@ BEGIN
     AND p_opponent IN(player_one_id,player_two_id);
   IF usage_count>=cfg.daily_ranked_player_limit THEN
     RAISE EXCEPTION 'You have reached the % ranked games per day limit',cfg.daily_ranked_player_limit;
-  END IF;
-
-  SELECT COUNT(*) INTO usage_count
-  FROM public.matches
-  WHERE ranked AND ranked_day=day
-    AND status IN('ready','result_reported','confirmed')
-    AND LEAST(player_one_id,player_two_id)=LEAST(p_challenger,p_opponent)
-    AND GREATEST(player_one_id,player_two_id)=GREATEST(p_challenger,p_opponent);
-  IF usage_count>=cfg.daily_ranked_pair_limit THEN
-    RAISE EXCEPTION 'You have reached the daily limit of % ranked games against this opponent',cfg.daily_ranked_pair_limit;
   END IF;
 END;
 $$;

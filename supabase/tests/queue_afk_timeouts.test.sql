@@ -30,7 +30,8 @@ DELETE FROM public.beaver_queue_games;
 DELETE FROM public.beaver_queue_members;
 UPDATE public.beaver_queue_table SET
   phase='idle',king_id=NULL,challenger_id=NULL,call_expires_at=NULL,
-  game_id=NULL,game_started_at=NULL,solo_expires_at=NULL,
+  game_id=NULL,game_started_at=NULL,game_expires_at=NULL,
+  king_confirmed_at=NULL,challenger_confirmed_at=NULL,solo_expires_at=NULL,
   afk_reporter_id=NULL,afk_target_id=NULL,afk_expires_at=NULL,updated_at=NOW()
 WHERE id=1;
 
@@ -66,7 +67,8 @@ SELECT pg_temp.assert_true(
 DELETE FROM public.beaver_queue_members;
 UPDATE public.beaver_queue_table SET
   phase='idle',king_id=NULL,challenger_id=NULL,call_expires_at=NULL,
-  game_id=NULL,game_started_at=NULL,solo_expires_at=NULL,
+  game_id=NULL,game_started_at=NULL,game_expires_at=NULL,
+  king_confirmed_at=NULL,challenger_confirmed_at=NULL,solo_expires_at=NULL,
   afk_reporter_id=NULL,afk_target_id=NULL,afk_expires_at=NULL,updated_at=NOW()
 WHERE id=1;
 INSERT INTO public.beaver_queue_members(user_id,display_name,status,queue_position,joined_at,updated_at) VALUES
@@ -76,7 +78,8 @@ INSERT INTO public.beaver_queue_members(user_id,display_name,status,queue_positi
 UPDATE public.beaver_queue_table SET
   phase='playing',king_id='fd000000-0000-4000-8000-000000000001',
   challenger_id='fd000000-0000-4000-8000-000000000002',
-  game_id='fd100000-0000-4000-8000-000000000001',game_started_at=NOW(),updated_at=NOW()
+  game_id='fd100000-0000-4000-8000-000000000001',game_started_at=NOW(),
+  game_expires_at=NOW()+INTERVAL '10 minutes',updated_at=NOW()
 WHERE id=1;
 
 -- Only a participant can report, and the target can clear the check.
@@ -145,7 +148,8 @@ DELETE FROM public.beaver_queue_games;
 DELETE FROM public.beaver_queue_members;
 UPDATE public.beaver_queue_table SET
   phase='idle',king_id=NULL,challenger_id=NULL,call_expires_at=NULL,
-  game_id=NULL,game_started_at=NULL,solo_expires_at=NULL,
+  game_id=NULL,game_started_at=NULL,game_expires_at=NULL,
+  king_confirmed_at=NULL,challenger_confirmed_at=NULL,solo_expires_at=NULL,
   afk_reporter_id=NULL,afk_target_id=NULL,afk_expires_at=NULL,updated_at=NOW()
 WHERE id=1;
 INSERT INTO public.beaver_queue_members(user_id,display_name,status,queue_position,joined_at,updated_at) VALUES
@@ -157,6 +161,7 @@ UPDATE public.beaver_queue_table SET
   challenger_id='fd000000-0000-4000-8000-000000000002',
   game_id='fd100000-0000-4000-8000-000000000002',
   game_started_at=clock_timestamp()-INTERVAL '11 minutes',
+  game_expires_at=clock_timestamp()-INTERVAL '1 minute',
   afk_reporter_id='fd000000-0000-4000-8000-000000000001',
   afk_target_id='fd000000-0000-4000-8000-000000000002',
   afk_expires_at=clock_timestamp()-INTERVAL '1 second',updated_at=NOW()

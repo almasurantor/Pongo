@@ -64,7 +64,7 @@ export default function Navbar() {
     };
     const start = async () => {
       const [health, memberResponse] = await Promise.all([
-        supabase.rpc('beaver_queue_health_v5'),
+        supabase.rpc('beaver_queue_health_v9'),
         supabase.from('beaver_queue_members').select('status').eq('user_id', userId).maybeSingle(),
       ]);
       backendReady = !health.error && isQueueBackendHealthy(health.data);

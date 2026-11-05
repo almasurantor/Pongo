@@ -9,20 +9,14 @@ deadline voids the ranked match and removes both players.
 ## Apply the migration
 
 1. Back up the project as usual and test against a disposable Supabase project first.
-2. Apply all existing migrations in filename order.
-3. Apply `supabase/migrations/20261101_01_live_queue.sql`,
-   `supabase/migrations/20261103_01_coordinated_auth_rank_queue.sql`, and then
-   `supabase/migrations/20261103_02_queue_production_repair.sql` and
-   `supabase/migrations/20261103_03_queue_outcomes_swaps.sql` and
-   `supabase/migrations/20261103_04_queue_forward_swaps.sql` and
-   `supabase/migrations/20261103_05_queue_afk_timeouts.sql` and
-   `supabase/migrations/20261104_02_queue_match_expiry_checkins.sql` and
-   `supabase/migrations/20261104_03_queue_holder_presence.sql` and
-   `supabase/migrations/20261104_04_queue_ranked_matches.sql`,
-   `supabase/migrations/20261104_05_queue_ranked_inline_scoring.sql`, and
-   `supabase/migrations/20261104_08_restore_three_ranked_games_per_opponent.sql` through the Supabase CLI
-   or SQL editor. **A GitHub/Vercel deployment does not apply database migrations.**
-   Test the repair against a disposable database before production.
+2. Apply all files in `supabase/migrations` in filename order with the Supabase
+   CLI. The 14-digit versions are intentionally unique and the first migration
+   is the complete baseline. **A GitHub/Vercel deployment does not apply database
+   migrations.** Reconcile an existing project's remote migration history before
+   pushing these renamed files, and test the plan against a disposable database.
+3. Enable the Supabase Cron integration before applying
+   `20261104100000_queue_maintenance_worker.sql`, so the migration can create the
+   10-second queue job, five-minute ranked cleanup, and daily Cron-history cleanup.
 4. Verify `beaver_queue_table`, `beaver_queue_members`, `beaver_queue_games`,
    `beaver_queue_swap_requests`, and `beaver_queue_ranked_requests` are in
    the `supabase_realtime` publication.
@@ -81,18 +75,19 @@ the anonymous role is expected.
 
 ## Run the deadline worker
 
-Configure a trusted server-side scheduler to call:
+Enable Supabase Cron, then apply migration `20261104100000`. It schedules this
+trusted wrapper every 10 seconds:
 
 ```sql
-SELECT public.beaver_queue_advance_expired_v1();
+SELECT public.run_pongo_queue_maintenance_v1();
 ```
 
-every 5 seconds with the Supabase `service_role`. The reference query is also stored
-in `supabase/functions/queue-tick.sql`. Keep the service-role key exclusively on the
-server. The function uses database time and locks the singleton queue row, so it is safe
+The reference and verification queries are stored in
+`supabase/functions/queue-tick.sql`. No service-role key is placed in a browser.
+The function uses database time and locks the singleton queue row, so it is safe
 for overlapping worker calls and for races with a player's **I'm Here** action.
 
-The page refetches the authoritative snapshot every four seconds and after Realtime
+The page refetches the authoritative snapshot every 15 seconds and after Realtime
 changes. Only active queue members send a heartbeat, at a 30-second interval; Realtime
 events never trigger another heartbeat. The trusted worker is still what guarantees
 advancement when every browser is closed. Connected clients additionally call the

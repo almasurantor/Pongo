@@ -17,9 +17,10 @@ describe('queue client safety', () => {
     expect(shouldSendQueueHeartbeat(null, 'initial', 0)).toBe(false);
   });
 
-  it('opens the heartbeat circuit after three consecutive failures', () => {
+  it('keeps bounded heartbeat recovery active after repeated failures', () => {
     expect(shouldSendQueueHeartbeat('playing', 'interval', 2)).toBe(true);
-    expect(shouldSendQueueHeartbeat('playing', 'interval', 3)).toBe(false);
+    expect(shouldSendQueueHeartbeat('playing', 'interval', 3)).toBe(true);
+    expect(shouldSendQueueHeartbeat('playing', 'realtime', 3)).toBe(false);
   });
 
   it('requires the repaired backend version and every RPC grant', () => {
@@ -37,7 +38,7 @@ describe('queue client safety', () => {
   });
 
   it('maps database failures to actionable messages without hiding the cause', () => {
-    expect(queueErrorMessage({ code: 'PGRST202', message: 'schema cache' })).toContain('20261104_05_queue_ranked_inline_scoring.sql');
+    expect(queueErrorMessage({ code: 'PGRST202', message: 'schema cache' })).toContain('20261104050000_queue_ranked_inline_scoring.sql');
     expect(queueErrorMessage({ code: '42501', message: 'permission denied' })).toContain('RPC grants and RLS');
     expect(queueErrorMessage({ code: '23503', message: 'foreign key violation' })).toContain('profile');
     expect(queueErrorMessage({ code: '40P01', message: 'deadlock detected' })).toContain('try again');

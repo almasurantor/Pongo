@@ -6,16 +6,17 @@ import { getVerifiedUserId } from '@/lib/supabase/verified-user';
 
 const scopes: LeaderboardScope[] = ['weekly', 'monthly', 'all_time'];
 
-export default async function LeaderboardPage({ searchParams }: { searchParams?: { tab?: string; period?: string } }) {
+export default async function LeaderboardPage({ searchParams }: { searchParams?: Promise<{ tab?: string; period?: string }> }) {
   const supabase = await createClient();
   const userId = await getVerifiedUserId();
   if (!userId) redirect('/login');
+  const query = await searchParams;
 
-  const scope = scopes.includes(searchParams?.tab as LeaderboardScope)
-    ? searchParams!.tab as LeaderboardScope
+  const scope = scopes.includes(query?.tab as LeaderboardScope)
+    ? query!.tab as LeaderboardScope
     : 'weekly';
-  const requestedPeriod = scope !== 'all_time' && /^\d{4}-\d{2}-\d{2}$/.test(searchParams?.period || '')
-    ? searchParams!.period!
+  const requestedPeriod = scope !== 'all_time' && /^\d{4}-\d{2}-\d{2}$/.test(query?.period || '')
+    ? query!.period!
     : null;
 
   const leaderboardPromise = supabase.rpc('get_leaderboard_v3', {

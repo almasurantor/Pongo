@@ -12,7 +12,8 @@ INSERT INTO auth.users(id,email,raw_user_meta_data,created_at,updated_at)
 SELECT id,email,jsonb_build_object('display_name',name),NOW(),NOW()
 FROM (VALUES
   ('f7000000-0000-0000-0000-000000000001'::UUID,'phase7-a@example.test','Phase Seven A'),
-  ('f7000000-0000-0000-0000-000000000002'::UUID,'phase7-b@example.test','Phase Seven B')
+  ('f7000000-0000-0000-0000-000000000002'::UUID,'phase7-b@example.test','Phase Seven B'),
+  ('f7000000-0000-0000-0000-000000000003'::UUID,'phase7-c@example.test','Phase Seven C')
 ) fixtures(id,email,name);
 
 SELECT public.emit_domain_event(
@@ -25,8 +26,10 @@ SELECT public.emit_domain_event(
 );
 
 SET LOCAL ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub','f7000000-0000-0000-0000-000000000002',TRUE);
+SELECT set_config('request.jwt.claim.sub','f7000000-0000-0000-0000-000000000003',TRUE);
 SELECT pg_temp.assert_true((SELECT COUNT(*)=0 FROM public.domain_events),'users must not read another player''s domain events');
+SELECT set_config('request.jwt.claim.sub','f7000000-0000-0000-0000-000000000002',TRUE);
+SELECT pg_temp.assert_true((SELECT COUNT(*)=1 FROM public.domain_events),'event actors must retain access to their own audit events');
 SELECT set_config('request.jwt.claim.sub','f7000000-0000-0000-0000-000000000001',TRUE);
 SELECT pg_temp.assert_true((SELECT COUNT(*)=1 FROM public.domain_events),'recipient rows must grant access to the associated domain event');
 RESET ROLE;

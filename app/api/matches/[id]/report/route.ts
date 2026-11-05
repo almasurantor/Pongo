@@ -1,14 +1,16 @@
 import { createClient } from '@/lib/supabase/server';
 import { validateMatchScore } from '@/lib/match-result';
-import { apiError } from '@/lib/api-response';
+import { apiError, invalidJsonResponse, readJsonObject } from '@/lib/api-response';
 import { NextResponse } from 'next/server';
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const body = await request.json();
+  const body = await readJsonObject(request);
+  if (!body) return invalidJsonResponse();
   const winnerScore = Number(body.winner_score);
   const loserScore = Number(body.loser_score);
   const validationError = validateMatchScore(winnerScore, loserScore);
@@ -18,7 +20,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const { data: queueRequest, error: queueRequestError } = await supabase
     .from('beaver_queue_ranked_requests')
     .select('id')
-    .eq('match_id', params.id)
+    .eq('match_id', id)
     .eq('status', 'accepted')
     .maybeSingle();
   if (queueRequestError) return apiError(queueRequestError);
@@ -26,7 +28,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const { data, error } = await supabase.rpc(
     queueRequest ? 'beaver_queue_submit_ranked_result_v1' : 'submit_match_report_v2',
     {
-    p_match: params.id,
+    p_match: id,
     p_winner: body.winner_id,
     p_winner_score: winnerScore,
     p_loser_score: loserScore,
@@ -41,7 +43,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     return NextResponse.json({ error: 'This match has expired without rating changes.' }, { status: 410 });
   }
   const [{ data: finalizedMatch }, { data: afterStandings }] = await Promise.all([
-    supabase.from('matches').select('*').eq('id', params.id).single(),
+    supabase.from('matches').select('*').eq('id', id).single(),
     supabase.rpc('get_leaderboard_v3', { p_scope: 'all_time', p_period_start: null }),
   ]);
   const placementAfter = (afterStandings || []).find((entry: { player_id: string }) => entry.player_id === user.id)?.placement ?? null;

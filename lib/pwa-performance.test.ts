@@ -6,9 +6,10 @@ const serviceWorker = readFileSync(resolve(process.cwd(), 'public/sw.js'), 'utf8
 const queue = readFileSync(resolve(process.cwd(), 'app/queue/QueueClient.tsx'), 'utf8');
 const matchResults = readFileSync(resolve(process.cwd(), 'components/MatchResultPopup.tsx'), 'utf8');
 const browserClient = readFileSync(resolve(process.cwd(), 'lib/supabase/client.ts'), 'utf8');
-const middleware = readFileSync(resolve(process.cwd(), 'middleware.ts'), 'utf8');
+const middleware = readFileSync(resolve(process.cwd(), 'proxy.ts'), 'utf8');
 const sessionMiddleware = readFileSync(resolve(process.cwd(), 'lib/supabase/middleware.ts'), 'utf8');
 const dashboardPage = readFileSync(resolve(process.cwd(), 'app/dashboard/page.tsx'), 'utf8');
+const nextConfig = readFileSync(resolve(process.cwd(), 'next.config.js'), 'utf8');
 
 describe('native-like PWA performance safeguards', () => {
   it('caches only static same-origin assets and keeps live/auth data network-only', () => {
@@ -42,5 +43,12 @@ describe('native-like PWA performance safeguards', () => {
   it('checks missed match results on resume instead of polling continuously', () => {
     expect(matchResults).toContain("window.addEventListener('focus'");
     expect(matchResults).not.toContain('setInterval');
+  });
+
+  it('ships basic browser hardening headers', () => {
+    expect(nextConfig).toContain("{ key: 'X-Content-Type-Options', value: 'nosniff' }");
+    expect(nextConfig).toContain("{ key: 'X-Frame-Options', value: 'DENY' }");
+    expect(nextConfig).toContain("{ key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' }");
+    expect(nextConfig).toContain("camera=(), microphone=(), geolocation=()");
   });
 });

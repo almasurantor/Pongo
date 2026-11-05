@@ -34,7 +34,8 @@ The project is designed around a club competition loop:
 
 ## 3. Tech Stack
 
-- Next.js 14 (App Router)
+- Next.js 16 (App Router)
+- React 19
 - TypeScript
 - Tailwind CSS
 - Framer Motion
@@ -57,7 +58,6 @@ The app uses Next.js App Router under the [app](app) folder:
 
 - [app/page.tsx](app/page.tsx) — landing page
 - [app/dashboard/page.tsx](app/dashboard/page.tsx) and [app/dashboard/DashboardClient.tsx](app/dashboard/DashboardClient.tsx) — main power center for challenges and active matches
-- [app/leaderboard/page.tsx](app/leaderboard/page.tsx) and [app/leaderboard/LeaderboardClient.tsx](app/leaderboard/LeaderboardClient.tsx) — global ELO ranking
 - [app/leaderboard/page.tsx](app/leaderboard/page.tsx) and [app/leaderboard/LeaderboardClient.tsx](app/leaderboard/LeaderboardClient.tsx) — unified weekly, monthly, all-time, and archived leaderboards
 - [app/match/[id]/page.tsx](app/match/[id]/page.tsx) and [app/match/[id]/MatchClient.tsx](app/match/[id]/MatchClient.tsx) — score submission and match-resolution flow
 - [app/profile/[id]/page.tsx](app/profile/[id]/page.tsx) and [app/profile/[id]/ProfileClient.tsx](app/profile/[id]/ProfileClient.tsx) — player stats and match history
@@ -68,18 +68,18 @@ The app uses Next.js App Router under the [app](app) folder:
 - [lib/supabase/server.ts](lib/supabase/server.ts) creates a server-side Supabase client
 - [lib/supabase/client.ts](lib/supabase/client.ts) creates a browser client
 - [lib/supabase/middleware.ts](lib/supabase/middleware.ts) protects routes and refreshes session cookies
-- [middleware.ts](middleware.ts) applies session middleware across the app
+- [proxy.ts](proxy.ts) applies session middleware across the app
 
 ### Business logic
 
 - [lib/elo.ts](lib/elo.ts) contains ELO calculation logic
 - [app/api/matches/[id]/report/route.ts](app/api/matches/[id]/report/route.ts) accepts a complete result from one participant
 - [app/api/matches/[id]/cancellation/route.ts](app/api/matches/[id]/cancellation/route.ts) handles mutual cancellation
-- [supabase/schema.sql](supabase/schema.sql) defines the database schema and SQL functions
+- [supabase/migrations](supabase/migrations) is the sole authoritative database schema and function history
 
 ## 5. Data Model
 
-The primary persistent entities are defined in [supabase/schema.sql](supabase/schema.sql) and represented in [lib/types.ts](lib/types.ts).
+The primary persistent entities are defined by the ordered files in [supabase/migrations](supabase/migrations) and represented in [lib/types.ts](lib/types.ts).
 
 ### profiles
 
@@ -89,7 +89,7 @@ Key fields:
 
 - id — UUID, linked to auth.users
 - display_name — user-facing name
-- current_elo — total rating, initial value 500
+- current_elo — total rating, initial value 50
 - total_wins / total_losses — lifetime record
 - weekly_wins / weekly_losses — this week’s record
 - created_at / updated_at
@@ -148,7 +148,7 @@ Accepted and confirmed matches reserve capacity through their `ranked_day`. Canc
 
 Users sign up through [app/signup/page.tsx](app/signup/page.tsx) or log in through [app/login/page.tsx](app/login/page.tsx). The app uses Supabase Auth, and [app/auth/callback/route.ts](app/auth/callback/route.ts) handles OAuth redirect completion.
 
-Route protection is enforced via [middleware.ts](middleware.ts) + [lib/supabase/middleware.ts](lib/supabase/middleware.ts): unauthenticated users are redirected to /login unless they are on the public home page or auth-related routes.
+Route protection is enforced via [proxy.ts](proxy.ts) + [lib/supabase/middleware.ts](lib/supabase/middleware.ts): unauthenticated users are redirected to the public root unless they are already on a public or auth route.
 
 ### B. Dashboard and challenge workflow
 
@@ -282,7 +282,7 @@ This is implemented through [lib/use-database-refresh.ts](lib/use-database-refre
 
 ## 10. Database Functions and Rules
 
-The SQL in [supabase/schema.sql](supabase/schema.sql) includes several important rules:
+The ordered SQL in [supabase/migrations](supabase/migrations) includes several important rules:
 
 - `check_daily_match_limit` — prevents overplaying between the same two players in one day
 - `get_my_ranked_usage_v3` / `get_my_opponent_ranked_usage_v3` — expose authoritative reservation usage to the UI
@@ -351,7 +351,7 @@ A few important observations from reading the codebase:
 - The app relies heavily on Supabase for both persistence and realtime behavior.
 - ELO is calculated transactionally in PostgreSQL; the client calculation is used only for clearly labeled estimates.
 - The database stores authoritative match and stat data; the frontend acts as a display layer plus user-triggered update layer.
-- The app is designed around a single-user challenge-and-match loop, not a full admin panel.
+- The app centers on a player challenge-and-match loop with a restricted administrator review panel.
 - There is a strong emphasis on club-style game flow and quick feedback, reflected in the mobile-first match UI and live database refreshes.
 
 ---
@@ -388,14 +388,13 @@ It is a strong example of a lightweight sports ladder product built with modern 
 
 - [app/page.tsx](app/page.tsx) — landing page
 - [app/dashboard/DashboardClient.tsx](app/dashboard/DashboardClient.tsx) — main challenge and active-match flow
-- [app/leaderboard/LeaderboardClient.tsx](app/leaderboard/LeaderboardClient.tsx) — total ELO rankings
 - [app/leaderboard/LeaderboardClient.tsx](app/leaderboard/LeaderboardClient.tsx) — weekly, monthly, all-time, and historical leaderboard UI
 - [app/match/[id]/MatchClient.tsx](app/match/[id]/MatchClient.tsx) — match submission UI
 - [app/api/matches/[id]/report/route.ts](app/api/matches/[id]/report/route.ts) — result reporting endpoint
 - [app/api/matches/[id]/cancellation/route.ts](app/api/matches/[id]/cancellation/route.ts) — active-match cancellation requests and responses
 - [app/api/matches/[id]/dispute/route.ts](app/api/matches/[id]/dispute/route.ts) — post-result correction and void requests
 - [lib/elo.ts](lib/elo.ts) — rating algorithm
-- [supabase/schema.sql](supabase/schema.sql) — data model and SQL logic
+- [supabase/migrations](supabase/migrations) — authoritative data model and SQL logic
 - [lib/types.ts](lib/types.ts) — TypeScript interfaces
 
 If you want, the next step can be a more opinionated “engineering deep dive” that focuses on startup flow, data pipelines, and the exact match lifecycle from challenge creation to final ELO update.

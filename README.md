@@ -4,7 +4,8 @@ A ranked 1v1 ELO-based ladder system with weekly, monthly, and all-time leaderbo
 
 ## Tech Stack
 
-- Next.js 14 (App Router)
+- Next.js 16 (App Router)
+- React 19
 - TypeScript
 - TailwindCSS
 - Framer Motion
@@ -23,7 +24,9 @@ cp env.local.template .env.local
 # Add your Supabase credentials
 ```
 
-3. Set up the database using the staged instructions in `SETUP.md`. Existing installations must run the expand migration, deploy this application, and only then run the contract migration.
+3. Set up the database using `SETUP.md`. The migration chain includes a complete
+   baseline and uses unique 14-digit versions. Existing projects must reconcile
+   their remote migration history before pushing the renamed files.
 
 4. Run the development server:
 ```bash
@@ -56,4 +59,4 @@ Pongo includes an App Router web manifest, branded PWA icons, standalone display
 
 On iPhone, open the deployed HTTPS site in Safari, tap **Share**, choose **Add to Home Screen**, confirm the name **Pongo**, and tap **Add**. Launching that icon opens the site in a standalone window. On supported Android browsers, use **Install App** or **Add to Home Screen** from the browser menu.
 
-For Vercel, configure `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`, and the server-only `SUPABASE_SERVICE_ROLE_KEY` used by account deletion. Never expose the service-role key through a `NEXT_PUBLIC_` variable. Set `NEXT_PUBLIC_SITE_URL=https://playpongo.vercel.app`. Disable **Confirm email**, and add `https://playpongo.vercel.app/auth/callback` to the Supabase Auth redirect allowlist while retaining `http://localhost:3000/auth/callback` for development. For Google, use the Supabase `/auth/v1/callback` URL shown in its provider panel as the Google Cloud redirect URI. Verify `/manifest.webmanifest`, `/sw.js`, `/robots.txt`, `/sitemap.xml`, `/icon.png`, `/apple-icon.png`, `/opengraph-image.png`, and `/twitter-image.png` after deployment.
+For Vercel, configure `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`, and the server-only `SUPABASE_SERVICE_ROLE_KEY` used by account deletion. Never expose the service-role key through a `NEXT_PUBLIC_` variable. Set `NEXT_PUBLIC_SITE_URL=https://playpongo.vercel.app`. Disable **Confirm email**, and add `https://playpongo.vercel.app/auth/callback` to the Supabase Auth redirect allowlist while retaining `http://localhost:3000/auth/callback` for development. Verify `/manifest.webmanifest`, `/sw.js`, `/robots.txt`, `/sitemap.xml`, `/icon.png`, `/apple-icon.png`, `/opengraph-image.png`, and `/twitter-image.png` after deployment.

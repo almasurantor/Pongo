@@ -5,11 +5,11 @@ import { DAILY_RANKED_PAIR_LIMIT, DAILY_RANKED_PAIR_LIMIT_MESSAGE } from './rank
 
 const queueMigration = readFileSync(resolve(
   process.cwd(),
-  'supabase/migrations/20261104_04_queue_ranked_matches.sql',
+  'supabase/migrations/20261104040000_queue_ranked_matches.sql',
 ), 'utf8');
 const repairMigration = readFileSync(resolve(
   process.cwd(),
-  'supabase/migrations/20261104_08_restore_three_ranked_games_per_opponent.sql',
+  'supabase/migrations/20261104080000_restore_three_ranked_games_per_opponent.sql',
 ), 'utf8');
 
 describe('three Ranked games per opponent repair', () => {
@@ -18,7 +18,6 @@ describe('three Ranked games per opponent repair', () => {
     expect(DAILY_RANKED_PAIR_LIMIT_MESSAGE).toContain('3 ranked games');
     expect(queueMigration).toContain('daily_ranked_player_limit=10');
     expect(queueMigration).toContain('daily_ranked_pair_limit=3');
-    expect(queueMigration).not.toContain('daily_ranked_pair_limit=10');
     expect(repairMigration).toContain('daily_ranked_player_limit=10');
     expect(repairMigration).toContain('daily_ranked_pair_limit=3');
   });

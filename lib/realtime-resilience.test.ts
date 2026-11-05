@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 const sharedRefresh = readFileSync(resolve(process.cwd(), 'lib/use-database-refresh.ts'), 'utf8');
 const queue = readFileSync(resolve(process.cwd(), 'app/queue/QueueClient.tsx'), 'utf8');
 const navbar = readFileSync(resolve(process.cwd(), 'components/Navbar.tsx'), 'utf8');
-const repair = readFileSync(resolve(process.cwd(), 'supabase/migrations/20261104_07_realtime_publication_repair.sql'), 'utf8');
+const repair = readFileSync(resolve(process.cwd(), 'supabase/migrations/20261104070000_realtime_publication_repair.sql'), 'utf8');
 
 describe('realtime resilience', () => {
   it('resyncs server-rendered screens after reconnect, resume, and network recovery', () => {
@@ -22,6 +22,8 @@ describe('realtime resilience', () => {
     expect(queue).toContain("window.addEventListener('online'");
     expect(queue).toContain('75');
     expect(navbar).toContain("status === 'SUBSCRIBED'");
+    expect(navbar).toContain("supabase.rpc('beaver_queue_health_v9')");
+    expect(navbar).not.toContain("supabase.rpc('beaver_queue_health_v5')");
   });
 
   it('provides an idempotent publication repair for every subscribed table', () => {

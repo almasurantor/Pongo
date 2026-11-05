@@ -1,7 +1,7 @@
 project_id = "pongo"
 
 [auth.email]
-enable_signup = true
+enabled = true
 enable_confirmations = false
 double_confirm_changes = false
 

@@ -2,12 +2,13 @@ import { apiError } from '@/lib/api-response';
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
-export async function POST(_request: Request, { params }: { params: { id: string } }) {
+export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data, error } = await supabase.rpc('cancel_challenge_v2', { p_challenge: params.id });
+  const { data, error } = await supabase.rpc('cancel_challenge_v2', { p_challenge: id });
   if (error) return apiError(error);
   const challenge = Array.isArray(data) ? data[0] : data;
   if (challenge?.status === 'expired') {

@@ -143,7 +143,7 @@ SELECT pg_temp.assert_true(
   (SELECT games_used=3 AND games_remaining=0
     FROM public.get_my_opponent_ranked_usage_v3()
     WHERE opponent_id='f2000000-0000-0000-0000-00000000000e'),
-  'the first three completed games against an opponent must consume exactly three slots'
+  'the first three completed games against an opponent must consume all three slots'
 );
 RESET ROLE;
 INSERT INTO public.challenges(challenger_id,opponent_id,status,expires_at)

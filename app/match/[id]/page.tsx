@@ -4,10 +4,11 @@ import MatchClient from './MatchClient';
 import { Dispute, MatchSubmission } from '@/lib/types';
 import { getVerifiedUserId } from '@/lib/supabase/verified-user';
 
-export default async function MatchPage({ params }: { params: { id: string } }) {
+export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
   const userId = await getVerifiedUserId();
   if (!userId) redirect('/login');
+  const { id } = await params;
 
   const { data: match } = await supabase
     .from('matches')
@@ -16,7 +17,7 @@ export default async function MatchPage({ params }: { params: { id: string } }) 
       player_one:profiles!matches_player_one_id_fkey(*),
       player_two:profiles!matches_player_two_id_fkey(*)
     `)
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (!match || (match.player_one_id !== userId && match.player_two_id !== userId)) {

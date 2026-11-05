@@ -1,5 +1,20 @@
 import { NextResponse } from 'next/server';
 
+export async function readJsonObject(request: Request): Promise<Record<string, unknown> | null> {
+  try {
+    const body: unknown = await request.json();
+    return body !== null && typeof body === 'object' && !Array.isArray(body)
+      ? body as Record<string, unknown>
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function invalidJsonResponse() {
+  return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+}
+
 export function apiError(error: unknown, fallback = 'Request failed') {
   const message = error && typeof error === 'object' && 'message' in error
     ? String((error as { message: unknown }).message)

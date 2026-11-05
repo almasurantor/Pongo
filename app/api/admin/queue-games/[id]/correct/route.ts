@@ -2,7 +2,8 @@ import { apiError } from '@/lib/api-response';
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -16,7 +17,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
 
   const { data, error } = await supabase.rpc('beaver_queue_admin_correct_game_v1', {
-    p_game_id: params.id,
+    p_game_id: id,
     p_winner_id: body.winner_id,
     p_reason: body.reason,
   });

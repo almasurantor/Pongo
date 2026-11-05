@@ -367,6 +367,10 @@ DELETE FROM public.beaver_queue_members;
 UPDATE public.beaver_queue_table SET
   phase = 'idle', king_id = NULL, challenger_id = NULL,
   call_expires_at = NULL, game_id = NULL, game_started_at = NULL,
+  solo_expires_at = NULL,
+  afk_reporter_id = NULL, afk_target_id = NULL, afk_expires_at = NULL,
+  game_expires_at = NULL,
+  king_confirmed_at = NULL, challenger_confirmed_at = NULL,
   updated_at = NOW()
 WHERE id = 1;
 
@@ -396,17 +400,18 @@ UPDATE public.beaver_queue_table SET
   call_expires_at = NULL,
   game_id = 'd6000000-0000-4000-8000-000000000099',
   game_started_at = NOW() - INTERVAL '4 minutes',
+  game_expires_at = NOW() + INTERVAL '6 minutes',
   updated_at = NOW()
 WHERE id = 1;
 
 INSERT INTO public.beaver_queue_games(
   id, king_id, challenger_id, king_name, challenger_name,
-  king_score, challenger_score, winner_id, reported_by, completed_at
+  king_score, challenger_score, winner_id, loser_id, reported_by, completed_at
 )
 VALUES
-  ('d6000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000007', 'd0000000-0000-4000-8000-000000000006', 'Legend Luna', 'Diamond Diego', 11, 8, 'd0000000-0000-4000-8000-000000000007', 'd0000000-0000-4000-8000-000000000007', NOW() - INTERVAL '45 minutes'),
-  ('d6000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000007', 'd0000000-0000-4000-8000-000000000010', 'Legend Luna', 'Dual Dana', 9, 11, 'd0000000-0000-4000-8000-000000000010', 'd0000000-0000-4000-8000-000000000010', NOW() - INTERVAL '35 minutes'),
-  ('d6000000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000010', 'd0000000-0000-4000-8000-000000000004', 'Dual Dana', 'Gold Gia', 7, 11, 'd0000000-0000-4000-8000-000000000004', 'd0000000-0000-4000-8000-000000000004', NOW() - INTERVAL '20 minutes');
+  ('d6000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000007', 'd0000000-0000-4000-8000-000000000006', 'Legend Luna', 'Diamond Diego', 11, 8, 'd0000000-0000-4000-8000-000000000007', 'd0000000-0000-4000-8000-000000000006', 'd0000000-0000-4000-8000-000000000007', NOW() - INTERVAL '45 minutes'),
+  ('d6000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000007', 'd0000000-0000-4000-8000-000000000010', 'Legend Luna', 'Dual Dana', 9, 11, 'd0000000-0000-4000-8000-000000000010', 'd0000000-0000-4000-8000-000000000007', 'd0000000-0000-4000-8000-000000000010', NOW() - INTERVAL '35 minutes'),
+  ('d6000000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000010', 'd0000000-0000-4000-8000-000000000004', 'Dual Dana', 'Gold Gia', 7, 11, 'd0000000-0000-4000-8000-000000000004', 'd0000000-0000-4000-8000-000000000010', 'd0000000-0000-4000-8000-000000000004', NOW() - INTERVAL '20 minutes');
 
 COMMIT;
 

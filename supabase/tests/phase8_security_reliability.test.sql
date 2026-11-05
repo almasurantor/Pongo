@@ -205,10 +205,17 @@ BEGIN
 EXCEPTION WHEN insufficient_privilege THEN NULL;
 END;
 $$;
-UPDATE public.profiles SET display_name='Phase Eight C Updated' WHERE id=auth.uid();
+DO $$
+BEGIN
+  UPDATE public.profiles SET display_name='Phase 8 C Updated' WHERE id=auth.uid();
+  RAISE EXCEPTION 'Expected direct display-name write rejection';
+EXCEPTION WHEN insufficient_privilege THEN NULL;
+END;
+$$;
+SELECT public.update_my_profile_settings_v4('Phase 8 C Updated',TRUE,FALSE);
 SELECT pg_temp.assert_true(
-  (SELECT display_name='Phase Eight C Updated' FROM public.profiles WHERE id=auth.uid()),
-  'the profile display-name edit contract must remain available'
+  (SELECT display_name='Phase 8 C Updated' FROM public.profiles WHERE id=auth.uid()),
+  'the validated profile settings RPC must remain available'
 );
 RESET ROLE;
 

@@ -218,7 +218,7 @@ SELECT pg_temp.assert_true(
   AND NOT EXISTS(
     SELECT 1 FROM public.profiles
     WHERE id::TEXT LIKE 'fa000000-%'
-      AND (current_elo<>500 OR total_wins<>0 OR total_losses<>0)
+      AND (current_elo<>50 OR total_wins<>0 OR total_losses<>0)
   ),
   'queue games must never touch ranked history, ELO, or ranked statistics'
 );

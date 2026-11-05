@@ -2,7 +2,8 @@
 -- Completely independent from ranked matches, ratings, challenges, and stats.
 BEGIN;
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- gen_random_uuid() is built into supported PostgreSQL versions; do not attempt
+-- to reinstall pgcrypto from a later migration under the restricted CLI role.
 CREATE SEQUENCE IF NOT EXISTS public.beaver_queue_position_seq;
 
 CREATE TABLE IF NOT EXISTS public.beaver_queue_members (

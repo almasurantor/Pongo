@@ -33,9 +33,12 @@ export function isActiveQueueStatus(status: string | null | undefined): status i
 export function shouldSendQueueHeartbeat(
   status: string | null | undefined,
   trigger: QueueSyncTrigger,
-  consecutiveFailures: number,
+  _consecutiveFailures: number,
 ) {
-  return isActiveQueueStatus(status) && trigger !== 'realtime' && consecutiveFailures < 3;
+  // Keep retrying on the bounded 30-second interval. A permanent circuit
+  // breaker silently drops an otherwise active player after a transient
+  // outage; Realtime-triggered calls remain suppressed to avoid feedback.
+  return isActiveQueueStatus(status) && trigger !== 'realtime';
 }
 
 export function isQueueBackendHealthy(data: unknown): data is QueueHealth {
@@ -61,7 +64,7 @@ export function queueErrorMessage(caught: unknown, fallback = 'Unable to update 
   const normalized = raw.toLowerCase();
 
   if (code === 'PGRST202' || code === '42883' || normalized.includes('schema cache')) {
-    return 'The queue database update is missing. Apply migrations through 20261104_05_queue_ranked_inline_scoring.sql in Supabase, then reload.';
+    return 'The queue database update is missing. Apply migrations through 20261104050000_queue_ranked_inline_scoring.sql in Supabase, then reload.';
   }
   if (code === '42P01' || normalized.includes('does not exist')) {
     return 'The queue database tables are not installed. Apply the queue migrations before using this page.';

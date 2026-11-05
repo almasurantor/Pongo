@@ -39,7 +39,9 @@ DELETE FROM public.beaver_queue_swap_requests;
 DELETE FROM public.beaver_queue_games;
 DELETE FROM public.beaver_queue_members;
 UPDATE public.beaver_queue_table SET phase='idle',king_id=NULL,challenger_id=NULL,
-  call_expires_at=NULL,game_id=NULL,game_started_at=NULL,updated_at=NOW() WHERE id=1;
+  call_expires_at=NULL,game_id=NULL,game_started_at=NULL,game_expires_at=NULL,
+  king_confirmed_at=NULL,challenger_confirmed_at=NULL,solo_expires_at=NULL,
+  afk_reporter_id=NULL,afk_target_id=NULL,afk_expires_at=NULL,updated_at=NOW() WHERE id=1;
 SELECT setval('public.beaver_queue_position_seq',1,FALSE);
 
 CREATE TEMP TABLE queue_v3_baseline AS
@@ -166,7 +168,9 @@ SELECT pg_temp.assert_true(
 DELETE FROM public.beaver_queue_swap_requests;
 DELETE FROM public.beaver_queue_members;
 UPDATE public.beaver_queue_table SET phase='idle',king_id=NULL,challenger_id=NULL,
-  call_expires_at=NULL,game_id=NULL,game_started_at=NULL,updated_at=NOW() WHERE id=1;
+  call_expires_at=NULL,game_id=NULL,game_started_at=NULL,game_expires_at=NULL,
+  king_confirmed_at=NULL,challenger_confirmed_at=NULL,solo_expires_at=NULL,
+  afk_reporter_id=NULL,afk_target_id=NULL,afk_expires_at=NULL,updated_at=NOW() WHERE id=1;
 INSERT INTO public.beaver_queue_members(user_id,display_name,status,queue_position,joined_at,updated_at) VALUES
  ('fc000000-0000-4000-8000-000000000001','Queue V3 A','king',101,NOW(),NOW()),
  ('fc000000-0000-4000-8000-000000000002','Queue V3 B','called',102,NOW(),NOW()),
@@ -260,7 +264,9 @@ SELECT pg_temp.assert_true(
 DELETE FROM public.beaver_queue_swap_requests;
 DELETE FROM public.beaver_queue_members;
 UPDATE public.beaver_queue_table SET phase='idle',king_id=NULL,challenger_id=NULL,
-  call_expires_at=NULL,game_id=NULL,game_started_at=NULL,updated_at=NOW() WHERE id=1;
+  call_expires_at=NULL,game_id=NULL,game_started_at=NULL,game_expires_at=NULL,
+  king_confirmed_at=NULL,challenger_confirmed_at=NULL,solo_expires_at=NULL,
+  afk_reporter_id=NULL,afk_target_id=NULL,afk_expires_at=NULL,updated_at=NOW() WHERE id=1;
 INSERT INTO public.beaver_queue_members(user_id,display_name,status,queue_position,joined_at,updated_at) VALUES
  ('fc000000-0000-4000-8000-000000000001','Queue V3 A','playing',201,NOW(),NOW()),
  ('fc000000-0000-4000-8000-000000000002','Queue V3 B','playing',202,NOW(),NOW()),
@@ -269,6 +275,7 @@ INSERT INTO public.beaver_queue_members(user_id,display_name,status,queue_positi
 UPDATE public.beaver_queue_table SET phase='playing',king_id='fc000000-0000-4000-8000-000000000001',
   challenger_id='fc000000-0000-4000-8000-000000000002',call_expires_at=NULL,
   game_id='fc200000-0000-4000-8000-000000000001',game_started_at=NOW()-INTERVAL '10 minutes 1 second',
+  game_expires_at=NOW()-INTERVAL '1 second',
   updated_at=NOW() WHERE id=1;
 SET LOCAL ROLE service_role;
 SELECT public.beaver_queue_advance_expired_v1();

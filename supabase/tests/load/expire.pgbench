@@ -1,0 +1,4 @@
+BEGIN;
+SET LOCAL ROLE service_role;
+SELECT public.run_pongo_queue_maintenance_v1();
+COMMIT;

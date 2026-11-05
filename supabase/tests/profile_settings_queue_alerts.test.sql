@@ -17,7 +17,7 @@ VALUES
 SELECT pg_temp.assert_true(
   (SELECT display_name='Pongo Tester' FROM public.profiles
    WHERE id='fb000000-0000-0000-0000-000000000001')
-  AND (SELECT display_name='Pongo Tester_2' FROM public.profiles
+  AND (SELECT display_name='pongo tester_2' FROM public.profiles
        WHERE id='fb000000-0000-0000-0000-000000000003'),
   'signup must preserve an available name and suffix a case-insensitive collision'
 );

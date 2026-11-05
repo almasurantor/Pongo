@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import ConditionalNavbar from "@/components/ConditionalNavbar";
@@ -9,8 +8,6 @@ import NavigationFeedback from "@/components/NavigationFeedback";
 import { Suspense } from "react";
 import AppResumeRedirect from "@/components/AppResumeRedirect";
 import { getSiteUrl } from "@/lib/site-url";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
@@ -88,7 +85,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
-      <body className={inter.className} suppressHydrationWarning>
+      <body className="font-sans" suppressHydrationWarning>
         <ThemeProvider>
           <PWAClient />
           <Suspense fallback={null}><NavigationFeedback /></Suspense>
