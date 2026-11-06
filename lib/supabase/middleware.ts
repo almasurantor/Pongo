@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { authRedirectForPath } from '@/lib/auth-routing'
 import { VERIFIED_USER_HEADER } from '@/lib/supabase/verified-user'
+import { AUTH_FETCH_TIMEOUT_MS, createFetchWithTimeout } from '@/lib/fetch-with-timeout'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -12,6 +13,7 @@ export async function updateSession(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      global: { fetch: createFetchWithTimeout(AUTH_FETCH_TIMEOUT_MS) },
       cookies: {
         getAll() {
           return request.cookies.getAll()
@@ -33,9 +35,15 @@ export async function updateSession(request: NextRequest) {
   // supabase.auth.getUser(). A simple mistake could make it so that the
   // middleware and Server Components read different session values.
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  let user = null
+  try {
+    const result = await supabase.auth.getUser()
+    user = result.data.user
+  } catch {
+    // A failed or timed-out auth service must not strand an installed app on
+    // a blank launch. Treat this request as unverified without deleting the
+    // stored session; the next navigation can verify it again.
+  }
 
   // Pages can reuse the identity that middleware just verified instead of
   // making a second auth network request. Never trust an incoming copy.

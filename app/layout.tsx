@@ -8,6 +8,7 @@ import NavigationFeedback from "@/components/NavigationFeedback";
 import { Suspense } from "react";
 import AppResumeRedirect from "@/components/AppResumeRedirect";
 import { getSiteUrl } from "@/lib/site-url";
+import StartupRecoveryScript from "@/components/StartupRecoveryScript";
 
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
@@ -84,7 +85,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
+      <head>
+        <StartupRecoveryScript />
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="font-sans" suppressHydrationWarning>
         <ThemeProvider>
           <PWAClient />

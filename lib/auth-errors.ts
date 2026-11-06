@@ -11,6 +11,6 @@ export function authErrorMessage(error: unknown, fallback = 'Authentication fail
   if (message.includes('user already registered')) return 'An account with this email already exists. Sign in or reset your password.';
   if (message.includes('password should be')) return 'Password must be at least 6 characters.';
   if (message.includes('rate limit')) return 'Too many attempts. Wait a moment and try again.';
-  if (message.includes('network') || message.includes('fetch')) return 'Could not reach the sign-in service. Check your connection and try again.';
+  if (message.includes('network') || message.includes('fetch') || message.includes('timed out') || message.includes('timeout')) return 'Could not reach the sign-in service. Check your connection and try again.';
   return raw || fallback;
 }

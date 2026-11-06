@@ -14,8 +14,9 @@
       <img class="icon" src="/icons/icon-192.png" alt="" />
       <div class="eyebrow">Pongo</div>
       <h1>You&apos;re offline</h1>
-      <p>Pongo needs an internet connection to show live matches, rankings, and challenges.</p>
+      <p>Pongo needs an internet connection to open live matches, rankings, and challenges. Your session is still saved.</p>
       <button type="button" onclick="location.reload()">Try again</button>
     </main>
+    <script>addEventListener('online',function(){location.reload()},{once:true})</script>
   </body>
 </html>

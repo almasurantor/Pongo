@@ -13,11 +13,12 @@ const nextConfig = readFileSync(resolve(process.cwd(), 'next.config.js'), 'utf8'
 
 describe('native-like PWA performance safeguards', () => {
   it('caches only static same-origin assets and keeps live/auth data network-only', () => {
-    expect(serviceWorker).toContain("url.pathname.startsWith('/_next/static/')");
-    expect(serviceWorker).toContain("url.pathname.startsWith('/api/')");
-    expect(serviceWorker).toContain("url.pathname.startsWith('/auth/')");
+    expect(serviceWorker).not.toContain("url.pathname.startsWith('/_next/static/')");
+    expect(serviceWorker).not.toContain('cacheFirst');
     expect(serviceWorker).toContain("request.mode === 'navigate'");
-    expect(serviceWorker).not.toContain('self.skipWaiting()');
+    expect(serviceWorker).toContain("fetch(request, { cache: 'no-store' })");
+    expect(serviceWorker).toContain('self.skipWaiting()');
+    expect(serviceWorker).toContain("const SHELL_CACHE = 'pongo-shell-v5'");
   });
 
   it('uses one browser Supabase client and avoids duplicate API middleware auth', () => {
