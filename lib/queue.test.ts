@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   canReportQueueOutcome,
   canRequestQueueSwap,
+  isQueueOvertimeDecision,
   needsQueueCheckIn,
   orderedQueueLine,
   queueGameSecondsRemaining,
   queuePlaceFor,
   queueSecondsUntil,
+  queueExpirationKey,
   queueStatusLabel,
   recentCompletedQueueGames,
   type QueueLineMember,
@@ -45,6 +47,23 @@ describe('live queue presentation rules', () => {
     expect(queueSecondsUntil('2026-11-03T12:00:45Z', now)).toBe(45);
     expect(queueSecondsUntil('2026-11-03T11:59:00Z', now)).toBe(0);
     expect(queueGameSecondsRemaining('2026-11-03T12:06:30Z', now)).toBe(390);
+  });
+
+  it('shows one server-timed overtime decision only to the two active players', () => {
+    const now = Date.parse('2026-11-06T12:10:00Z');
+    expect(isQueueOvertimeDecision('playing', true, false, '2026-11-06T12:10:00Z', '2026-11-06T12:11:00Z', now)).toBe(true);
+    expect(isQueueOvertimeDecision('playing', false, false, '2026-11-06T12:10:00Z', '2026-11-06T12:11:00Z', now)).toBe(false);
+    expect(isQueueOvertimeDecision('playing', true, true, '2026-11-06T12:12:00Z', null, now)).toBe(false);
+    expect(isQueueOvertimeDecision('playing', true, false, '2026-11-06T12:10:01Z', '2026-11-06T12:11:01Z', now)).toBe(false);
+  });
+
+  it('ticks only authoritative AFK, overtime-decision, game, and call deadlines', () => {
+    const base = { phase: 'playing', gameId: 'game-1', overtimeUsed: false, gameSeconds: 0, overtimeSeconds: 20, afkExpiresAt: null, afkSeconds: 0, callExpiresAt: null, callSeconds: 0 };
+    expect(queueExpirationKey(base)).toBe('');
+    expect(queueExpirationKey({ ...base, overtimeSeconds: 0 })).toBe('overtime:game-1');
+    expect(queueExpirationKey({ ...base, overtimeUsed: true, overtimeSeconds: 0 })).toBe('game:game-1');
+    expect(queueExpirationKey({ ...base, afkExpiresAt: 'deadline' })).toBe('afk:deadline');
+    expect(queueExpirationKey({ ...base, phase: 'called', gameId: null, callExpiresAt: 'call' })).toBe('call:call');
   });
 
   it('shows match-ready check-in only to the unconfirmed challenger', () => {

@@ -10,6 +10,7 @@ import PongoLogo from '@/components/PongoLogo';
 import PongoWordmark from '@/components/PongoWordmark';
 import PasswordField from '@/components/PasswordField';
 import { authErrorMessage } from '@/lib/auth-errors';
+import { displayNameError, normalizeDisplayName } from '@/lib/display-name';
 
 export default function SignUpPage() {
   const [email, setEmail] = useState('');
@@ -38,6 +39,14 @@ export default function SignUpPage() {
       return;
     }
 
+    const normalizedDisplayName = normalizeDisplayName(displayName);
+    const nameError = displayNameError(normalizedDisplayName);
+    if (nameError) {
+      setFormError(nameError);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -45,7 +54,7 @@ export default function SignUpPage() {
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
           data: {
-            display_name: displayName || email.split('@')[0],
+            display_name: normalizedDisplayName,
           },
         },
       });
@@ -107,16 +116,20 @@ export default function SignUpPage() {
               transition={{ delay: 0.3 }}
             >
               <label htmlFor="displayName" className="mb-2 block text-sm font-semibold text-slate-200">
-                Display Name (Optional)
+                Display Name
               </label>
               <input
                 id="displayName"
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
+                required
+                autoComplete="nickname"
+                aria-describedby="display-name-help"
                 className="w-full rounded-xl border-2 border-slate-600 bg-[#0B1120] px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-blue-500/20"
-                placeholder="Your name"
+                placeholder="Almas 🏓"
               />
+              <p id="display-name-help" className="mt-2 text-xs text-slate-400">1–20 characters with at least one letter. Emoji and symbols are welcome.</p>
             </motion.div>
 
             <motion.div

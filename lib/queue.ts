@@ -33,6 +33,46 @@ export function queueGameSecondsRemaining(expiresAt: string | null, now: number)
   return queueSecondsUntil(expiresAt, now);
 }
 
+export function isQueueOvertimeDecision(
+  phase: string | null | undefined,
+  isPlayer: boolean,
+  overtimeUsed: boolean,
+  gameExpiresAt: string | null,
+  overtimePromptExpiresAt: string | null,
+  now: number,
+) {
+  if (phase !== 'playing' || !isPlayer || overtimeUsed || !gameExpiresAt || !overtimePromptExpiresAt) return false;
+  return new Date(gameExpiresAt).getTime() <= now;
+}
+
+export function queueExpirationKey({
+  phase,
+  gameId,
+  overtimeUsed,
+  gameSeconds,
+  overtimeSeconds,
+  afkExpiresAt,
+  afkSeconds,
+  callExpiresAt,
+  callSeconds,
+}: {
+  phase: string | null | undefined;
+  gameId: string | null;
+  overtimeUsed: boolean;
+  gameSeconds: number;
+  overtimeSeconds: number;
+  afkExpiresAt: string | null;
+  afkSeconds: number;
+  callExpiresAt: string | null;
+  callSeconds: number;
+}) {
+  if (phase === 'playing' && afkExpiresAt && afkSeconds === 0) return `afk:${afkExpiresAt}`;
+  if (phase === 'playing' && gameId && overtimeUsed && gameSeconds === 0) return `game:${gameId}`;
+  if (phase === 'playing' && gameId && !overtimeUsed && overtimeSeconds === 0) return `overtime:${gameId}`;
+  if (phase === 'called' && callExpiresAt && callSeconds === 0) return `call:${callExpiresAt}`;
+  return '';
+}
+
 export function needsQueueCheckIn(
   phase: string | null | undefined,
   userId: string,

@@ -160,6 +160,7 @@ SELECT jsonb_pretty(jsonb_build_object(
     'pg_cron',EXISTS(SELECT 1 FROM pg_extension WHERE extname='pg_cron'),
     'cron_schedule',to_regprocedure('cron.schedule(text,text,text)') IS NOT NULL,
     'queue_advance',to_regprocedure('public.beaver_queue_advance_expired_v1()') IS NOT NULL,
+    'queue_overtime',to_regprocedure('public.beaver_queue_overtime_v1(uuid,text)') IS NOT NULL,
     'ranked_expire',to_regprocedure('public.expire_mobile_ranking_items_v2()') IS NOT NULL
   )
 ));

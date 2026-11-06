@@ -8,7 +8,7 @@ WITH expected_versions(version) AS (VALUES
   ('20261103010000'),('20261103020000'),('20261103030000'),('20261103040000'),
   ('20261103050000'),('20261104010000'),('20261104020000'),('20261104030000'),
   ('20261104040000'),('20261104050000'),('20261104060000'),('20261104070000'),
-  ('20261104080000'),('20261104090000'),('20261104100000')
+  ('20261104080000'),('20261104090000'),('20261104100000'),('20261106010000')
 ), actual_versions AS (
   SELECT node::TEXT AS version
   FROM unnest(CASE
@@ -61,6 +61,8 @@ WITH expected_versions(version) AS (VALUES
 ), expected_functions(signature) AS (VALUES
   ('public.assert_ranked_match_eligibility_v4(uuid,uuid)'),
   ('public.beaver_queue_request_ranked_v1()'),
+  ('public.beaver_queue_overtime_v1(uuid,text)'),
+  ('public.beaver_queue_health_v10()'),
   ('public.beaver_queue_advance_expired_v1()'),
   ('public.expire_mobile_ranking_items_v2()'),
   ('public.run_pongo_queue_maintenance_v1()'),
@@ -92,7 +94,10 @@ WITH expected_versions(version) AS (VALUES
           WHERE queue.id=1 AND (
             queue.solo_expires_at<=clock_timestamp()
             OR queue.call_expires_at<=clock_timestamp()
-            OR queue.game_expires_at<=clock_timestamp()
+            OR (queue.phase='playing' AND queue.overtime_used
+                AND queue.game_expires_at<=clock_timestamp())
+            OR (queue.phase='playing' AND NOT queue.overtime_used
+                AND queue.overtime_prompt_expires_at<=clock_timestamp())
             OR queue.afk_expires_at<=clock_timestamp()
           )
         )
@@ -115,7 +120,7 @@ WITH expected_versions(version) AS (VALUES
     ) AS ranked
 ), checks(check_name,passed,details) AS (
   SELECT 'migration_ledger',
-         (SELECT COUNT(*) FROM actual_versions)=31
+         (SELECT COUNT(*) FROM actual_versions)=32
            AND NOT EXISTS(SELECT 1 FROM version_differences),
          jsonb_build_object(
            'count',(SELECT COUNT(*) FROM actual_versions),
@@ -149,6 +154,7 @@ WITH expected_versions(version) AS (VALUES
           WHERE id=1 AND phase='idle' AND king_id IS NULL AND challenger_id IS NULL
             AND call_expires_at IS NULL AND game_id IS NULL AND game_started_at IS NULL
             AND game_expires_at IS NULL AND solo_expires_at IS NULL
+            AND overtime_prompt_expires_at IS NULL AND overtime_used=FALSE
             AND afk_reporter_id IS NULL AND afk_target_id IS NULL AND afk_expires_at IS NULL),
          COALESCE((SELECT to_jsonb(item) FROM (
            SELECT id,phase,king_id,challenger_id,game_id FROM public.beaver_queue_table

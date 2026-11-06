@@ -91,7 +91,8 @@ SELECT to_regclass('supabase_migrations.schema_migrations') IS NOT NULL AS ledge
 
 SELECT dependency,installed
 FROM (VALUES
-  ('beaver_queue_health_v9',to_regprocedure('public.beaver_queue_health_v9()') IS NOT NULL),
+  ('beaver_queue_health_v10',to_regprocedure('public.beaver_queue_health_v10()') IS NOT NULL),
+  ('beaver_queue_overtime_v1',to_regprocedure('public.beaver_queue_overtime_v1(uuid,text)') IS NOT NULL),
   ('beaver_queue_advance_expired_v1',to_regprocedure('public.beaver_queue_advance_expired_v1()') IS NOT NULL),
   ('assert_ranked_match_eligibility_v4',to_regprocedure('public.assert_ranked_match_eligibility_v4(uuid,uuid)') IS NOT NULL),
   ('expire_mobile_ranking_items_v2',to_regprocedure('public.expire_mobile_ranking_items_v2()') IS NOT NULL),
@@ -118,8 +119,8 @@ FROM (VALUES
   ('live queue',to_regclass('public.beaver_queue_members') IS NOT NULL AND to_regprocedure('public.beaver_queue_tick_v1()') IS NOT NULL),
   ('profile settings',to_regprocedure('public.update_my_profile_settings_v4(text,boolean,boolean)') IS NOT NULL),
   ('queue outcomes and swaps',to_regclass('public.beaver_queue_swap_requests') IS NOT NULL),
-  ('queue match deadline',EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='beaver_queue_table' AND column_name='game_expires_at')),
-  ('queue ranked conversion',to_regclass('public.beaver_queue_ranked_requests') IS NOT NULL AND to_regprocedure('public.beaver_queue_health_v9()') IS NOT NULL),
+  ('queue match overtime',EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='beaver_queue_table' AND column_name='overtime_prompt_expires_at') AND to_regprocedure('public.beaver_queue_overtime_v1(uuid,text)') IS NOT NULL),
+  ('queue ranked conversion',to_regclass('public.beaver_queue_ranked_requests') IS NOT NULL AND to_regprocedure('public.beaver_queue_health_v10()') IS NOT NULL),
   ('avatar configuration',EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='profiles' AND column_name='avatar_config'))
 ) AS fingerprints(stage,fingerprint_present)
 ORDER BY stage;

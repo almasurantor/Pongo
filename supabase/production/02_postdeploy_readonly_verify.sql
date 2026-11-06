@@ -16,6 +16,22 @@ SELECT 'maintenance_functions_and_privileges' AS check_name,
        AND NOT has_function_privilege('anon','public.run_pongo_queue_maintenance_v1()','EXECUTE')
        AND NOT has_function_privilege('anon','public.run_pongo_ranked_maintenance_v1()','EXECUTE') AS passed;
 
+SELECT 'match_overtime_and_unicode_names' AS check_name,
+       to_regprocedure('public.beaver_queue_overtime_v1(uuid,text)') IS NOT NULL
+       AND to_regprocedure('public.beaver_queue_health_v10()') IS NOT NULL
+       AND has_function_privilege('authenticated','public.beaver_queue_overtime_v1(uuid,text)','EXECUTE')
+       AND EXISTS(
+         SELECT 1 FROM information_schema.columns
+         WHERE table_schema='public' AND table_name='beaver_queue_table'
+           AND column_name='overtime_prompt_expires_at'
+       )
+       AND EXISTS(
+         SELECT 1 FROM pg_constraint
+         WHERE conrelid='public.profiles'::REGCLASS
+           AND conname='profiles_display_name_check_v5'
+           AND convalidated
+       ) AS passed;
+
 WITH expected(jobname,schedule,command) AS (VALUES
   ('pongo-queue-expiration-v1','10 seconds','SELECT public.run_pongo_queue_maintenance_v1()'),
   ('pongo-ranked-expiration-v1','*/5 * * * *','SELECT public.run_pongo_ranked_maintenance_v1()'),

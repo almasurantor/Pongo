@@ -4,15 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { createClient } from '@/lib/supabase/client';
 import { Profile } from '@/lib/types';
+import { displayNameError, isValidDisplayName, normalizeDisplayName } from '@/lib/display-name';
 
 type NameState = 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'saved';
-
-const validName = (name: string) => {
-  const normalized = name.trim();
-  return normalized.length >= 3
-    && normalized.length <= 20
-    && /^[A-Za-z0-9][A-Za-z0-9 _.]*[A-Za-z0-9]$/.test(normalized);
-};
 
 export default function ProfileSettings({ profile, onSaved, onDirtyChange }: {
   profile: Profile;
@@ -26,12 +20,12 @@ export default function ProfileSettings({ profile, onSaved, onDirtyChange }: {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    onDirtyChange?.(name.trim() !== savedName);
+    onDirtyChange?.(normalizeDisplayName(name) !== savedName);
   }, [name, onDirtyChange, savedName]);
 
   useEffect(() => {
-    const normalized = name.trim();
-    if (!validName(name)) {
+    const normalized = normalizeDisplayName(name);
+    if (!isValidDisplayName(name)) {
       setNameState('invalid');
       return;
     }
@@ -53,8 +47,8 @@ export default function ProfileSettings({ profile, onSaved, onDirtyChange }: {
   }, [name, savedName, supabase]);
 
   const save = async () => {
-    const normalized = name.trim();
-    if (!validName(normalized) || nameState === 'taken' || nameState === 'checking') return;
+    const normalized = normalizeDisplayName(name);
+    if (!isValidDisplayName(normalized) || nameState === 'taken' || nameState === 'checking') return;
     setSaving(true);
     const { data, error } = await supabase.rpc('update_my_profile_settings_v4', {
       p_display_name: normalized,
@@ -92,7 +86,6 @@ export default function ProfileSettings({ profile, onSaved, onDirtyChange }: {
         <input
           id="display-name"
           value={name}
-          maxLength={20}
           autoComplete="nickname"
           spellCheck={false}
           onChange={(event) => { setName(event.target.value); setNameState('idle'); }}
@@ -100,10 +93,12 @@ export default function ProfileSettings({ profile, onSaved, onDirtyChange }: {
           aria-describedby="display-name-help display-name-status"
         />
         <div className="mt-2 grid min-h-5 gap-1 text-xs sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-3">
-          <p id="display-name-help" className="text-accent-gray-500">3–20 letters, numbers, spaces, underscores, or periods.</p>
+          <p id="display-name-help" className="text-accent-gray-500">1–20 characters with at least one letter. Emoji and symbols are welcome.</p>
           <p id="display-name-status" aria-live="polite" className={`min-h-4 font-black sm:text-right ${statusColor}`}>{status}</p>
         </div>
       </div>
+
+      {nameState === 'invalid' && <p role="alert" className="text-sm font-bold text-red-600">{displayNameError(name)}</p>}
 
       <button
         type="button"

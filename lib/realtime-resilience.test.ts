@@ -22,7 +22,7 @@ describe('realtime resilience', () => {
     expect(queue).toContain("window.addEventListener('online'");
     expect(queue).toContain('75');
     expect(navbar).toContain("status === 'SUBSCRIBED'");
-    expect(navbar).toContain("supabase.rpc('beaver_queue_health_v9')");
+    expect(navbar).toContain("supabase.rpc('beaver_queue_health_v10')");
     expect(navbar).not.toContain("supabase.rpc('beaver_queue_health_v5')");
   });
 

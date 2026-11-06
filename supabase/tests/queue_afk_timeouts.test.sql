@@ -160,8 +160,8 @@ UPDATE public.beaver_queue_table SET
   phase='playing',king_id='fd000000-0000-4000-8000-000000000001',
   challenger_id='fd000000-0000-4000-8000-000000000002',
   game_id='fd100000-0000-4000-8000-000000000002',
-  game_started_at=clock_timestamp()-INTERVAL '11 minutes',
-  game_expires_at=clock_timestamp()-INTERVAL '1 minute',
+  game_started_at=clock_timestamp()-INTERVAL '12 minutes',
+  game_expires_at=clock_timestamp()-INTERVAL '2 minutes',
   afk_reporter_id='fd000000-0000-4000-8000-000000000001',
   afk_target_id='fd000000-0000-4000-8000-000000000002',
   afk_expires_at=clock_timestamp()-INTERVAL '1 second',updated_at=NOW()

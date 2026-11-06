@@ -22,6 +22,7 @@ export interface QueueHealth {
   ranked_requests_ready?: boolean;
   tick_granted?: boolean;
   holder_presence_trigger?: boolean;
+  overtime_granted?: boolean;
 }
 
 const ACTIVE_QUEUE_STATUSES: readonly QueueMemberStatus[] = ['waiting', 'called', 'king', 'playing'];
@@ -44,7 +45,7 @@ export function shouldSendQueueHeartbeat(
 export function isQueueBackendHealthy(data: unknown): data is QueueHealth {
   if (!data || typeof data !== 'object') return false;
   const health = data as QueueHealth;
-  return health.version === '20261104_05'
+  return health.version === '20261106_01'
     && health.initialized === true
     && health.heartbeat_granted === true
     && health.join_granted === true
@@ -54,7 +55,8 @@ export function isQueueBackendHealthy(data: unknown): data is QueueHealth {
     && health.ranked_granted === true
     && health.ranked_requests_ready === true
     && health.tick_granted === true
-    && health.holder_presence_trigger === true;
+    && health.holder_presence_trigger === true
+    && health.overtime_granted === true;
 }
 
 export function queueErrorMessage(caught: unknown, fallback = 'Unable to update the queue.') {
@@ -64,7 +66,7 @@ export function queueErrorMessage(caught: unknown, fallback = 'Unable to update 
   const normalized = raw.toLowerCase();
 
   if (code === 'PGRST202' || code === '42883' || normalized.includes('schema cache')) {
-    return 'The queue database update is missing. Apply migrations through 20261104050000_queue_ranked_inline_scoring.sql in Supabase, then reload.';
+    return 'The queue database update is missing. Apply migrations through 20261106010000_match_overtime_emoji_usernames.sql in Supabase, then reload.';
   }
   if (code === '42P01' || normalized.includes('does not exist')) {
     return 'The queue database tables are not installed. Apply the queue migrations before using this page.';

@@ -98,7 +98,7 @@ describe('queue page structure', () => {
     expect(source).toContain("'beaver_queue_confirm_presence_v1'");
     expect(source).toContain('afkPending && !isAfkTarget');
     expect(source).toContain('to respond to an AFK check');
-    expect(source).toContain('`afk:${table.afk_expires_at}`');
+    expect(source).toContain('afkExpiresAt: table?.afk_expires_at');
   });
 
   it('keeps the flat Pongo queue color hierarchy in both themes', () => {

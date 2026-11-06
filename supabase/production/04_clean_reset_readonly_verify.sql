@@ -12,7 +12,7 @@ WITH expected(version) AS (VALUES
   ('20261103010000'),('20261103020000'),('20261103030000'),('20261103040000'),
   ('20261103050000'),('20261104010000'),('20261104020000'),('20261104030000'),
   ('20261104040000'),('20261104050000'),('20261104060000'),('20261104070000'),
-  ('20261104080000'),('20261104090000'),('20261104100000')
+  ('20261104080000'),('20261104090000'),('20261104100000'),('20261106010000')
 ), actual AS (
   SELECT node::TEXT AS version
   FROM unnest(CASE
@@ -33,8 +33,8 @@ WITH expected(version) AS (VALUES
   SELECT 'unexpected',version FROM actual
   EXCEPT SELECT 'unexpected',version FROM expected
 )
-SELECT 'exact_31_migration_ledger' AS check_name,
-       (SELECT COUNT(*) FROM actual)=31 AND NOT EXISTS(SELECT 1 FROM differences) AS passed,
+SELECT 'exact_32_migration_ledger' AS check_name,
+       (SELECT COUNT(*) FROM actual)=32 AND NOT EXISTS(SELECT 1 FROM differences) AS passed,
        (SELECT COUNT(*) FROM actual) AS actual_count,
        COALESCE((SELECT jsonb_agg(differences ORDER BY problem,version) FROM differences),'[]'::JSONB) AS differences;
 
@@ -76,6 +76,8 @@ WHERE schema.nspname='public' AND NOT constraint_row.convalidated;
 WITH required(signature) AS (VALUES
   ('public.assert_ranked_match_eligibility_v4(uuid,uuid)'),
   ('public.beaver_queue_request_ranked_v1()'),
+  ('public.beaver_queue_overtime_v1(uuid,text)'),
+  ('public.beaver_queue_health_v10()'),
   ('public.beaver_queue_advance_expired_v1()'),
   ('public.expire_mobile_ranking_items_v2()'),
   ('public.run_pongo_queue_maintenance_v1()'),
@@ -135,6 +137,7 @@ FROM public.beaver_queue_table
 WHERE id=1 AND phase='idle'
   AND king_id IS NULL AND challenger_id IS NULL AND call_expires_at IS NULL
   AND game_id IS NULL AND game_started_at IS NULL AND game_expires_at IS NULL
+  AND overtime_prompt_expires_at IS NULL AND overtime_used=FALSE
   AND solo_expires_at IS NULL AND afk_reporter_id IS NULL
   AND afk_target_id IS NULL AND afk_expires_at IS NULL
   AND king_confirmed_at IS NULL AND challenger_confirmed_at IS NULL;

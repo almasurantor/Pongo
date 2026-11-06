@@ -95,7 +95,8 @@
 .checkInCountdown.urgent { color: #dc2626; }
 
 .checkInConfirm,
-.checkInLeave {
+.checkInLeave,
+.overtimeEnd {
   width: 100%;
   min-height: 3.4rem;
   border-radius: .9rem;
@@ -118,11 +119,26 @@
   background: var(--queue-support-surface);
 }
 
+.overtimeActions {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .65rem;
+}
+
+.overtimeEnd {
+  border: 2px solid #fecaca;
+  color: #b91c1c;
+  background: #fff;
+}
+
 .checkInConfirm:disabled,
-.checkInLeave:disabled { cursor: not-allowed; opacity: .5; }
+.checkInLeave:disabled,
+.overtimeEnd:disabled { cursor: not-allowed; opacity: .5; }
 
 .checkInConfirm:focus-visible,
-.checkInLeave:focus-visible { outline: 3px solid rgba(55, 116, 239, .35); outline-offset: 2px; }
+.checkInLeave:focus-visible,
+.overtimeEnd:focus-visible { outline: 3px solid rgba(55, 116, 239, .35); outline-offset: 2px; }
 
 .widgets {
   display: grid;

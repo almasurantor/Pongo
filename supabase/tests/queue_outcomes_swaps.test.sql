@@ -274,8 +274,8 @@ INSERT INTO public.beaver_queue_members(user_id,display_name,status,queue_positi
  ('fc000000-0000-4000-8000-000000000004','Queue V3 D','waiting',204,NOW(),NOW());
 UPDATE public.beaver_queue_table SET phase='playing',king_id='fc000000-0000-4000-8000-000000000001',
   challenger_id='fc000000-0000-4000-8000-000000000002',call_expires_at=NULL,
-  game_id='fc200000-0000-4000-8000-000000000001',game_started_at=NOW()-INTERVAL '10 minutes 1 second',
-  game_expires_at=NOW()-INTERVAL '1 second',
+  game_id='fc200000-0000-4000-8000-000000000001',game_started_at=NOW()-INTERVAL '11 minutes 1 second',
+  game_expires_at=NOW()-INTERVAL '1 minute 1 second',
   updated_at=NOW() WHERE id=1;
 SET LOCAL ROLE service_role;
 SELECT public.beaver_queue_advance_expired_v1();

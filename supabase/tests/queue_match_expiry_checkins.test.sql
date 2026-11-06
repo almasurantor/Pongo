@@ -106,7 +106,10 @@ RESET ROLE;
 CREATE TEMP TABLE queue_v6_game AS
 SELECT game_id FROM public.beaver_queue_table WHERE id=1;
 GRANT SELECT ON queue_v6_game TO authenticated;
-UPDATE public.beaver_queue_table SET game_expires_at=clock_timestamp() WHERE id=1;
+UPDATE public.beaver_queue_table SET
+  game_expires_at=clock_timestamp()-INTERVAL '60 seconds',
+  overtime_prompt_expires_at=clock_timestamp()
+WHERE id=1;
 
 -- A result at/after the authoritative deadline is rejected under the same row lock.
 SET LOCAL ROLE authenticated;

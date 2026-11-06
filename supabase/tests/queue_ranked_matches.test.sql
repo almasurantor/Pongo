@@ -396,7 +396,10 @@ SELECT public.beaver_queue_respond_ranked_v1(
   (SELECT id FROM public.beaver_queue_ranked_requests WHERE status='pending'),'accept'
 );
 RESET ROLE;
-UPDATE public.beaver_queue_table SET game_expires_at=clock_timestamp() WHERE id=1;
+UPDATE public.beaver_queue_table SET
+  game_expires_at=clock_timestamp()-INTERVAL '60 seconds',
+  overtime_prompt_expires_at=clock_timestamp()
+WHERE id=1;
 SET LOCAL ROLE service_role;
 SELECT public.beaver_queue_advance_expired_v1();
 RESET ROLE;

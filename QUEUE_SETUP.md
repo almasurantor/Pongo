@@ -38,6 +38,8 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f supabase/tests/queue_match_expiry_checkins.test.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f supabase/tests/queue_ranked_matches.test.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+  -f supabase/tests/match_overtime_emoji_usernames.test.sql
 ```
 
 The test runs in a transaction and rolls back its users and queue state. Follow
@@ -49,7 +51,7 @@ Run this in the Supabase SQL editor after applying the repair:
 
 ```sql
 SELECT
-  to_regprocedure('public.beaver_queue_health_v9()') IS NOT NULL AS repair_installed,
+  to_regprocedure('public.beaver_queue_health_v10()') IS NOT NULL AS repair_installed,
   has_function_privilege('authenticated','public.beaver_queue_heartbeat_v1()','EXECUTE') AS heartbeat_granted,
   has_function_privilege('authenticated','public.beaver_queue_join_v1()','EXECUTE') AS join_granted,
   has_function_privilege('authenticated','public.beaver_queue_tick_v1()','EXECUTE') AS tick_granted,
@@ -60,6 +62,7 @@ SELECT
   has_function_privilege('authenticated','public.beaver_queue_request_ranked_v1()','EXECUTE') AS ranked_request_granted,
   has_function_privilege('authenticated','public.beaver_queue_respond_ranked_v1(uuid,text)','EXECUTE') AS ranked_response_granted,
   has_function_privilege('authenticated','public.beaver_queue_submit_ranked_result_v1(uuid,uuid,integer,integer)','EXECUTE') AS ranked_score_granted,
+  has_function_privilege('authenticated','public.beaver_queue_overtime_v1(uuid,text)','EXECUTE') AS overtime_granted,
   EXISTS (
     SELECT 1 FROM pg_publication_tables
     WHERE pubname='supabase_realtime' AND schemaname='public'
@@ -68,7 +71,7 @@ SELECT
 ```
 
 All values must be `true`. From an authenticated app session,
-`beaver_queue_health_v9()` must return version `20261104_05`. A `PGRST202` response means
+`beaver_queue_health_v10()` must return version `20261106_01`. A `PGRST202` response means
 the migration was not applied or PostgREST has not reloaded its schema. A `42501`
 response for an authenticated user means the RPC grant is wrong; the same response for
 the anonymous role is expected.

@@ -8,7 +8,9 @@ import { defaultMatchScores, validateMatchScore } from '@/lib/match-result';
 import {
   canReportQueueOutcome,
   canRequestQueueSwap,
+  isQueueOvertimeDecision,
   needsQueueCheckIn,
+  queueExpirationKey,
   queueGameSecondsRemaining,
   queueSecondsUntil,
   type QueueMemberStatus,
@@ -20,7 +22,7 @@ import type { AvatarConfig } from '@/lib/avatar';
 import { APP_RESUME_EVENT } from '@/lib/app-resume';
 
 interface QueueMember { user_id: string; display_name: string; status: QueueMemberStatus; queue_position: number; joined_at: string; }
-interface TableState { id: number; phase: 'idle' | 'called' | 'playing'; king_id: string | null; challenger_id: string | null; call_expires_at: string | null; game_id: string | null; game_started_at: string | null; game_expires_at: string | null; king_confirmed_at: string | null; challenger_confirmed_at: string | null; solo_expires_at: string | null; afk_reporter_id: string | null; afk_target_id: string | null; afk_expires_at: string | null; }
+interface TableState { id: number; phase: 'idle' | 'called' | 'playing'; king_id: string | null; challenger_id: string | null; call_expires_at: string | null; game_id: string | null; game_started_at: string | null; game_expires_at: string | null; overtime_prompt_expires_at: string | null; overtime_used: boolean; king_confirmed_at: string | null; challenger_confirmed_at: string | null; solo_expires_at: string | null; afk_reporter_id: string | null; afk_target_id: string | null; afk_expires_at: string | null; }
 interface QueueGame { id: string; king_id: string; challenger_id: string; king_name: string; challenger_name: string; winner_id: string; loser_id: string; completed_at: string; }
 interface SwapRequest { id: string; requester_id: string; target_id: string; requester_position: number; target_position: number; status: 'pending' | 'accepted' | 'declined' | 'expired' | 'canceled'; expires_at: string; }
 interface RankedRequest { id: string; queue_game_id: string; requester_id: string; opponent_id: string; status: 'pending' | 'accepted' | 'declined' | 'canceled'; match_id: string | null; created_at: string; responded_at: string | null; }
@@ -58,10 +60,10 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
 
   useEffect(() => {
     let cancelled = false;
-    void supabase.rpc('beaver_queue_health_v9').then(({ data, error }) => {
+    void supabase.rpc('beaver_queue_health_v10').then(({ data, error }) => {
       if (cancelled) return;
       if (error) setBackendError(queueErrorMessage(error, 'Unable to verify the queue database version.'));
-      else if (!isQueueBackendHealthy(data)) setBackendError('The queue database is out of date. Apply migration 20261104_05, then reload this page.');
+      else if (!isQueueBackendHealthy(data)) setBackendError('The queue database is out of date. Apply migration 20261106_01, then reload this page.');
       else setBackendError('');
     });
     return () => { cancelled = true; };
@@ -227,6 +229,7 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
   const amPlaying = canReportQueueOutcome(table?.phase, currentUserId, king, challenger);
   const callSeconds = queueSecondsUntil(table?.call_expires_at ?? null, now);
   const gameSeconds = queueGameSecondsRemaining(table?.game_expires_at ?? null, now);
+  const overtimeSeconds = queueSecondsUntil(table?.overtime_prompt_expires_at ?? null, now);
   const soloSeconds = queueSecondsUntil(table?.solo_expires_at ?? null, now);
   const afkSeconds = queueSecondsUntil(table?.afk_expires_at ?? null, now);
   const afkPending = Boolean(table?.afk_target_id && table?.afk_expires_at);
@@ -246,18 +249,30 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
     table?.challenger_confirmed_at ?? null,
   );
   const matchActionsAvailable = amPlaying && gameSeconds > 0;
+  const overtimeDecision = isQueueOvertimeDecision(
+    table?.phase,
+    amPlaying,
+    table?.overtime_used ?? false,
+    table?.game_expires_at ?? null,
+    table?.overtime_prompt_expires_at ?? null,
+    now,
+  );
   const nameOf = (id: string | null) => members.find((member) => member.user_id === id)?.display_name ?? 'Player';
   const avatarOf = (id: string | null) => queueProfiles.find((profile) => profile.id === id)?.avatar_config;
   const snapshotName = (game: QueueGame, id: string) => id === game.king_id ? game.king_name : game.challenger_name;
 
   useEffect(() => {
-    const expirationKey = table?.phase === 'playing' && table.game_id && gameSeconds === 0
-      ? `game:${table.game_id}`
-      : table?.phase === 'playing' && table.afk_expires_at && afkSeconds === 0
-        ? `afk:${table.afk_expires_at}`
-      : table?.phase === 'called' && table.call_expires_at && callSeconds === 0
-        ? `call:${table.call_expires_at}`
-        : '';
+    const expirationKey = queueExpirationKey({
+      phase: table?.phase,
+      gameId: table?.game_id ?? null,
+      overtimeUsed: table?.overtime_used ?? false,
+      gameSeconds,
+      overtimeSeconds,
+      afkExpiresAt: table?.afk_expires_at ?? null,
+      afkSeconds,
+      callExpiresAt: table?.call_expires_at ?? null,
+      callSeconds,
+    });
     if (!expirationKey || syncedExpiration.current === expirationKey) return;
     syncedExpiration.current = expirationKey;
     let cancelled = false;
@@ -268,7 +283,7 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
       await refresh();
     })();
     return () => { cancelled = true; };
-  }, [afkSeconds, callSeconds, gameSeconds, refresh, supabase, table?.afk_expires_at, table?.call_expires_at, table?.game_id, table?.phase]);
+  }, [afkSeconds, callSeconds, gameSeconds, overtimeSeconds, refresh, supabase, table?.afk_expires_at, table?.call_expires_at, table?.game_id, table?.overtime_used, table?.phase]);
 
   const confirmOutcome = async () => {
     if (!table?.game_id || !outcomeChoice || gameSeconds === 0) return;
@@ -316,6 +331,18 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
 
   return (
     <main className={styles.page}>
+      {overtimeDecision && table?.game_id && <div className={styles.checkInBackdrop}>
+        <section className={styles.checkInModal} role="dialog" aria-modal="true" aria-labelledby="overtime-title" aria-describedby="overtime-description">
+          <p className={styles.checkInEyebrow}>Overtime</p>
+          <h2 id="overtime-title">Need more time?</h2>
+          <p id="overtime-description">Either player can add one final two-minute extension. Ending the match removes both players without a result.</p>
+          <strong className={`${styles.checkInCountdown} ${overtimeSeconds <= 15 ? styles.urgent : ''}`} aria-label={`${overtimeSeconds} seconds remaining`}>{formatTimer(overtimeSeconds)}</strong>
+          <div className={styles.overtimeActions}>
+            <button autoFocus type="button" className={styles.checkInConfirm} disabled={Boolean(busy) || overtimeSeconds === 0} onClick={() => void action('overtime-extend', 'beaver_queue_overtime_v1', { p_game_id: table.game_id, p_action: 'extend' })}>{busy === 'overtime-extend' ? 'Adding time…' : '+2 Minutes'}</button>
+            <button type="button" className={styles.overtimeEnd} disabled={Boolean(busy) || overtimeSeconds === 0} onClick={() => void action('overtime-end', 'beaver_queue_overtime_v1', { p_game_id: table.game_id, p_action: 'end' })}>{busy === 'overtime-end' ? 'Ending…' : 'End Match'}</button>
+          </div>
+        </section>
+      </div>}
       {checkInPending && callSeconds > 0 && <div className={styles.checkInBackdrop}>
         <section className={styles.checkInModal} role="dialog" aria-modal="true" aria-labelledby="queue-check-in-title" aria-describedby="queue-check-in-description">
           <p className={styles.checkInEyebrow}>Match ready</p>
@@ -369,7 +396,7 @@ export default function QueueClient({ currentUserId }: { currentUserId: string }
             {table?.phase === 'called' && <div className={styles.callBanner}><span>{checkInPending ? "You're up — check in now" : 'Waiting for the other player'}</span><strong className={callSeconds <= 15 ? styles.urgent : ''}>{formatTimer(callSeconds)}</strong></div>}
             {checkInPending && <button className={styles.primaryButton} disabled={Boolean(busy) || callSeconds === 0} onClick={() => void action('confirm', 'beaver_queue_confirm_v1')}>{busy === 'confirm' ? 'Checking in…' : 'I’m Here'}</button>}
             {table?.phase === 'playing' && <div className={styles.gamePanel}>
-              <div className={styles.gameTimer}><span>Time remaining</span><strong className={gameSeconds <= 60 ? styles.urgent : ''}>{formatTimer(gameSeconds)}</strong></div>
+              <div className={styles.gameTimer}><span>{table.overtime_used ? 'Overtime remaining' : overtimeDecision ? 'Overtime decision' : 'Time remaining'}</span><strong className={gameSeconds <= 60 ? styles.urgent : ''}>{formatTimer(gameSeconds)}</strong></div>
               {isAfkTarget && <div className={styles.afkPrompt}><div><strong>Are you here?</strong><span>Your opponent reported you as AFK.</span></div><strong className={afkSeconds <= 15 ? styles.urgent : ''}>{formatTimer(afkSeconds)}</strong><button disabled={Boolean(busy) || afkSeconds === 0 || !matchActionsAvailable} onClick={() => void action('afk-present', 'beaver_queue_confirm_presence_v1')}>{busy === 'afk-present' ? 'Responding…' : 'I’m Here'}</button></div>}
               {afkPending && !isAfkTarget && <div className={styles.afkStatus}><span>Waiting for {nameOf(table?.afk_target_id ?? null)} to respond to an AFK check</span><strong className={afkSeconds <= 15 ? styles.urgent : ''}>{formatTimer(afkSeconds)}</strong></div>}
               {incomingRankedRequest && dismissedRankedRequestId === rankedRequest.id && <div className={`${styles.rankedStatus} ${styles.rankedReviewStatus}`}><span>{nameOf(rankedRequest.requester_id)} requested a Ranked match.</span><button type="button" disabled={Boolean(busy) || !matchActionsAvailable} onClick={() => setDismissedRankedRequestId(null)}>Review Ranked Request</button></div>}
