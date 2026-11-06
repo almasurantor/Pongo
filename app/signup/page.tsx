@@ -127,7 +127,7 @@ export default function SignUpPage() {
                 autoComplete="nickname"
                 aria-describedby="display-name-help"
                 className="w-full rounded-xl border-2 border-slate-600 bg-[#0B1120] px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-[#3B82F6] focus:ring-2 focus:ring-blue-500/20"
-                placeholder="Almas 🏓"
+                placeholder="Nathan 🐐"
               />
               <p id="display-name-help" className="mt-2 text-xs text-slate-400">1–20 characters with at least one letter. Emoji and symbols are welcome.</p>
             </motion.div>

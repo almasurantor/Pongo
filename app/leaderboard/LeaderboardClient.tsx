@@ -37,23 +37,18 @@ function StandingCard({ entry, scope, currentUserId, avatarConfig }: { entry: Le
   const change = Number(entry.net_elo_change);
   return (
     <Link href={`/profile/${entry.player_id}`} className={`app-surface-card block p-3.5 transition active:scale-[.99] ${mine ? 'app-surface-card--active' : ''}`}>
-      <div className="grid grid-cols-[3rem_2.75rem_1fr_auto] items-start gap-3">
+      <div className={`grid items-start gap-3 ${scope === 'all_time' ? 'grid-cols-[3rem_2.75rem_minmax(0,1fr)]' : 'grid-cols-[3rem_2.75rem_minmax(0,1fr)_auto]'}`}>
         <span className={`text-xl font-black ${entry.placement <= 3 ? 'text-primary-purple' : 'text-accent-gray-500'}`}>#{entry.placement}</span>
         <BeaverAvatar config={avatarConfig} className="h-11 w-11 rounded-full" label={`${entry.display_name}'s avatar`} />
         <span className="min-w-0">
           <span className="block truncate font-black">{entry.display_name}{mine && <span className="ml-2 text-xs text-primary-purple">YOU</span>}</span>
           <span className="mt-1 block"><RankBadge elo={entry.current_elo} totalGames={entry.current_rank === 'Unranked' ? 0 : 1} compact /></span>
         </span>
-        <span className="text-right">
-          {scope === 'all_time' ? (
-            <><span className="block text-2xl font-black text-primary-purple">{entry.current_elo}</span><span className="text-xs font-bold text-accent-gray-400">ELO</span></>
-          ) : (
-            <><span className={`block text-2xl font-black ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>{change >= 0 ? '+' : ''}{change}</span><span className="text-xs font-bold text-accent-gray-400">NET ELO</span></>
-          )}
-        </span>
+        {scope !== 'all_time' && <span className="text-right"><span className={`block text-2xl font-black ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>{change >= 0 ? '+' : ''}{change}</span><span className="text-xs font-bold text-accent-gray-400">NET ELO</span></span>}
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-accent-gray-100 pt-2.5 text-center">
-        <div><p className="font-black">{entry.wins}-{entry.losses}</p><p className="text-[11px] font-bold text-accent-gray-400">RECORD</p></div>
+      <div className="mt-3 grid grid-cols-3 gap-1 border-t border-accent-gray-100 pt-2.5 text-center sm:gap-2">
+        <div><p className="font-black">{entry.current_elo}</p><p className="text-[11px] font-bold text-accent-gray-400">ELO</p></div>
+        <div><p className="font-black">{entry.wins}W–{entry.losses}L</p><p className="text-[11px] font-bold text-accent-gray-400">RECORD</p></div>
         <div><p className="font-black">{Number(entry.win_rate).toFixed(Number(entry.win_rate) % 1 ? 1 : 0)}%</p><p className="text-[11px] font-bold text-accent-gray-400">WIN RATE</p></div>
       </div>
     </Link>

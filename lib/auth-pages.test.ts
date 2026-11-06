@@ -24,4 +24,9 @@ describe('email and password authentication pages', () => {
     expect(login).toContain('signInWithPassword');
     expect(signup).toContain('auth.signUp');
   });
+
+  it('uses the intended display-name example', () => {
+    expect(signup).toContain('placeholder="Nathan 🐐"');
+    expect(signup).not.toContain('placeholder="Almas 🏓"');
+  });
 });

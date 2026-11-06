@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import ScoreStepper from '@/components/ScoreStepper';
 import { defaultMatchScores, validateMatchScore } from '@/lib/match-result';
-import { Dispute, Match, MatchCancellationRequest, MatchSubmission } from '@/lib/types';
+import { Dispute, Match, MatchCancellationRequest, MatchSubmission, RatingEvent } from '@/lib/types';
 import { isMatchOverdue } from '@/lib/ranking-rules';
+import { formatStoredEloChange, getStoredRatingSnapshot } from '@/lib/match-details';
 import { createClient } from '@/lib/supabase/client';
 import { useDatabaseRefresh } from '@/lib/use-database-refresh';
 import RankBadge from '@/components/RankBadge';
@@ -18,6 +19,7 @@ interface Props {
   cancellationRequest: MatchCancellationRequest | null;
   dispute: Dispute | null;
   mySubmission: MatchSubmission | null;
+  ratingEvents: RatingEvent[];
   currentUserId: string;
 }
 
@@ -30,11 +32,22 @@ const deadlineFormatter = new Intl.DateTimeFormat('en-US', {
   timeZoneName: 'short',
 });
 
+const matchDateFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York',
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZoneName: 'short',
+});
+
 export default function MatchClient({
   match: initialMatch,
   cancellationRequest: initialCancellationRequest,
   dispute: initialDispute,
   mySubmission: initialMySubmission,
+  ratingEvents,
   currentUserId,
 }: Props) {
   useDatabaseRefresh(`match-${initialMatch.id}`, ['matches', 'disputes', 'match_cancellation_requests']);
@@ -70,6 +83,19 @@ export default function MatchClient({
   const overdue = match.status === 'ready' && isMatchOverdue(match.expires_at);
   const disputeDeadline = match.confirmed_at ? new Date(match.confirmed_at).getTime() + 48 * 60 * 60 * 1000 : 0;
   const canOpenDispute = match.status === 'confirmed' && !dispute && disputeDeadline > Date.now();
+  const recordedAt = match.confirmed_at ?? match.finalized_at ?? match.created_at;
+  const recordedAtLabel = match.confirmed_at ? 'Confirmed' : match.finalized_at ? 'Finalized' : 'Recorded';
+  const playerDetails = ([
+    { key: 'player_one' as const, id: match.player_one_id, profile: match.player_one, score: match.player_one_score },
+    { key: 'player_two' as const, id: match.player_two_id, profile: match.player_two, score: match.player_two_score },
+  ]).map((player) => ({
+    ...player,
+    rating: getStoredRatingSnapshot(
+      match,
+      player.key,
+      ratingEvents.find((event) => event.player_id === player.id),
+    ),
+  }));
 
   useEffect(() => {
     if (mine != null && theirs != null) {
@@ -276,6 +302,37 @@ export default function MatchClient({
         </header>
 
         <div className="widget-scroll screen-flex pr-1" tabIndex={0} aria-label="Match details and actions">
+        {match.status === 'confirmed' && (
+          <section className="rounded-3xl border-2 border-accent-gray-200 bg-white p-5 shadow-sm sm:p-6" aria-label="Final match result">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-black uppercase text-primary-purple">Final result</p>
+                <h2 className="mt-1 text-2xl font-black">
+                  {match.winner_id === currentUserId ? 'You won' : match.winner_id === opponent?.id ? `${opponent.display_name} won` : 'Match complete'}
+                </h2>
+              </div>
+              <p className="text-right text-xs font-bold text-accent-gray-500">{recordedAtLabel}<br />{matchDateFormatter.format(new Date(recordedAt))}</p>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              {playerDetails.map((player) => {
+                const winner = match.winner_id === player.id;
+                const hasRating = player.rating.before !== null || player.rating.change !== null || player.rating.after !== null;
+                return (
+                  <div key={player.id} className={`min-w-0 rounded-2xl border-2 p-3 text-center sm:p-4 ${winner ? 'border-green-300 bg-green-50' : 'border-accent-gray-100 bg-accent-gray-50'}`}>
+                    <p className="truncate text-sm font-black">{player.profile?.display_name ?? 'Player'}</p>
+                    {winner && <p className="mt-0.5 text-[10px] font-black uppercase text-green-700">Winner</p>}
+                    {player.score !== null && <p className="mt-2 text-4xl font-black text-primary-purple">{player.score}</p>}
+                    {player.rating.change !== null && <p className={`mt-2 text-lg font-black ${player.rating.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatStoredEloChange(player.rating.change)} ELO</p>}
+                    {player.rating.before !== null && player.rating.after !== null && <p className="text-xs font-bold text-accent-gray-500">{player.rating.before} → {player.rating.after}</p>}
+                    {hasRating && (player.rating.before === null || player.rating.after === null) && <p className="text-xs font-bold text-accent-gray-500">Stored rating details are limited</p>}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {match.status === 'confirmed' && dispute && (
           <section className="mt-5 rounded-3xl border-2 border-amber-300 bg-amber-50 p-6">
             <p className="text-sm font-black uppercase text-amber-700">Result dispute</p>

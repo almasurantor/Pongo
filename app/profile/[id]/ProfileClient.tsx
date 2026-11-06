@@ -18,12 +18,13 @@ import { DAILY_RANKED_PAIR_LIMIT, DAILY_RANKED_PAIR_LIMIT_MESSAGE } from '@/lib/
 interface Props {
   profile: Profile;
   matches: Match[];
+  matchesLoadError: string | null;
   opponentUsage: OpponentRankedUsage | null;
   rank: number;
   currentUserId: string;
 }
 
-export default function ProfileClient({ profile, matches, opponentUsage, rank, currentUserId }: Props) {
+export default function ProfileClient({ profile, matches, matchesLoadError, opponentUsage, rank, currentUserId }: Props) {
   useDatabaseRefresh(`profile-${profile.id}`, ['profiles', 'matches', 'rating_events']);
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
@@ -119,30 +120,32 @@ export default function ProfileClient({ profile, matches, opponentUsage, rank, c
         </section>
 
         <section className="min-w-0 rounded-3xl border-2 border-accent-gray-200 bg-white p-4 shadow-sm sm:p-5">
-          <h2 className="mb-3 text-xl font-black">Recent games</h2>
-          <div className="max-h-[20rem] space-y-2 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin] sm:max-h-[24rem]" tabIndex={0} aria-label="Recent games">
+          <h2 className="mb-3 text-xl font-black">{mine ? 'Recent games' : 'Games Against You'}</h2>
+          <div className="max-h-[20rem] space-y-2 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin] sm:max-h-[24rem]" tabIndex={0} aria-label={mine ? 'Recent games' : 'Games Against You'}>
+            {matchesLoadError && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-center text-sm font-bold text-red-700">Could not load ranked match history.</div>}
             {matches.map((match) => {
-              const isPlayerOne = match.player_one_id === profile.id;
+              const perspectiveId = mine ? profile.id : currentUserId;
+              const isPlayerOne = match.player_one_id === perspectiveId;
               const opponent = isPlayerOne ? match.player_two : match.player_one;
-              const playerOneScore = match.player_one_score ?? 0;
-              const playerTwoScore = match.player_two_score ?? 0;
-              const won = match.winner_id === profile.id;
+              const playerOneScore = match.player_one_score;
+              const playerTwoScore = match.player_two_score;
+              const won = match.winner_id === perspectiveId;
               const myScore = isPlayerOne ? playerOneScore : playerTwoScore;
               const theirScore = isPlayerOne ? playerTwoScore : playerOneScore;
-              const change = (isPlayerOne ? match.player_one_elo_change : match.player_two_elo_change) ?? 0;
+              const change = isPlayerOne ? match.player_one_elo_change : match.player_two_elo_change;
               return (
                 <Link href={`/match/${match.id}`} key={match.id} className="grid grid-cols-[2.8rem_2.5rem_1fr_auto] items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
                   <span className={`text-sm font-black ${won ? 'text-green-600' : 'text-red-600'}`}>{won ? 'WIN' : 'LOSS'}</span>
                   <BeaverAvatar config={opponent?.avatar_config} className="h-10 w-10 rounded-full" label={`${opponent?.display_name ?? 'Opponent'} avatar`} />
                   <span className="min-w-0">
                     <span className="block truncate font-black">vs {opponent?.display_name}</span>
-                    <span className="text-xs text-accent-gray-500">{myScore}–{theirScore} · {match.confirmed_at ? format(new Date(match.confirmed_at), 'MMM d, yyyy') : ''}</span>
+                    <span className="text-xs text-accent-gray-500">{myScore !== null && theirScore !== null ? `${myScore}–${theirScore} · ` : ''}{match.confirmed_at ? format(new Date(match.confirmed_at), 'MMM d, yyyy') : ''}</span>
                   </span>
-                  <span className={`font-black ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>{change >= 0 ? '+' : ''}{change}</span>
+                  {change !== null && <span className={`font-black ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>{change >= 0 ? '+' : ''}{change}</span>}
                 </Link>
               );
             })}
-            {!matches.length && <div className="rounded-2xl bg-white p-8 text-center text-accent-gray-500">No ranked games yet.</div>}
+            {!matches.length && !matchesLoadError && <div className="rounded-2xl bg-white p-8 text-center text-accent-gray-500">{mine ? 'No ranked games yet.' : "You haven't played a ranked match against this person yet."}</div>}
           </div>
         </section>
 
