@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { authRedirectForPath } from './auth-routing';
 
 describe('PWA startup auth routing', () => {
-  it('opens the dashboard for authenticated launches and auth pages', () => {
-    expect(authRedirectForPath('/', true)).toBe('/dashboard');
-    expect(authRedirectForPath('/login', true)).toBe('/dashboard');
-    expect(authRedirectForPath('/signup', true)).toBe('/dashboard');
+  it('opens the queue for authenticated launches and auth pages', () => {
+    expect(authRedirectForPath('/', true)).toBe('/queue');
+    expect(authRedirectForPath('/login', true)).toBe('/queue');
+    expect(authRedirectForPath('/signup', true)).toBe('/queue');
   });
 
   it('shows the landing page for a signed-out launch', () => {

@@ -44,7 +44,7 @@ describe('PWA cold-launch recovery', () => {
 
   it('keeps the standalone launch URL stable and in scope', () => {
     expect(manifest).toContain("id: '/'");
-    expect(manifest).toContain("start_url: '/'");
+    expect(manifest).toContain("start_url: '/queue'");
     expect(manifest).toContain("scope: '/'");
     expect(manifest).toContain("display: 'standalone'");
   });

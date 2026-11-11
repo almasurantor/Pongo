@@ -8,7 +8,8 @@ WITH expected_versions(version) AS (VALUES
   ('20261103010000'),('20261103020000'),('20261103030000'),('20261103040000'),
   ('20261103050000'),('20261104010000'),('20261104020000'),('20261104030000'),
   ('20261104040000'),('20261104050000'),('20261104060000'),('20261104070000'),
-  ('20261104080000'),('20261104090000'),('20261104100000'),('20261106010000')
+  ('20261104080000'),('20261104090000'),('20261104100000'),('20261106010000'),
+  ('20261111010000')
 ), actual_versions AS (
   SELECT node::TEXT AS version
   FROM unnest(CASE
@@ -120,7 +121,7 @@ WITH expected_versions(version) AS (VALUES
     ) AS ranked
 ), checks(check_name,passed,details) AS (
   SELECT 'migration_ledger',
-         (SELECT COUNT(*) FROM actual_versions)=32
+         (SELECT COUNT(*) FROM actual_versions)=33
            AND NOT EXISTS(SELECT 1 FROM version_differences),
          jsonb_build_object(
            'count',(SELECT COUNT(*) FROM actual_versions),

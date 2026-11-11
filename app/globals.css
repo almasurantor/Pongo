@@ -226,37 +226,24 @@ body {
 
 @media (max-width: 639px) {
   .mobile-bottom-nav {
-    bottom: max(.15rem, calc(env(safe-area-inset-bottom) - .65rem));
+    bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: #FFFFFF;
     pointer-events: none;
   }
 
   .mobile-nav-island {
     position: relative;
-    width: calc(100% - 1.25rem);
+    width: 100%;
     max-width: 24.75rem;
-    height: 3.85rem;
-    padding: .25rem .35rem;
-    border: 1px solid rgba(226, 232, 240, .92);
-    border-radius: 1.65rem;
-    background: rgba(255, 255, 255, .92);
-    box-shadow: 0 16px 40px rgba(15, 23, 42, .18), 0 2px 8px rgba(15, 23, 42, .08);
-    backdrop-filter: blur(22px) saturate(150%);
-    -webkit-backdrop-filter: blur(22px) saturate(150%);
+    height: 4rem;
+    padding: .25rem .5rem;
+    background: #FFFFFF;
     pointer-events: auto;
   }
 
   .mobile-nav-island::before {
-    content: '';
-    position: absolute;
-    z-index: 0;
-    left: 50%;
-    bottom: .28rem;
-    width: 4rem;
-    height: 3.1rem;
-    transform: translateX(-50%);
-    border-radius: 1.45rem;
-    background: linear-gradient(145deg, #3B82F6, #1D4ED8);
-    box-shadow: 0 8px 20px rgba(37, 99, 235, .35), inset 0 1px 0 rgba(255, 255, 255, .28);
+    content: none;
   }
 
   .mobile-nav-item {
@@ -268,20 +255,20 @@ body {
   }
 
   .mobile-nav-item:active { transform: scale(.9); }
-  .mobile-nav-active { background: rgba(37, 99, 235, .1); }
-  .mobile-nav-play {
+  .mobile-nav-active { background: #EFF6FF; }
+  .mobile-nav-primary {
     width: 3.55rem;
-    height: 2.8rem;
-    border-radius: 1.35rem;
-    transform: translateY(.08rem);
+    height: 3.35rem;
+    border-radius: 1.2rem;
+    background: #2563EB;
   }
-  .mobile-nav-play:active { transform: translateY(.08rem) scale(.92); }
+  .mobile-nav-primary:active { transform: scale(.92); }
 
+  html.dark .mobile-bottom-nav,
   html.dark .mobile-nav-island {
-    border-color: rgba(71, 85, 105, .82);
-    background: rgba(11, 17, 32, .92);
-    box-shadow: 0 16px 42px rgba(0, 0, 0, .42), 0 2px 8px rgba(0, 0, 0, .3);
+    background: #0B1120;
   }
+  html.dark .mobile-nav-active { background: #172554; }
 }
 
 .result-popup-backdrop,

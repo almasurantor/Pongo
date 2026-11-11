@@ -1,10 +1,10 @@
 export const avatarOptions = {
-  fur: ['brown', 'tan', 'cream', 'gray', 'black', 'blue', 'pink'],
-  hat: ['none', 'baseball-cap', 'beanie', 'crown', 'bucket-hat', 'party-hat'],
-  glasses: ['none', 'sunglasses', 'round', 'nerd'],
-  facialHair: ['none', 'mustache', 'short-beard', 'goatee'],
-  expression: ['happy', 'confident', 'sleepy', 'surprised', 'mischievous'],
-  accessory: ['none', 'headphones', 'bow', 'bandana'],
+  fur: ['brown', 'tan', 'cream', 'gray', 'black', 'blue', 'pink', 'rainbow'],
+  hat: ['none', 'baseball-cap', 'beanie', 'crown', 'bucket-hat', 'party-hat', 'wizard-hat', 'dickhead-hat'],
+  glasses: ['none', 'round', 'nerd', 'sunglasses', 'heart', 'star', 'reading', 'goggles'],
+  facialHair: ['none', 'mustache', 'curled-mustache', 'handlebar-mustache', 'goatee', 'short-beard', 'big-beard', 'wizard-beard'],
+  expression: ['happy', 'mischievous', 'angry', 'sleepy'],
+  accessory: ['none', 'gold-chain', 'bow', 'headphones', 'earrings', 'bandana', 'medal', 'paddle'],
 } as const;
 
 export type AvatarConfig = {
@@ -45,22 +45,27 @@ export function normalizeAvatarConfig(value: unknown): AvatarConfig {
 
 export function randomAvatarConfig(): AvatarConfig {
   const pick = <T extends readonly string[]>(options: T): T[number] => options[Math.floor(Math.random() * options.length)];
+  const facialHair = pick(avatarOptions.facialHair);
+  const accessories = facialHair === 'big-beard' || facialHair === 'wizard-beard'
+    ? avatarOptions.accessory.filter((option) => !['bow', 'bandana', 'medal'].includes(option))
+    : avatarOptions.accessory;
   return {
     version: 1,
     fur: pick(avatarOptions.fur),
     hat: pick(avatarOptions.hat),
     glasses: pick(avatarOptions.glasses),
-    facialHair: pick(avatarOptions.facialHair),
+    facialHair,
     expression: pick(avatarOptions.expression),
-    accessory: pick(avatarOptions.accessory),
+    accessory: pick(accessories),
   };
 }
 
 export const avatarLabels: Record<string, string> = {
-  fur: 'Fur', hat: 'Hats', glasses: 'Glasses', facialHair: 'Facial hair', expression: 'Expression', accessory: 'Accessories',
-  brown: 'Original orange', tan: 'Golden tan', cream: 'Cream', gray: 'Silver gray', black: 'Midnight', blue: 'Pongo blue', pink: 'Bubblegum',
-  none: 'None', 'baseball-cap': 'Baseball cap', beanie: 'Beanie', crown: 'Crown', 'bucket-hat': 'Bucket hat', 'party-hat': 'Party hat',
-  sunglasses: 'Sunglasses', round: 'Round glasses', nerd: 'Nerd glasses', mustache: 'Mustache', 'short-beard': 'Short beard', goatee: 'Goatee',
-  happy: 'Happy', confident: 'Confident', sleepy: 'Sleepy', surprised: 'Surprised', mischievous: 'Mischievous',
-  headphones: 'Headphones', bow: 'Bow tie', bandana: 'Bandana',
+  fur: 'Fur', hat: 'Hats', glasses: 'Glasses', facialHair: 'Facial Hair', expression: 'Expressions', accessory: 'Accessories',
+  brown: 'Original orange', tan: 'Golden tan', cream: 'Cream', gray: 'Silver gray', black: 'Midnight', blue: 'Pongo blue', pink: 'Bubblegum', rainbow: 'Rainbow',
+  none: 'None', 'baseball-cap': 'Baseball cap', beanie: 'Beanie', crown: 'Crown', 'bucket-hat': 'Bucket hat', 'party-hat': 'Party hat', 'wizard-hat': 'Wizard hat', 'dickhead-hat': 'Dickhead hat',
+  round: 'Round glasses', nerd: 'Nerd glasses', sunglasses: 'Sunglasses', heart: 'Heart glasses', star: 'Star glasses', reading: 'Tiny reading glasses', goggles: 'Sport goggles',
+  mustache: 'Small mustache', 'curled-mustache': 'Curled mustache', 'handlebar-mustache': 'Handlebar mustache', goatee: 'Goatee', 'short-beard': 'Short beard', 'big-beard': 'Big beard', 'wizard-beard': 'Wizard beard',
+  happy: 'Default happy', mischievous: 'Excited', angry: 'Angry', sleepy: 'Sleepy',
+  'gold-chain': 'Gold chain', bow: 'Bow tie', headphones: 'Headphones', earrings: 'Earrings', bandana: 'Bandana', medal: 'Medal', paddle: 'Ping-pong paddle',
 };

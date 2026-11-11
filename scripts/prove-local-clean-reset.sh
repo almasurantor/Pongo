@@ -9,8 +9,8 @@ fi
 db_container="${SUPABASE_DB_CONTAINER:-supabase_db_pongo}"
 cli_version="${PONGO_CLI_VERSION:-3.0.0}"
 
-if [[ "$(find supabase/migrations -type f -name '*.sql' | wc -l | tr -d ' ')" != "32" ]]; then
-  echo "Expected exactly 32 local migrations." >&2
+if [[ "$(find supabase/migrations -type f -name '*.sql' | wc -l | tr -d ' ')" != "33" ]]; then
+  echo "Expected exactly 33 local migrations." >&2
   exit 1
 fi
 
@@ -37,7 +37,7 @@ clean_result="$(docker exec "$db_container" psql -X -At -v ON_ERROR_STOP=1 \
     AND (SELECT COUNT(*) FROM public.profiles)=0
     AND (SELECT COUNT(*) FROM public.matches)=0
     AND (SELECT COUNT(*) FROM public.beaver_queue_members)=0
-    AND (SELECT COUNT(*) FROM supabase_migrations.schema_migrations)=32
+    AND (SELECT COUNT(*) FROM supabase_migrations.schema_migrations)=33
     AND EXISTS(SELECT 1 FROM public.ranking_config WHERE id AND daily_ranked_player_limit=10 AND daily_ranked_pair_limit=3)
     AND EXISTS(SELECT 1 FROM public.beaver_queue_table WHERE id=1 AND phase='idle' AND king_id IS NULL AND challenger_id IS NULL);")"
 if [[ "$clean_result" != "t" ]]; then

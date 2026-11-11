@@ -29,4 +29,10 @@ describe('email and password authentication pages', () => {
     expect(signup).toContain('placeholder="Nathan 🐐"');
     expect(signup).not.toContain('placeholder="Almas 🏓"');
   });
+
+  it('routes successful sign-ins and account creation to the queue', () => {
+    expect(login).toContain("router.replace('/queue')");
+    expect(signup).toContain("router.replace('/queue')");
+    expect(signup).toContain('/auth/callback?next=/queue');
+  });
 });

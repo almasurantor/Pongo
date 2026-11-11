@@ -12,7 +12,8 @@ WITH expected(version) AS (VALUES
   ('20261103010000'),('20261103020000'),('20261103030000'),('20261103040000'),
   ('20261103050000'),('20261104010000'),('20261104020000'),('20261104030000'),
   ('20261104040000'),('20261104050000'),('20261104060000'),('20261104070000'),
-  ('20261104080000'),('20261104090000'),('20261104100000'),('20261106010000')
+  ('20261104080000'),('20261104090000'),('20261104100000'),('20261106010000'),
+  ('20261111010000')
 ), actual AS (
   SELECT node::TEXT AS version
   FROM unnest(CASE
@@ -33,8 +34,8 @@ WITH expected(version) AS (VALUES
   SELECT 'unexpected',version FROM actual
   EXCEPT SELECT 'unexpected',version FROM expected
 )
-SELECT 'exact_32_migration_ledger' AS check_name,
-       (SELECT COUNT(*) FROM actual)=32 AND NOT EXISTS(SELECT 1 FROM differences) AS passed,
+SELECT 'exact_33_migration_ledger' AS check_name,
+       (SELECT COUNT(*) FROM actual)=33 AND NOT EXISTS(SELECT 1 FROM differences) AS passed,
        (SELECT COUNT(*) FROM actual) AS actual_count,
        COALESCE((SELECT jsonb_agg(differences ORDER BY problem,version) FROM differences),'[]'::JSONB) AS differences;
 

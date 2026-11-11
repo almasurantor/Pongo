@@ -52,7 +52,7 @@ export default function SignUpPage() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/queue`,
           data: {
             display_name: normalizedDisplayName,
           },
@@ -63,13 +63,13 @@ export default function SignUpPage() {
 
       if (data.session) {
         toast.success('Account created!');
-        router.replace('/dashboard');
+        router.replace('/queue');
         router.refresh();
       } else if (data.user) {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
         toast.success('Account created!');
-        router.replace('/dashboard');
+        router.replace('/queue');
         router.refresh();
       }
     } catch (error: unknown) {

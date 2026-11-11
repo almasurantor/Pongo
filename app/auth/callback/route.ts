@@ -6,7 +6,7 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get('code')
   const providerError = requestUrl.searchParams.get('error_description')
   const requestedNext = requestUrl.searchParams.get('next')
-  const next = requestedNext?.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : '/dashboard'
+  const next = requestedNext?.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : '/queue'
   const origin = requestUrl.origin
 
   if (providerError) {

@@ -23,7 +23,7 @@ const ranks: { name: RankTierName; range: string }[] = [
 ];
 
 const boardMembers: { name: string; position: string; avatar: AvatarConfig }[] = [
-  { name: 'Iona', position: 'President', avatar: { version: 1, fur: 'pink', hat: 'crown', glasses: 'none', facialHair: 'none', expression: 'confident', accessory: 'none' } },
+  { name: 'Iona', position: 'President', avatar: { version: 1, fur: 'pink', hat: 'crown', glasses: 'none', facialHair: 'none', expression: 'happy', accessory: 'none' } },
   { name: 'Almasur', position: 'Vice President', avatar: { version: 1, fur: 'blue', hat: 'bucket-hat', glasses: 'sunglasses', facialHair: 'none', expression: 'happy', accessory: 'none' } },
   { name: 'Ethan', position: 'Secretary', avatar: { version: 1, fur: 'tan', hat: 'beanie', glasses: 'round', facialHair: 'none', expression: 'mischievous', accessory: 'none' } },
   { name: 'Mohammed', position: 'Treasurer', avatar: { version: 1, fur: 'gray', hat: 'none', glasses: 'nerd', facialHair: 'mustache', expression: 'happy', accessory: 'bow' } },

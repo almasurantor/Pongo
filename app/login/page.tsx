@@ -38,7 +38,7 @@ export default function LoginPage() {
       if (error) throw error;
 
       toast.success('Logged in successfully!');
-      router.replace('/dashboard');
+      router.replace('/queue');
       router.refresh();
     } catch (error: unknown) {
       const message = authErrorMessage(error, 'Failed to log in.');

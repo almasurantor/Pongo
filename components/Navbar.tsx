@@ -92,10 +92,10 @@ export default function Navbar() {
 
   const profileHref = userId ? `/profile/${userId}` : '/dashboard';
   const items = [
-    { href: '/dashboard', label: 'Home', icon: 'home' },
-    { href: '/leaderboard', label: 'Leaderboard', icon: 'leaderboard' },
-    { href: '/play', label: 'Play', icon: 'play', primary: true },
     { href: '/queue', label: 'Queue', icon: 'queue' },
+    { href: '/leaderboard', label: 'Leaderboard', icon: 'leaderboard' },
+    { href: '/dashboard', label: 'Home', icon: 'home', primary: true },
+    { href: '/play', label: 'Play', icon: 'play' },
     { href: profileHref, label: 'Profile', icon: 'profile' },
   ];
   const active = (href: string) => href === '/dashboard' ? pathname === href : pathname.startsWith(href);
@@ -122,13 +122,13 @@ export default function Navbar() {
           </Link>
           <div className="flex items-center gap-5 lg:gap-7">
             {items.map((item) => <Link key={item.label} href={item.href} prefetch={false}
-              className={`text-sm font-bold transition ${active(item.href) ? 'text-primary-purple' : 'text-accent-gray-600 hover:text-primary-purple'} ${item.primary ? 'rounded-full bg-brand-orange px-5 py-2.5 text-white hover:bg-brand-orangeDark hover:text-white' : ''}`}>
+              className={`text-sm font-bold transition ${active(item.href) ? 'text-primary-purple' : 'text-accent-gray-600 hover:text-primary-purple'} ${item.primary ? 'rounded-full bg-[#2563EB] px-5 py-2.5 text-white hover:bg-[#1D4ED8] hover:text-white' : ''}`}>
               {item.label}
             </Link>)}
           </div>
         </div>
       </nav>
-      <nav aria-label="Primary" className="mobile-bottom-nav fixed inset-x-0 z-50 px-2 sm:hidden">
+      <nav aria-label="Primary" className="mobile-bottom-nav fixed inset-x-0 z-50 sm:hidden">
         <div className="mobile-nav-island mx-auto grid max-w-md grid-cols-5 items-center">
           {items.map((item) => {
             const isActive = active(item.href);
@@ -142,7 +142,7 @@ export default function Navbar() {
                 onClick={(event) => {
                   if (event.detail > 0) event.currentTarget.blur();
                 }}
-                className={`mobile-nav-item relative mx-auto flex items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB] dark:focus-visible:outline-[#60A5FA] ${item.primary ? 'mobile-nav-play text-white' : isActive ? 'mobile-nav-active text-[#2563EB] dark:text-[#93C5FD]' : 'text-accent-gray-500 dark:text-accent-gray-300'}`}
+                className={`mobile-nav-item relative mx-auto flex items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB] dark:focus-visible:outline-[#60A5FA] ${item.primary ? 'mobile-nav-primary text-white' : isActive ? 'mobile-nav-active text-[#2563EB] dark:text-[#93C5FD]' : 'text-accent-gray-500 dark:text-accent-gray-300'}`}
               >
                 <NavIcon name={item.icon} className={item.primary ? 'h-[1.35rem] w-[1.35rem]' : 'h-5 w-5'} />
                 {item.label === 'Queue' && queueCalled && (

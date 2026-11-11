@@ -6,9 +6,9 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'Pongo',
     id: '/',
     description: 'Pongo is the CCNY Table Tennis Club ladder, live queue, and match-day app.',
-    // The root performs a server-side session check: returning users reach the
-    // dashboard, while signed-out users receive the public landing page.
-    start_url: '/',
+    // Launch the live queue directly. Middleware sends signed-out visitors to
+    // the public landing page without rendering it for authenticated users.
+    start_url: '/queue',
     scope: '/',
     display: 'standalone',
     background_color: '#2563EB',
@@ -35,9 +35,9 @@ export default function manifest(): MetadataRoute.Manifest {
       },
     ],
     shortcuts: [
+      { name: 'Live table queue', short_name: 'Queue', url: '/queue', icons: [{ src: '/icons/icon-192.png?v=4', sizes: '192x192' }] },
       { name: 'Home', short_name: 'Home', url: '/dashboard', icons: [{ src: '/icons/icon-192.png?v=4', sizes: '192x192' }] },
       { name: 'Challenge a player', short_name: 'Play', url: '/players', icons: [{ src: '/icons/icon-192.png?v=4', sizes: '192x192' }] },
-      { name: 'Live table queue', short_name: 'Queue', url: '/queue', icons: [{ src: '/icons/icon-192.png?v=4', sizes: '192x192' }] },
       { name: 'Leaderboard', short_name: 'Ranks', url: '/leaderboard', icons: [{ src: '/icons/icon-192.png?v=4', sizes: '192x192' }] },
       { name: 'Casual scorekeeper', short_name: 'Casual', url: '/play/casual', icons: [{ src: '/icons/icon-192.png?v=4', sizes: '192x192' }] },
     ],

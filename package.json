@@ -15,6 +15,7 @@
     "verify:production:preflight": "npx --yes supabase@3.0.0 db query --remote=dqkmtbrzhqearrqpmlwd --read-only --file supabase/production/00_clean_reset_preflight.sql",
     "verify:production:readonly": "bash scripts/run-production-readonly-audit.sh",
     "verify:production:clean-gate": "npx --yes supabase@3.0.0 db query --remote=dqkmtbrzhqearrqpmlwd --read-only --file supabase/production/05_clean_deployment_gate.sql",
+    "verify:production:avatar": "PONGO_ALLOW_HOSTED_AVATAR_TEST=YES_CREATE_RESTORE_DELETE_ONE_TEST_USER node --env-file=.env.local scripts/hosted-avatar-options-smoke.mjs",
     "verify:production:http": "node scripts/hosted-readonly-verification.mjs",
     "verify:production:queue-expiry": "node scripts/hosted-queue-expiry-smoke.mjs",
     "verify:production:release": "node --env-file=.env.local scripts/hosted-release-verification.mjs"
